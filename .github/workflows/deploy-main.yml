@@ -18,8 +18,6 @@ jobs:
           script: |
             cd ${{ secrets.MAIN_PATH }}
             git fetch origin
-            git stash
-            git checkout -B main origin/main
-            git stash drop || true
+            git checkout -f -B main origin/main
             npm install
             pm2 restart zerohost-dashboard

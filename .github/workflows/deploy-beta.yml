@@ -18,8 +18,6 @@ jobs:
           script: |
             cd ${{ secrets.BETA_PATH }}
             git fetch origin
-            git stash
-            git checkout -B beta origin/beta
-            git stash drop || true
+            git checkout -f -B beta origin/beta
             npm install
             pm2 restart beta
