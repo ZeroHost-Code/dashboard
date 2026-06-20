@@ -4,7 +4,7 @@ import argon2 from 'argon2';
 import { query } from '../config/db.js';
 import { generateToken, authenticateToken } from '../middleware/auth.js';
 import { createPteroUser, updatePteroPassword, updatePteroEmail, deletePteroUser, getServersByUser, deletePteroServer } from '../services/pterodactyl.js';
-import { verifyTurnstile } from '../config/turnstile.js';
+import { verifyCap } from '../config/cap.js';
 
 const router = Router();
 
@@ -49,7 +49,7 @@ function validateUsername(username) {
 router.post('/register', async (req, res) => {
   let createdPteroUserId = null;
   try {
-    const { email, username, password, cfTurnstile, rgpdConsent } = req.body;
+    const { email, username, password, capToken, rgpdConsent } = req.body;
 
     if (!email || !username || !password) {
       return res.status(400).json({ error: 'Email, username and password are required' });
@@ -71,7 +71,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
     }
 
-    if (!await verifyTurnstile(cfTurnstile)) {
+    if (!await verifyCap(capToken)) {
       return res.status(400).json({ error: 'Please complete the security check' });
     }
 
@@ -157,14 +157,14 @@ router.post('/register', async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
-    const { email, password, cfTurnstile } = req.body;
+    const { email, password, capToken } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // Turnstile verification
-    if (!await verifyTurnstile(cfTurnstile)) {
+    // Cap verification
+    if (!await verifyCap(capToken)) {
       return res.status(400).json({ error: 'Please complete the security check' });
     }
 

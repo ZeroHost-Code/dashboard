@@ -24,7 +24,7 @@ function renderCookieBanner() {
   banner.innerHTML = `
     <div class="cookie-banner-text">
       <p>
-        We use cookies for authentication and security (Cloudflare Turnstile). No tracking or advertising cookies are used.
+        We use cookies for authentication and security (Cap). No tracking or advertising cookies are used.
         For more information, read our privacy policy.
       </p>
     </div>
@@ -150,29 +150,7 @@ function hideError(form) {
   if (errorEl) errorEl.classList.remove('show');
 }
 
-const turnstileWidgets = {};
 
-function initTurnstile(selector) {
-  const el = typeof selector === 'string' ? document.querySelector(selector) : selector;
-  if (!el) return;
-  const tryRender = () => {
-    if (typeof turnstile !== 'undefined') {
-      if (el.querySelector('iframe')) return;
-      const widgetId = turnstile.render(el, { sitekey: '0x4AAAAAADjivxHTaDDdYR8W', theme: 'dark' });
-      turnstileWidgets[selector] = widgetId;
-    } else {
-      setTimeout(tryRender, 200);
-    }
-  };
-  tryRender();
-}
-
-function resetTurnstile(selector) {
-  const id = turnstileWidgets[selector];
-  if (typeof turnstile !== 'undefined' && id !== undefined) {
-    turnstile.reset(id);
-  }
-}
 
 // ===== AUTH PAGES =====
 function renderLoginPage() {
@@ -196,7 +174,7 @@ function renderLoginPage() {
             <label for="login-password">Password</label>
             <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password" />
           </div>
-          <div id="login-turnstile" style="margin-bottom:20px"></div>
+          <cap-widget data-cap-api-endpoint="https://cap.zero-host.org/f6c8171b08/"></cap-widget>
           <button type="submit" class="btn btn-primary btn-full" id="login-btn">
             Sign In
           </button>
@@ -210,7 +188,6 @@ function renderLoginPage() {
   `;
 
   $('#login-form').addEventListener('submit', handleLogin);
-  initTurnstile('#login-turnstile');
   $('#go-register').addEventListener('click', (e) => {
     e.preventDefault();
     renderRegisterPage();
@@ -248,7 +225,7 @@ function renderRegisterPage() {
               I agree to the privacy policy and consent to the processing of my personal data (email, username, IP address) for account management purposes. <span style="color:var(--accent-red)">*</span>
             </label>
           </div>
-          <div id="register-turnstile" style="margin-bottom:20px"></div>
+          <cap-widget data-cap-api-endpoint="https://cap.zero-host.org/f6c8171b08/"></cap-widget>
           <button type="submit" class="btn btn-primary btn-full" id="register-btn">
             Create Account
           </button>
@@ -262,7 +239,6 @@ function renderRegisterPage() {
   `;
 
   $('#register-form').addEventListener('submit', handleRegister);
-  initTurnstile('#register-turnstile');
   $('#go-login').addEventListener('click', (e) => {
     e.preventDefault();
     renderLoginPage();
@@ -277,13 +253,13 @@ async function handleLogin(e) {
   btn.innerHTML = '<span class="spinner"></span> Signing in...';
 
   try {
-    const turnstileToken = document.querySelector('#login-turnstile')?.querySelector('[name="cf-turnstile-response"]')?.value || '';
+    const capToken = document.querySelector('[name="cap-token"]')?.value || '';
     const data = await api('/auth/login', {
       method: 'POST',
       body: JSON.stringify({
         email: $('#login-email').value,
         password: $('#login-password').value,
-        cfTurnstile: turnstileToken,
+        capToken,
       }),
     });
     state.token = data.token;
@@ -293,7 +269,6 @@ async function handleLogin(e) {
     renderDashboard();
   } catch (err) {
     showError(e.target, err.message);
-    resetTurnstile('#login-turnstile');
   } finally {
     btn.disabled = false;
     btn.innerHTML = 'Sign In';
@@ -315,14 +290,14 @@ async function handleRegister(e) {
   btn.innerHTML = '<span class="spinner"></span> Creating...';
 
   try {
-    const turnstileToken = document.querySelector('#register-turnstile')?.querySelector('[name="cf-turnstile-response"]')?.value || '';
+    const capToken = document.querySelector('[name="cap-token"]')?.value || '';
     const data = await api('/auth/register', {
       method: 'POST',
       body: JSON.stringify({
         email: $('#reg-email').value,
         username: $('#reg-username').value,
         password: $('#reg-password').value,
-        cfTurnstile: turnstileToken,
+        capToken,
         rgpdConsent: true,
       }),
     });
@@ -333,7 +308,6 @@ async function handleRegister(e) {
     renderDashboard();
   } catch (err) {
     showError(e.target, err.message);
-    resetTurnstile('#register-turnstile');
   } finally {
     btn.disabled = false;
     btn.innerHTML = 'Create Account';
@@ -763,7 +737,7 @@ async function renderCreateServer() {
             <span class="server-detail-tag">3 GB Disk</span>
           </div>
         </div>
-        <div id="create-turnstile" style="margin-top:20px"></div>
+        <cap-widget data-cap-api-endpoint="https://cap.zero-host.org/f6c8171b08/"></cap-widget>
         <button type="submit" class="btn btn-primary btn-full" id="create-btn" style="margin-top:16px">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
           Create Server
@@ -782,7 +756,6 @@ async function renderCreateServer() {
     }
   });
   $('#create-server-form').addEventListener('submit', handleCreateServer);
-  initTurnstile('#create-turnstile');
 
   try {
     const data = await api('/servers/eggs');
@@ -844,16 +817,15 @@ async function handleCreateServer(e) {
   }
 
   try {
-    const turnstileToken = document.querySelector('#create-turnstile')?.querySelector('[name="cf-turnstile-response"]')?.value || '';
+    const capToken = document.querySelector('[name="cap-token"]')?.value || '';
     await api('/servers/create', {
       method: 'POST',
-      body: JSON.stringify({ name, nestId, eggId, environment, cfTurnstile: turnstileToken }),
+      body: JSON.stringify({ name, nestId, eggId, environment, capToken }),
     });
     showToast(`Server "${name}" created successfully!`, 'success');
     navigateTo('servers');
   } catch (err) {
     showToast(err.message, 'error');
-    resetTurnstile('#create-turnstile');
   } finally {
     btn.disabled = false;
     btn.innerHTML = 'Create Server';

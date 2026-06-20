@@ -12,7 +12,7 @@ import {
   getAllEggs,
 } from '../services/pterodactyl.js';
 import { query } from '../config/db.js';
-import { verifyTurnstile } from '../config/turnstile.js';
+import { verifyCap } from '../config/cap.js';
 
 const router = Router();
 
@@ -83,7 +83,7 @@ router.get('/eggs', authenticateToken, async (req, res) => {
 
 router.post('/create', authenticateToken, async (req, res) => {
   try {
-    const { name, nestId, eggId, environment, cfTurnstile } = req.body;
+    const { name, nestId, eggId, environment, capToken } = req.body;
     const pteroId = req.user.pteroId;
 
     if (!name || !nestId || !eggId) {
@@ -94,7 +94,7 @@ router.post('/create', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Server name must be between 1 and 255 characters' });
     }
 
-    if (!await verifyTurnstile(cfTurnstile)) {
+    if (!await verifyCap(capToken)) {
       return res.status(400).json({ error: 'Please complete the security check' });
     }
 
