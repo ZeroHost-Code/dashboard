@@ -17,4 +17,7 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
             cd ${{ secrets.MAIN_PATH }}
-            git pull
+            git fetch origin
+            git checkout -B main origin/main
+            npm install
+            pm2 restart zerohost-dashboard
