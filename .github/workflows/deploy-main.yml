@@ -20,3 +20,5 @@ jobs:
             git add -A
             git stash
             git pull origin main
+            pm2 stop zerohost-dashboard
+            pm2 start zerohost-dashboard
