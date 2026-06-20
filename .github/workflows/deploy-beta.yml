@@ -17,7 +17,9 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
             cd ${{ secrets.BETA_PATH }}
+            cp .env /tmp/beta.env 2>/dev/null; cp port.txt /tmp/beta.port.txt 2>/dev/null
             git fetch origin
             git checkout -f -B beta origin/beta
+            cp /tmp/beta.env .env 2>/dev/null; cp /tmp/beta.port.txt port.txt 2>/dev/null
             npm install
             pm2 restart beta

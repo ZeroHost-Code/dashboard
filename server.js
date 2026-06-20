@@ -20,7 +20,9 @@ import { migrate } from './config/migrate.js';
 import { query } from './config/db.js';
 
 const app = express();
-const PORT = process.env.PORT || parseInt(readFileSync(resolve(__dirname, 'port.txt'), 'utf-8').trim(), 10) || 3000;
+let portFromFile = 3000;
+try { portFromFile = parseInt(readFileSync(resolve(__dirname, 'port.txt'), 'utf-8').trim(), 10) || 3000; } catch {}
+const PORT = process.env.PORT || portFromFile;
 
 const trustProxy = process.env.NODE_ENV === 'production';
 
