@@ -20,5 +20,6 @@ jobs:
             git add -A
             git stash
             git pull origin beta
+            npm install
             pm2 stop beta
             pm2 start beta
