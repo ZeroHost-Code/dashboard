@@ -47,21 +47,6 @@ html, body {
 a { color: var(--accent-3); text-decoration: none; }
 a:hover { color: var(--accent-1); }
 
-.gradient-text {
-  background: linear-gradient(135deg, var(--accent-1), var(--accent-2), var(--accent-cyan));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-size: 200% 200%;
-  animation: gradientShift 4s ease infinite;
-}
-
-@keyframes gradientShift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
 /* ===== AUTH PAGES ===== */
 .auth-page {
   min-height: 100vh;
@@ -969,34 +954,6 @@ tbody tr:hover {
   transition: width 0.5s ease;
 }
 
-/* ===== LOADING SCREEN ===== */
-.loading-screen {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  background: var(--bg-primary);
-}
-
-.loading-content {
-  text-align: center;
-}
-
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgba(99, 102, 241, 0.15);
-  border-top-color: var(--accent-1);
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-  margin: 0 auto 16px;
-}
-
-.loading-text {
-  font-size: 0.95rem;
-  color: var(--text-secondary);
-}
-
 /* ===== RESPONSIVE ===== */
 .hamburger-toggle {
   display: none;
@@ -1189,26 +1146,6 @@ tbody tr:hover {
   color: var(--accent-orange);
 }
 
-.exp-col {
-  font-size: 0.82rem;
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-
-.exp-col.expired {
-  color: var(--accent-red);
-}
-
-.exp-col.expiring {
-  color: var(--accent-orange);
-}
-
-.exp-days {
-  font-size: 0.75rem;
-  opacity: 0.8;
-}
-
 /* ===== SERVER DETAIL PAGE ===== */
 .server-detail-grid {
   display: grid;
@@ -1317,20 +1254,6 @@ tbody tr:hover {
   gap: 10px;
 }
 
-.input-readonly {
-  width: 100%;
-  padding: 12px 16px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  font-family: 'Inter', sans-serif;
-  font-size: 0.95rem;
-  outline: none;
-  cursor: default;
-  opacity: 0.7;
-}
-
 .consent-group input[type="checkbox"] {
   width: 18px;
   height: 18px;
@@ -1352,5 +1275,4 @@ tbody tr:hover {
   text-decoration: underline;
 }
 
-/* ===== PRIVACY / LEGAL PAGES ===== */
 

@@ -1,16 +1,12 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import argon2 from 'argon2';
-import { randomBytes } from 'crypto';
 import { query } from '../config/db.js';
-import { generateToken } from '../middleware/auth.js';
-import { createPteroUser, getPteroUserByEmail, updatePteroPassword, updatePteroEmail, deletePteroUser, getServersByUser, deletePteroServer } from '../services/pterodactyl.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { generateToken, authenticateToken } from '../middleware/auth.js';
+import { createPteroUser, updatePteroPassword, updatePteroEmail, deletePteroUser, getServersByUser, deletePteroServer } from '../services/pterodactyl.js';
+import { verifyTurnstile } from '../config/turnstile.js';
 
 const router = Router();
-
-import { verifyTurnstile } from '../config/turnstile.js';
-import { v4 as uuidv4 } from 'uuid';
 
 function getClientIp(req) {
   const forwarded = req.headers['x-forwarded-for'];
@@ -344,13 +340,14 @@ router.post('/change-email', authenticateToken, async (req, res) => {
 router.post('/delete-account', authenticateToken, async (req, res) => {
   try {
     const { password } = req.body;
+    const userId = req.user?.userId;
     const pteroId = req.user?.pteroId;
 
     if (!password) {
       return res.status(400).json({ error: 'Password is required' });
     }
 
-    const users = await query('SELECT * FROM users WHERE ptero_user_id = ?', [pteroId]);
+    const users = await query('SELECT * FROM users WHERE id = ?', [userId]);
     if (users.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -362,29 +359,30 @@ router.post('/delete-account', authenticateToken, async (req, res) => {
       return res.status(401).json({ error: 'Password is incorrect' });
     }
 
-    // Delete all Pterodactyl servers first
-    try {
-      const servers = await getServersByUser(pteroId);
-      for (const server of servers) {
-        try {
-          await deletePteroServer(server.id);
-        } catch (err) {
-          console.error(`Failed to delete server ${server.id}:`, err.message);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to fetch servers for deletion:', err.message);
-    }
-
-    // Delete Pterodactyl user
-    try {
-      await deletePteroUser(pteroId);
-    } catch (err) {
-      console.error('Failed to delete Pterodactyl user:', err.message);
-    }
-
-    // Delete from local DB (cascades to user_ips)
+    // Delete from local DB first (cascades to user_ips)
     await query('DELETE FROM users WHERE id = ?', [user.id]);
+
+    // Then try to clean up Pterodactyl (best effort)
+    if (pteroId) {
+      try {
+        const servers = await getServersByUser(pteroId);
+        for (const server of servers) {
+          try {
+            await deletePteroServer(server.id);
+          } catch (err) {
+            console.error(`Failed to delete server ${server.id}:`, err.message);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch servers for deletion:', err.message);
+      }
+
+      try {
+        await deletePteroUser(pteroId);
+      } catch (err) {
+        console.error('Failed to delete Pterodactyl user:', err.message);
+      }
+    }
 
     res.json({ message: 'Account deleted successfully' });
   } catch (err) {

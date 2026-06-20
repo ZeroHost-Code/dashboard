@@ -9,10 +9,6 @@ const state = {
   serverDetailTab: 'info',
 };
 
-function getRgpdConsent() {
-  return state.rgpdConsent;
-}
-
 function setRgpdConsent(preferences) {
   state.rgpdConsent = preferences;
   localStorage.setItem('zh_rgpd_consent', JSON.stringify(preferences));
@@ -50,8 +46,6 @@ function renderCookieBanner() {
 }
 
 function $(sel) { return document.querySelector(sel); }
-function $$(sel) { return document.querySelectorAll(sel); }
-
 function md5(s) {
   function F(x,y,z) { return (x & y) | (~x & z); }
   function G(x,y,z) { return (x & z) | (y & ~z); }
@@ -404,7 +398,7 @@ async function renderDashboard() {
           <div style="padding:8px 12px 0;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
 
           </div>
-          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v0.9.5 BETA</div>
+          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v0.9.6 BETA</div>
         </div>
       </aside>
 

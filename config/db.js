@@ -40,8 +40,4 @@ export async function query(sql, params = []) {
   throw lastErr;
 }
 
-export async function getConnection() {
-  return await pool.getConnection();
-}
 
-export default pool;
