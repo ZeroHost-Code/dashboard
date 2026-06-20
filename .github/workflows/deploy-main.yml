@@ -17,4 +17,6 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
             cd ${{ secrets.MAIN_PATH }}
+            git reset --hard HEAD
+            git clean -fd
             git pull origin main
