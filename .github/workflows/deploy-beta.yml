@@ -17,7 +17,12 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
             cd ${{ secrets.BETA_PATH }}
+            cp .env /tmp/beta.env 2>/dev/null; cp port.txt /tmp/beta.port.txt 2>/dev/null
             git fetch origin
-            git checkout -B beta origin/beta
+            git reset --hard origin/beta
+            git checkout -B beta
+            cp /tmp/beta.env .env 2>/dev/null; cp /tmp/beta.port.txt port.txt 2>/dev/null
+            grep 'discord.zero-host.org' public/js/app.js || echo "⚠ DISCORD LINK NOT FOUND IN FILE"
+            head -20 port.txt 2>/dev/null || echo "⚠ port.txt missing or empty"
             npm install
             pm2 restart beta

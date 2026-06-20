@@ -17,7 +17,10 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
             cd ${{ secrets.MAIN_PATH }}
+            cp .env /tmp/main.env 2>/dev/null; cp port.txt /tmp/main.port.txt 2>/dev/null
             git fetch origin
-            git checkout -B main origin/main
+            git reset --hard origin/main
+            git checkout -B main
+            cp /tmp/main.env .env 2>/dev/null; cp /tmp/main.port.txt port.txt 2>/dev/null
             npm install
             pm2 restart zerohost-dashboard
