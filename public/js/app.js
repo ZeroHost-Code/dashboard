@@ -9,10 +9,6 @@ const state = {
   serverDetailTab: 'info',
 };
 
-function getRgpdConsent() {
-  return state.rgpdConsent;
-}
-
 function setRgpdConsent(preferences) {
   state.rgpdConsent = preferences;
   localStorage.setItem('zh_rgpd_consent', JSON.stringify(preferences));
@@ -50,8 +46,6 @@ function renderCookieBanner() {
 }
 
 function $(sel) { return document.querySelector(sel); }
-function $$(sel) { return document.querySelectorAll(sel); }
-
 function md5(s) {
   function F(x,y,z) { return (x & y) | (~x & z); }
   function G(x,y,z) { return (x & z) | (y & ~z); }

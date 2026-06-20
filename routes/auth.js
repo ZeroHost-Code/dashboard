@@ -1,16 +1,12 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import argon2 from 'argon2';
-import { randomBytes } from 'crypto';
 import { query } from '../config/db.js';
-import { generateToken } from '../middleware/auth.js';
-import { createPteroUser, getPteroUserByEmail, updatePteroPassword, updatePteroEmail, deletePteroUser, getServersByUser, deletePteroServer } from '../services/pterodactyl.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { generateToken, authenticateToken } from '../middleware/auth.js';
+import { createPteroUser, updatePteroPassword, updatePteroEmail, deletePteroUser, getServersByUser, deletePteroServer } from '../services/pterodactyl.js';
+import { verifyTurnstile } from '../config/turnstile.js';
 
 const router = Router();
-
-import { verifyTurnstile } from '../config/turnstile.js';
-import { v4 as uuidv4 } from 'uuid';
 
 function getClientIp(req) {
   const forwarded = req.headers['x-forwarded-for'];

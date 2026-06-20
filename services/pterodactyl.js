@@ -51,7 +51,7 @@ export async function createPteroUser({ email, username, firstName, lastName, pa
   return data.attributes;
 }
 
-export async function getPteroUserByEmail(email) {
+async function getPteroUserByEmail(email) {
   const data = await pteroFetch(`/users?filter[email]=${encodeURIComponent(email)}`);
   if (data.data.length > 0) {
     return data.data[0].attributes;

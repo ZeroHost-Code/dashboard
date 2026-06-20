@@ -9,7 +9,6 @@
   },
   "dependencies": {
     "argon2": "^0.41.1",
-    "better-sqlite3": "^11.7.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
@@ -17,8 +16,6 @@
     "express-rate-limit": "^7.4.1",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
-    "mariadb": "^3.4.0",
-    "uuid": "^11.0.3",
-    "zod": "^3.24.1"
+    "mariadb": "^3.4.0"
   }
 }

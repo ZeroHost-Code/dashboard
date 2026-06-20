@@ -7,11 +7,9 @@ import {
   deletePteroServer,
   reinstallPteroServer,
   renamePteroServer,
-  suspendPteroServer,
   unsuspendPteroServer,
   getEgg,
   getAllEggs,
-  getPteroUserById,
 } from '../services/pterodactyl.js';
 import { query } from '../config/db.js';
 import { verifyTurnstile } from '../config/turnstile.js';
