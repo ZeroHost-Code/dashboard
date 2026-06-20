@@ -17,6 +17,6 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
             cd ${{ secrets.BETA_PATH }}
-            git reset --hard HEAD
-            git clean -fd
+            git add -A
+            git stash
             git pull origin beta
