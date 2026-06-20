@@ -17,9 +17,7 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
             cd ${{ secrets.BETA_PATH }}
-            git add -A
-            git stash
-            git pull origin beta
+            git fetch origin
+            git checkout -B beta origin/beta
             npm install
-            pm2 stop beta
-            pm2 start beta
+            pm2 restart beta
