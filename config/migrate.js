@@ -1,0 +1,94 @@
+import { query } from './db.js';
+
+const tables = {
+  users: {
+    columns: [
+      { name: 'id', def: 'INT AUTO_INCREMENT PRIMARY KEY' },
+      { name: 'email', def: 'VARCHAR(255) NOT NULL' },
+      { name: 'username', def: 'VARCHAR(255) NOT NULL' },
+      { name: 'password_hash', def: 'VARCHAR(255) NOT NULL' },
+      { name: 'ptero_user_id', def: 'INT' },
+      { name: 'ptero_uuid', def: 'VARCHAR(255)' },
+      { name: 'first_name', def: 'VARCHAR(255)' },
+      { name: 'last_name', def: 'VARCHAR(255)' },
+      { name: 'password_set', def: 'TINYINT(1) NOT NULL DEFAULT 0' },
+      { name: 'created_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
+    ],
+  },
+  server_meta: {
+    columns: [
+      { name: 'id', def: 'INT AUTO_INCREMENT PRIMARY KEY' },
+      { name: 'ptero_server_id', def: 'INT NOT NULL' },
+      { name: 'user_id', def: 'INT NOT NULL' },
+      { name: 'created_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
+      { name: 'expires_at', def: 'TIMESTAMP NOT NULL' },
+      { name: 'status', def: "ENUM('active', 'suspended', 'expired') DEFAULT 'active'" },
+    ],
+  },
+  user_ips: {
+    columns: [
+      { name: 'id', def: 'INT AUTO_INCREMENT PRIMARY KEY' },
+      { name: 'user_id', def: 'INT NOT NULL' },
+      { name: 'ip_address', def: 'VARCHAR(45) NOT NULL' },
+      { name: 'created_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
+    ],
+  },
+
+};
+
+function escapeId(id) {
+  return '`' + String(id).replace(/`/g, '``') + '`';
+}
+
+function escapeLike(id) {
+  return String(id).replace(/[%_\\]/g, '\\$&');
+}
+
+const constraints = [
+  { table: 'server_meta', sql: 'ALTER TABLE server_meta ADD INDEX idx_expires (expires_at)', name: 'idx_expires' },
+  { table: 'server_meta', sql: 'ALTER TABLE server_meta ADD INDEX idx_user (user_id)', name: 'idx_user' },
+  { table: 'server_meta', sql: 'ALTER TABLE server_meta ADD INDEX idx_status (status)', name: 'idx_status' },
+  { table: 'user_ips', sql: 'ALTER TABLE user_ips ADD INDEX idx_ip (ip_address)', name: 'idx_ip' },
+  { table: 'user_ips', sql: 'ALTER TABLE user_ips ADD INDEX idx_user (user_id)', name: 'idx_user' },
+  { table: 'user_ips', sql: 'ALTER TABLE user_ips ADD CONSTRAINT fk_user_ips_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE', name: 'fk_user_ips_user' },
+
+];
+
+export async function migrate() {
+  for (const [table, schema] of Object.entries(tables)) {
+    try {
+      const safeTable = escapeId(table);
+      const exists = await query(`SHOW TABLES LIKE ?`, [escapeLike(table)]);
+      if (exists.length === 0) {
+        const colDefs = schema.columns.map(c => `${escapeId(c.name)} ${c.def}`).join(', ');
+        await query(`CREATE TABLE ${safeTable} (${colDefs})`);
+        console.log(`Created table: ${table}`);
+        continue;
+      }
+
+      for (const col of schema.columns) {
+        try {
+          const safeCol = escapeId(col.name);
+          const cols = await query(`SHOW COLUMNS FROM ${safeTable} LIKE ?`, [escapeLike(col.name)]);
+          if (cols.length === 0) {
+            await query(`ALTER TABLE ${safeTable} ADD COLUMN ${safeCol} ${col.def}`);
+            console.log(`Added column ${table}.${col.name}`);
+          }
+        } catch (err) {
+          console.error(`Migration error ${table}.${col.name}:`, err.message);
+        }
+      }
+    } catch (err) {
+      console.error(`Migration error for table ${table}:`, err.message);
+    }
+  }
+
+  for (const c of constraints) {
+    try {
+      await query(c.sql);
+      console.log(`Applied constraint: ${c.name}`);
+    } catch {
+      // Constraint already exists or table missing — safe to ignore
+    }
+  }
+}
