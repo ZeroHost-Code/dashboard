@@ -32,13 +32,13 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net", "https://challenges.cloudflare.com", "https://pagead2.googlesyndication.com"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net", "https://pagead2.googlesyndication.com"],
       scriptSrcAttr: ["'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net", "https://challenges.cloudflare.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
-      connectSrc: ["'self'", "https://panel.zero-host.org", "https://challenges.cloudflare.com", "https://pagead2.googlesyndication.com"],
-      frameSrc: ["https://challenges.cloudflare.com", "https://googleads.g.doubleclick.net"],
+      connectSrc: ["'self'", "https://panel.zero-host.org", "https://cap.zero-host.org", "https://pagead2.googlesyndication.com"],
+      frameSrc: ["https://cap.zero-host.org", "https://googleads.g.doubleclick.net"],
       objectSrc: ["'none'"],
     },
   },
