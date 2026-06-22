@@ -1674,7 +1674,7 @@ tbody tr:hover {
   border-radius: 99px;
   background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
   transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-  width: 100%;
+  width: 0%;
   position: relative;
 }
 

@@ -88,7 +88,7 @@ function gravatarUrl(email, size = 32) {
 }
 
 function html(strings, ...values) {
-  return strings.reduce((acc, str, i) => acc + str + (values[i] || ''), '');
+  return strings.reduce((acc, str, i) => acc + str + (values[i] ?? ''), '');
 }
 
 async function api(path, options = {}) {
