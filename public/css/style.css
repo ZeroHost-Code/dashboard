@@ -31,9 +31,15 @@
   --sidebar-w: 260px;
 }
 
-html, body {
-  height: 100%;
+html { height: 100%; }
+
+body, body * {
   font-family: 'Schibsted Grotesk', system-ui, sans-serif;
+  font-weight: 400;
+}
+
+body {
+  height: 100%;
   background: var(--bg-primary);
   color: var(--text-primary);
   line-height: 1.6;
