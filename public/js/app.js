@@ -776,23 +776,7 @@ function renderServerCard(s) {
         <span class="server-detail-tag">${eggName}</span>
         <span class="server-detail-tag">${allocStr}</span>
       </div>
-      <div class="resource-bars" style="cursor:pointer" onclick="navigateTo('server/${s.id}')">
-        <div class="resource-bar-row">
-          <svg class="resource-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="6" y1="9" x2="6" y2="15"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="14" y1="9" x2="14" y2="15"/><line x1="18" y1="9" x2="18" y2="15"/></svg>
-          <div class="resource-bar-track"><div class="resource-bar-fill memory" style="width:${s.limits.memory > 0 ? Math.min(100, (s.limits.memory / 512) * 100) : 100}%"></div></div>
-          <span class="resource-bar-value">${s.limits.memory > 0 ? s.limits.memory + ' MB' : '∞'}</span>
-        </div>
-        <div class="resource-bar-row">
-          <svg class="resource-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><line x1="8" y1="2" x2="8" y2="4"/><line x1="16" y1="2" x2="16" y2="4"/><line x1="8" y1="20" x2="8" y2="22"/><line x1="16" y1="20" x2="16" y2="22"/><line x1="2" y1="8" x2="4" y2="8"/><line x1="2" y1="16" x2="4" y2="16"/><line x1="20" y1="8" x2="22" y2="8"/><line x1="20" y1="16" x2="22" y2="16"/></svg>
-          <div class="resource-bar-track"><div class="resource-bar-fill cpu" style="width:${s.limits.cpu}%"></div></div>
-          <span class="resource-bar-value">${s.limits.cpu}%</span>
-        </div>
-        <div class="resource-bar-row">
-          <svg class="resource-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-          <div class="resource-bar-track"><div class="resource-bar-fill disk" style="width:${s.limits.disk > 0 ? Math.min(100, (s.limits.disk / 3072) * 100) : 100}%"></div></div>
-          <span class="resource-bar-value">${s.limits.disk > 0 ? (s.limits.disk / 1024).toFixed(1) + ' GB' : '∞'}</span>
-        </div>
-      </div>
+
       ${meta ? html`
         <div class="server-card-expiry ${expClass}">
           <span>Expires: ${formatDate(meta.expires_at)}</span>
