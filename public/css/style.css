@@ -300,6 +300,7 @@ cap-widget {
   --cap-checkbox-background: transparent;
   --cap-spinner-color: #ee8132;
   --cap-spinner-background-color: rgba(238, 129, 50, 0.1);
+  --cap-widget-width: 100%;
 }
 
 .form-row .form-group {
