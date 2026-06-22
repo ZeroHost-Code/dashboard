@@ -1243,16 +1243,17 @@ function renderAccountEdit() {
       </div>
 
       <div class="card">
-        <h2 class="card-title" style="margin-bottom:8px">Pterodactyl API Key</h2>
+        <h2 class="card-title" style="margin-bottom:20px">Pterodactyl API Key</h2>
         <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin-bottom:16px">
           Add your Pterodactyl Client API key to enable live resource monitoring and server power state detection directly in the dashboard.
           Generate one at <a href="https://panel.zero-host.org/account/api" target="_blank">panel.zero-host.org/account/api</a>.
         </p>
-        <form id="api-key-form">
-          <div class="api-key-input-group">
+        <form id="api-key-form" style="max-width:480px">
+          <div class="form-group">
+            <label for="ptero-api-key-input">API Key</label>
             <input type="password" id="ptero-api-key-input" placeholder="ptla_..." autocomplete="off" />
-            <button type="submit" class="btn btn-primary" id="save-api-key-btn">Save</button>
           </div>
+          <button type="submit" class="btn btn-primary btn-full" id="save-api-key-btn">Save</button>
         </form>
         <div id="api-key-status" style="margin-top:8px;font-size:0.82rem;color:var(--text-muted)"></div>
       </div>
