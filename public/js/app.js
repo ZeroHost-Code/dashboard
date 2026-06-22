@@ -729,7 +729,7 @@ async function renderCreateServer() {
           </div>
         </div>
         <div id="egg-variables"></div>
-        <div class="card" style="margin-top:20px;background:var(--bg-secondary)">
+        <div class="card" style="margin-top:20px;margin-bottom:24px;background:var(--bg-secondary)">
           <div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px">Default resources</div>
           <div style="display:flex;gap:16px;flex-wrap:wrap">
             <span class="server-detail-tag">512 MB RAM</span>
