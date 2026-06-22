@@ -220,7 +220,10 @@ function renderRegisterPage() {
             <input type="password" id="reg-password" placeholder="At least 8 characters" required autocomplete="new-password" />
           </div>
           <div class="consent-group">
-            <input type="checkbox" id="reg-rgpd-consent" required />
+            <label class="custom-checkbox">
+              <input type="checkbox" id="reg-rgpd-consent" required />
+              <span class="checkmark"></span>
+            </label>
             <label for="reg-rgpd-consent">
               I agree to the privacy policy and consent to the processing of my personal data (email, username, IP address) for account management purposes. <span style="color:var(--accent-red)">*</span>
             </label>

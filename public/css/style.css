@@ -1327,13 +1327,57 @@ tbody tr:hover {
   gap: 10px;
 }
 
-.consent-group input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  margin-top: 2px;
-  accent-color: var(--accent-1);
+.custom-checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
   cursor: pointer;
   flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.custom-checkbox input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.custom-checkbox .checkmark {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--text-secondary);
+  border-radius: 4px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.custom-checkbox input[type="checkbox"]:checked ~ .checkmark {
+  background: var(--accent-1);
+  border-color: var(--accent-1);
+}
+
+.custom-checkbox input[type="checkbox"]:checked ~ .checkmark::after {
+  content: '';
+  display: block;
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  margin-top: -1px;
+}
+
+.custom-checkbox input[type="checkbox"]:focus-visible ~ .checkmark {
+  outline: 2px solid var(--accent-1);
+  outline-offset: 2px;
 }
 
 .consent-group label {
