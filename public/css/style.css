@@ -9,7 +9,7 @@
   --bg-secondary: #1c1917;
   --bg-card: #1c1917;
   --bg-card-hover: #292524;
-  --bg-sidebar: #000;
+  --bg-sidebar: #0d0d0d;
   --border: rgba(238, 129, 50, 0.15);
   --border-hover: rgba(238, 129, 50, 0.3);
   --accent-1: #ee8132;
@@ -1413,9 +1413,15 @@ tbody tr:hover {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 32px;
+  padding: 24px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   animation: capScaleIn 0.2s ease;
+}
+
+.cap-modal cap-widget {
+  display: block !important;
+  width: 300px !important;
+  min-width: unset !important;
 }
 
 .cap-modal-overlay.cap-modal-fadeout .cap-modal {

@@ -154,28 +154,41 @@ function hideError(form) {
 
 function showCapModal() {
   return new Promise((resolve) => {
+    if (!customElements.get('cap-widget')) {
+      resolve('');
+      return;
+    }
+
     const capApiEndpoint = 'https://cap.zero-host.org/f6c8171b08/';
 
     const overlay = document.createElement('div');
     overlay.className = 'cap-modal-overlay';
-    overlay.innerHTML = `
-      <div class="cap-modal">
-        <cap-widget data-cap-api-endpoint="${capApiEndpoint}" theme="dark"></cap-widget>
-      </div>
-    `;
+
+    const modal = document.createElement('div');
+    modal.className = 'cap-modal';
+
+    const widget = document.createElement('cap-widget');
+    widget.setAttribute('data-cap-api-endpoint', capApiEndpoint);
+    widget.setAttribute('theme', 'dark');
+
+    modal.appendChild(widget);
+    overlay.appendChild(modal);
     document.body.appendChild(overlay);
 
-    const check = setInterval(() => {
-      const input = overlay.querySelector('[name="cap-token"]');
-      if (input && input.value) {
-        clearInterval(check);
-        overlay.classList.add('cap-modal-fadeout');
-        setTimeout(() => {
-          overlay.remove();
-          resolve(input.value);
-        }, 300);
-      }
-    }, 200);
+    setTimeout(() => {
+      const check = setInterval(() => {
+        const hiddenInput = widget.querySelector('[name="cap-token"]');
+        const token = widget.token || (hiddenInput && hiddenInput.value) || '';
+        if (token) {
+          clearInterval(check);
+          overlay.classList.add('cap-modal-fadeout');
+          setTimeout(() => {
+            overlay.remove();
+            resolve(token);
+          }, 300);
+        }
+      }, 200);
+    }, 100);
   });
 }
 
