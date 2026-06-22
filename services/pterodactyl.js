@@ -232,7 +232,7 @@ export async function deletePteroUser(userId) {
 export async function getAllEggs() {
   const eggs = [];
 
-  for (const nestId of [5, 6]) {
+  for (const nestId of [5, 6, 7]) {
     try {
       const nestData = await pteroFetch(`/nests/${nestId}/eggs`);
       for (const e of nestData.data) {

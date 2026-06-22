@@ -763,7 +763,7 @@ async function renderCreateServer() {
     const data = await api('/servers/eggs');
     eggCache = data.eggs;
     const dropdown = $('#custom-egg-dropdown');
-    const nestLabels = { 5: 'Application', 6: 'Code' };
+    const nestLabels = { 5: 'Application', 6: 'Code', 7: 'Database' };
     const grouped = {};
     for (const e of data.eggs) {
       if (!grouped[e.nestId]) grouped[e.nestId] = [];
