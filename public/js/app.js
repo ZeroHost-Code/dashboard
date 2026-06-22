@@ -783,7 +783,11 @@ async function renderCreateServer() {
         handleEggChange();
       });
     });
-  } catch {}
+  } catch (err) {
+    $('#custom-egg-label').textContent = 'Failed to load eggs';
+    $('#custom-egg-trigger').disabled = true;
+    showToast('Could not load eggs: ' + err.message, 'error');
+  }
 }
 
 function handleEggChange() {
