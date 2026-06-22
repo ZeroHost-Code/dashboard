@@ -613,12 +613,12 @@ async function renderOverview() {
     $('#resource-summary-content').innerHTML = html`
       <div class="resource-bars">
         <div class="resource-bar-row">
-          <svg class="resource-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="1"/><rect x="2" y="14" width="20" height="8" rx="1"/><circle cx="6" cy="6" r="1" fill="currentColor"/></svg>
+          <svg class="resource-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="6" y1="9" x2="6" y2="15"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="14" y1="9" x2="14" y2="15"/><line x1="18" y1="9" x2="18" y2="15"/></svg>
           <div class="resource-bar-track" style="height:8px"><div class="resource-bar-fill memory" style="width:${memPct}%"></div></div>
           <span class="resource-bar-label">${totalMem} / ${maxMem} MB</span>
         </div>
         <div class="resource-bar-row">
-          <svg class="resource-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          <svg class="resource-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><line x1="8" y1="2" x2="8" y2="4"/><line x1="16" y1="2" x2="16" y2="4"/><line x1="8" y1="20" x2="8" y2="22"/><line x1="16" y1="20" x2="16" y2="22"/><line x1="2" y1="8" x2="4" y2="8"/><line x1="2" y1="16" x2="4" y2="16"/><line x1="20" y1="8" x2="22" y2="8"/><line x1="20" y1="16" x2="22" y2="16"/></svg>
           <div class="resource-bar-track" style="height:8px"><div class="resource-bar-fill cpu" style="width:${cpuPct}%"></div></div>
           <span class="resource-bar-label">${totalCpu} / ${maxCpu}%</span>
         </div>
@@ -778,12 +778,12 @@ function renderServerCard(s) {
       </div>
       <div class="resource-bars" style="cursor:pointer" onclick="navigateTo('server/${s.id}')">
         <div class="resource-bar-row">
-          <svg class="resource-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="1"/><rect x="2" y="14" width="20" height="8" rx="1"/><circle cx="6" cy="6" r="1" fill="currentColor"/></svg>
+          <svg class="resource-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="6" y1="9" x2="6" y2="15"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="14" y1="9" x2="14" y2="15"/><line x1="18" y1="9" x2="18" y2="15"/></svg>
           <div class="resource-bar-track"><div class="resource-bar-fill memory" style="width:${s.limits.memory > 0 ? Math.min(100, (s.limits.memory / 512) * 100) : 100}%"></div></div>
           <span class="resource-bar-value">${s.limits.memory > 0 ? s.limits.memory + ' MB' : '∞'}</span>
         </div>
         <div class="resource-bar-row">
-          <svg class="resource-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          <svg class="resource-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><line x1="8" y1="2" x2="8" y2="4"/><line x1="16" y1="2" x2="16" y2="4"/><line x1="8" y1="20" x2="8" y2="22"/><line x1="16" y1="20" x2="16" y2="22"/><line x1="2" y1="8" x2="4" y2="8"/><line x1="2" y1="16" x2="4" y2="16"/><line x1="20" y1="8" x2="22" y2="8"/><line x1="20" y1="16" x2="22" y2="16"/></svg>
           <div class="resource-bar-track"><div class="resource-bar-fill cpu" style="width:${s.limits.cpu}%"></div></div>
           <span class="resource-bar-value">${s.limits.cpu}%</span>
         </div>
