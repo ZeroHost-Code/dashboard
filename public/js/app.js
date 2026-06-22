@@ -829,18 +829,6 @@ function renderServerRow(s) {
       <td><span class="server-detail-tag">${eggName}</span></td>
       <td><span class="server-detail-tag">${allocStr}</span></td>
       <td>
-        <div class="resource-bars" style="margin-top:0;gap:3px">
-          <div class="resource-bar-row" style="gap:4px">
-            <div class="resource-bar-track" style="height:4px;flex:1;min-width:60px"><div class="resource-bar-fill memory" style="width:${s.limits.memory > 0 ? Math.min(100, (s.limits.memory / 512) * 100) : 100}%"></div></div>
-            <span class="resource-bar-value" style="min-width:auto;font-size:0.65rem">${s.limits.memory > 0 ? s.limits.memory + 'MB' : '∞'}</span>
-          </div>
-          <div class="resource-bar-row" style="gap:4px">
-            <div class="resource-bar-track" style="height:4px;flex:1;min-width:60px"><div class="resource-bar-fill cpu" style="width:${s.limits.cpu}%"></div></div>
-            <span class="resource-bar-value" style="min-width:auto;font-size:0.65rem">${s.limits.cpu}%</span>
-          </div>
-        </div>
-      </td>
-      <td>
         <span class="server-card-status ${statusClass}">${statusLabel}</span>
         ${s.currentState ? html`<span class="power-state-dot ${s.currentState}">${s.currentState.charAt(0).toUpperCase() + s.currentState.slice(1)}</span>` : ''}
       </td>
@@ -884,13 +872,12 @@ async function renderServers() {
             <th>Name</th>
             <th>Egg</th>
             <th>Allocation</th>
-            <th>Resources</th>
             <th>Status</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody id="servers-table-body">
-          <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
+          <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -903,7 +890,7 @@ async function renderServers() {
 
     if (data.servers.length === 0) {
       $('#servers-table-body').innerHTML = html`
-        <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary)">No servers yet. <a href="/create" onclick="navigateTo('create')">Create one</a></td></tr>
+        <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary)">No servers yet. <a href="/create" onclick="navigateTo('create')">Create one</a></td></tr>
       `;
       return;
     }
@@ -934,7 +921,7 @@ async function renderServers() {
 
       if (filtered.length === 0) {
         $('#servers-table-body').innerHTML = html`
-          <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary)">No servers match your search.</td></tr>
+          <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary)">No servers match your search.</td></tr>
         `;
       }
     }
@@ -952,7 +939,7 @@ async function renderServers() {
     applyFilters();
   } catch (err) {
     $('#servers-table-body').innerHTML = html`
-      <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>
+      <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>
     `;
   }
 }
