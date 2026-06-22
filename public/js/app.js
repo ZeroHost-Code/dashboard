@@ -737,7 +737,9 @@ async function renderCreateServer() {
             <span class="server-detail-tag">3 GB Disk</span>
           </div>
         </div>
-        <cap-widget data-cap-api-endpoint="https://cap.zero-host.org/f6c8171b08/"></cap-widget>
+        <div style="width:100%">
+          <cap-widget data-cap-api-endpoint="https://cap.zero-host.org/f6c8171b08/"></cap-widget>
+        </div>
         <button type="submit" class="btn btn-primary btn-full" id="create-btn" style="margin-top:16px">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
           Create Server

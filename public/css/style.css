@@ -289,8 +289,9 @@ a:hover { color: var(--accent-1); }
 }
 
 cap-widget {
-  display: block;
-  width: 100%;
+  display: block !important;
+  width: 100% !important;
+  min-width: 100% !important;
 }
 
 .form-row .form-group {
