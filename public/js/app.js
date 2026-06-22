@@ -385,7 +385,7 @@ async function renderDashboard() {
           <div class="nav-section-label">Links</div>
           <a class="nav-item" data-page="pterodactyl" href="/pterodactyl">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M9 6V5a2 2 0 012-2h2a2 2 0 012 2v1M9 12h6M9 16h4"/></svg>
-            Open Pterodactyl
+            Open Pyrodactyl
           </a>
           <a class="nav-item" href="https://status.zero-host.org" target="_blank">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
@@ -726,7 +726,7 @@ async function renderServers() {
           <td>
             <div style="display:flex;gap:6px">
               <a class="btn btn-ghost btn-sm" href="/server/${s.id}" onclick="event.preventDefault();navigateTo('server/${s.id}')">Manage</a>
-              <a href="https://panel.zero-host.org/server/${s.identifier}" target="_blank" class="btn btn-ghost btn-sm">Open Pterodactyl</a>
+              <a href="https://panel.zero-host.org/server/${s.identifier}" target="_blank" class="btn btn-ghost btn-sm">Open Pyrodactyl</a>
               ${canRenew ? html`
                 <button class="btn btn-primary btn-sm btn-renew-server" data-server-id="${s.id}">Renew</button>
               ` : ''}
