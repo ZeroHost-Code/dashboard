@@ -1261,55 +1261,14 @@ function renderAccountLinks() {
       </div>
     </div>
     <div class="card" style="margin-bottom:20px">
-      <h2 class="card-title" style="margin-bottom:8px">Pterodactyl API Key</h2>
-      <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin-bottom:16px">
-        Add your Pterodactyl Client API key to enable live resource monitoring (CPU, RAM, Disk usage) directly in the dashboard.
-        Generate one at <a href="https://panel.zero-host.org/account/api" target="_blank">panel.zero-host.org/account/api</a>.
+      <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin:0">
+        Aucun système de liaison de comptes n'est activé pour le moment en raison de la complexité
+        à maintenir cela à la fois sur le dashboard et le panel Pyrodactyl. C'est pour cette raison
+        que nous avons retiré la création de compte et la connexion via Discord. Peut-être que cela
+        reviendra plus tard.
       </p>
-      <form id="api-key-form">
-        <div class="api-key-input-group">
-          <input type="password" id="ptero-api-key-input" placeholder="ptla_..." autocomplete="off" />
-          <button type="submit" class="btn btn-primary" id="save-api-key-btn">Save</button>
-        </div>
-      </form>
-      <div id="api-key-status" style="margin-top:8px;font-size:0.82rem;color:var(--text-muted)"></div>
     </div>
   `;
-
-  $('#api-key-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = $('#save-api-key-btn');
-    const input = $('#ptero-api-key-input');
-    const status = $('#api-key-status');
-    const key = input.value.trim();
-
-    if (!key) {
-      status.textContent = 'Please enter an API key.';
-      status.style.color = 'var(--accent-red)';
-      return;
-    }
-
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>';
-    status.textContent = '';
-
-    try {
-      await api('/servers/client-api-key', {
-        method: 'PUT',
-        body: JSON.stringify({ apiKey: key }),
-      });
-      status.textContent = 'API key saved successfully!';
-      status.style.color = 'var(--accent-green)';
-      input.value = '';
-      showToast('Pterodactyl API key saved', 'success');
-    } catch (err) {
-      status.textContent = err.message;
-      status.style.color = 'var(--accent-red)';
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = 'Save';
-    }
-  });
 }
 
 async function handleChangeEmail(e) {
