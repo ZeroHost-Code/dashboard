@@ -1652,7 +1652,7 @@ async function fetchLiveResources(identifier) {
           <div class="empty-state-desc" style="font-size:0.82rem">
             ${data.error || 'Add your Pterodactyl API key in Account → Linked Accounts to enable live monitoring.'}
           </div>
-          <button class="btn btn-primary btn-sm" onclick="navigateTo('account/links')" style="margin-top:8px;width:auto">Configure API Key</button>
+          <button class="btn btn-primary btn-sm" onclick="navigateTo('account/edit')" style="margin-top:8px;width:auto">Configure API Key</button>
         </div>
       `;
       return;
