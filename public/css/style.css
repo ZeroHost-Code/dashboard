@@ -1392,4 +1392,54 @@ tbody tr:hover {
   text-decoration: underline;
 }
 
+.cap-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.5);
+  animation: capFadeIn 0.2s ease;
+}
+
+.cap-modal-overlay.cap-modal-fadeout {
+  animation: capFadeOut 0.3s ease forwards;
+}
+
+.cap-modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: capScaleIn 0.2s ease;
+}
+
+.cap-modal-overlay.cap-modal-fadeout .cap-modal {
+  animation: capScaleOut 0.3s ease forwards;
+}
+
+@keyframes capFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes capFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes capScaleIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes capScaleOut {
+  from { transform: scale(1); opacity: 1; }
+  to { transform: scale(0.9); opacity: 0; }
+}
+
 

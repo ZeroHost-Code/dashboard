@@ -152,6 +152,33 @@ function hideError(form) {
 
 
 
+function showCapModal() {
+  return new Promise((resolve) => {
+    const capApiEndpoint = 'https://cap.zero-host.org/f6c8171b08/';
+
+    const overlay = document.createElement('div');
+    overlay.className = 'cap-modal-overlay';
+    overlay.innerHTML = `
+      <div class="cap-modal">
+        <cap-widget data-cap-api-endpoint="${capApiEndpoint}" theme="dark"></cap-widget>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const check = setInterval(() => {
+      const input = overlay.querySelector('[name="cap-token"]');
+      if (input && input.value) {
+        clearInterval(check);
+        overlay.classList.add('cap-modal-fadeout');
+        setTimeout(() => {
+          overlay.remove();
+          resolve(input.value);
+        }, 300);
+      }
+    }, 200);
+  });
+}
+
 // ===== AUTH PAGES =====
 function renderLoginPage() {
   const app = $('#app');
@@ -174,7 +201,6 @@ function renderLoginPage() {
             <label for="login-password">Password</label>
             <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password" />
           </div>
-          <cap-widget data-cap-api-endpoint="https://cap.zero-host.org/f6c8171b08/" theme="dark"></cap-widget>
           <button type="submit" class="btn btn-primary btn-full" id="login-btn">
             Sign In
           </button>
@@ -228,7 +254,6 @@ function renderRegisterPage() {
               I agree to the privacy policy and consent to the processing of my personal data (email, username, IP address) for account management purposes. <span style="color:var(--accent-red)">*</span>
             </label>
           </div>
-          <cap-widget data-cap-api-endpoint="https://cap.zero-host.org/f6c8171b08/" theme="dark"></cap-widget>
           <button type="submit" class="btn btn-primary btn-full" id="register-btn">
             Create Account
           </button>
@@ -256,7 +281,7 @@ async function handleLogin(e) {
   btn.innerHTML = '<span class="spinner"></span> Signing in...';
 
   try {
-    const capToken = document.querySelector('[name="cap-token"]')?.value || '';
+    const capToken = await showCapModal();
     const data = await api('/auth/login', {
       method: 'POST',
       body: JSON.stringify({
@@ -293,7 +318,7 @@ async function handleRegister(e) {
   btn.innerHTML = '<span class="spinner"></span> Creating...';
 
   try {
-    const capToken = document.querySelector('[name="cap-token"]')?.value || '';
+    const capToken = await showCapModal();
     const data = await api('/auth/register', {
       method: 'POST',
       body: JSON.stringify({
