@@ -11,6 +11,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
+import jwt from 'jsonwebtoken';
 import path from 'path';
 
 import authRoutes from './routes/auth.js';
@@ -18,6 +19,7 @@ import serverRoutes from './routes/servers.js';
 import { startScheduler } from './services/scheduler.js';
 import { migrate } from './config/migrate.js';
 import { query } from './config/db.js';
+import { getRecentActivity } from './services/activity.js';
 
 const app = express();
 let portFromFile = 3000;
@@ -90,6 +92,28 @@ app.use('/api', apiLimiter);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/servers', serverRoutes);
+
+app.get('/api/activity', async (req, res) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.userId;
+
+    const activities = await getRecentActivity(userId);
+    res.json({ activities });
+  } catch (err) {
+    if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+    console.error('Activity route error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch activities' });
+  }
+});
 
 app.get('/api/health', async (req, res) => {
   try {

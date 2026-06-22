@@ -11,8 +11,10 @@ import {
   getEgg,
   getAllEggs,
 } from '../services/pterodactyl.js';
+import { PTERO_URL } from '../config/pterodactyl.js';
 import { query } from '../config/db.js';
 import { verifyCap } from '../config/cap.js';
+import { logActivity } from '../services/activity.js';
 
 const router = Router();
 
@@ -34,6 +36,34 @@ router.get('/list', authenticateToken, async (req, res) => {
       } catch {
         s.serverMeta = null;
       }
+    }
+
+    // Fetch live power state from Pterodactyl Client API
+    const userRows = await query('SELECT ptero_client_api_key FROM users WHERE id = ?', [req.user.userId]);
+    const clientApiKey = userRows[0]?.ptero_client_api_key;
+
+    if (clientApiKey) {
+      await Promise.all(servers.map(async (server) => {
+        try {
+          const pteroRes = await fetch(`${PTERO_URL}/api/client/servers/${server.identifier}/resources`, {
+            headers: {
+              'Authorization': `Bearer ${clientApiKey}`,
+              'Accept': 'application/json',
+            },
+            signal: AbortSignal.timeout(8000),
+          });
+          if (pteroRes.ok) {
+            const data = await pteroRes.json();
+            server.currentState = data.attributes.current_state;
+          } else {
+            server.currentState = null;
+          }
+        } catch {
+          server.currentState = null;
+        }
+      }));
+    } else {
+      servers.forEach(s => s.currentState = null);
     }
 
     res.json({ servers });
@@ -133,6 +163,7 @@ router.post('/create', authenticateToken, async (req, res) => {
       [server.id, req.user.userId, 'active']
     ).catch(err => console.error('Failed to log server meta:', err.message));
 
+    logActivity(req.user.userId, 'server_created', `Created server "${name}"`, server.id);
     res.status(201).json({ server });
   } catch (err) {
     console.error('Create server error:', err.message);
@@ -205,6 +236,7 @@ router.post('/renew/:id', authenticateToken, async (req, res) => {
       }
     }
 
+    logActivity(req.user.userId, 'server_renewed', `Renewed server #${serverId}`, serverId);
     const updated = await query('SELECT * FROM server_meta WHERE id = ?', [row.id]);
     res.json({ serverMeta: updated[0] });
   } catch (err) {
@@ -233,6 +265,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
     }
 
     await renamePteroServer(serverId, name.trim());
+    logActivity(req.user.userId, 'server_renamed', `Renamed server #${serverId} to "${name.trim()}"`, serverId);
     res.json({ success: true });
   } catch (err) {
     console.error('Rename server error:', err.message);
@@ -252,6 +285,7 @@ router.post('/:id/reinstall', authenticateToken, async (req, res) => {
     }
 
     await reinstallPteroServer(serverId);
+    logActivity(req.user.userId, 'server_reinstalled', `Reinstalled server #${serverId}`, serverId);
     res.json({ success: true });
   } catch (err) {
     console.error('Reinstall server error:', err.message);
@@ -261,8 +295,10 @@ router.post('/:id/reinstall', authenticateToken, async (req, res) => {
 
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
-    await deletePteroServer(req.params.id);
-    await query('DELETE FROM server_meta WHERE ptero_server_id = ?', [req.params.id]);
+    const serverId = parseInt(req.params.id);
+    await deletePteroServer(serverId);
+    await query('DELETE FROM server_meta WHERE ptero_server_id = ?', [serverId]);
+    logActivity(req.user.userId, 'server_deleted', `Deleted server #${serverId}`);
     res.json({ success: true });
   } catch (err) {
     console.error('Delete server error:', err.message);
@@ -304,6 +340,56 @@ router.get('/overview', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Overview error:', err.message);
     res.status(500).json({ error: 'Failed to fetch overview' });
+  }
+});
+
+router.get('/resources/:identifier', authenticateToken, async (req, res) => {
+  try {
+    const { identifier } = req.params;
+    const userId = req.user.userId;
+
+    const users = await query('SELECT ptero_client_api_key FROM users WHERE id = ?', [userId]);
+    if (users.length === 0 || !users[0].ptero_client_api_key) {
+      return res.json({ resources: null, error: 'No Pterodactyl API key configured. Set one in Account settings.' });
+    }
+
+    const apiKey = users[0].ptero_client_api_key;
+    const pteroRes = await fetch(`https://panel.zero-host.org/api/client/servers/${identifier}/resources`, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Accept': 'application/json',
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (!pteroRes.ok) {
+      return res.status(502).json({ error: 'Failed to fetch resources from panel' });
+    }
+
+    const data = await pteroRes.json();
+    res.json({ resources: data.attributes });
+  } catch (err) {
+    console.error('Resources error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch server resources' });
+  }
+});
+
+router.put('/client-api-key', authenticateToken, async (req, res) => {
+  try {
+    const { apiKey } = req.body;
+    const userId = req.user.userId;
+
+    if (!apiKey || typeof apiKey !== 'string') {
+      return res.status(400).json({ error: 'API key is required' });
+    }
+
+    await query('UPDATE users SET ptero_client_api_key = ? WHERE id = ?', [apiKey.trim(), userId]);
+    logActivity(req.user.userId, 'api_key_updated', 'Updated Pterodactyl API key');
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('API key update error:', err.message);
+    res.status(500).json({ error: 'Failed to update API key' });
   }
 });
 
