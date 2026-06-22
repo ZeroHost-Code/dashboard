@@ -1262,10 +1262,10 @@ function renderAccountLinks() {
     </div>
     <div class="card" style="margin-bottom:20px">
       <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin:0">
-        Aucun système de liaison de comptes n'est activé pour le moment en raison de la complexité
-        à maintenir cela à la fois sur le dashboard et le panel Pyrodactyl. C'est pour cette raison
-        que nous avons retiré la création de compte et la connexion via Discord. Peut-être que cela
-        reviendra plus tard.
+        No account linking system is currently active due to the complexity
+        of maintaining it both on the dashboard and the Pyrodactyl panel. This is why
+        we have removed account creation and login via Discord. Perhaps this will
+        return later.
       </p>
     </div>
   `;
