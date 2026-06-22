@@ -243,16 +243,18 @@ a:hover { color: var(--accent-1); }
 }
 
 .custom-select-option {
-  padding: 10px 16px;
+  padding: 10px 16px 10px 20px;
   font-size: 0.9rem;
   color: var(--text-secondary);
   cursor: pointer;
   transition: all var(--transition);
+  border-left: 2px solid transparent;
 }
 
 .custom-select-option:hover {
   background: rgba(238, 129, 50, 0.08);
   color: var(--text-primary);
+  border-left-color: var(--accent-1);
 }
 
 .custom-select-option:first-child {
@@ -264,16 +266,20 @@ a:hover { color: var(--accent-1); }
 }
 
 .custom-select-category {
-  padding: 8px 16px 4px;
-  font-size: 0.7rem;
-  font-weight: 700;
+  padding: 14px 16px 6px;
+  font-size: 0.65rem;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
+  letter-spacing: 0.12em;
+  color: var(--accent-1);
   cursor: default;
+  border-top: 1px solid rgba(238, 129, 50, 0.12);
+  margin-top: 6px;
 }
 
 .custom-select-category:first-child {
+  border-top: none;
+  margin-top: 0;
   padding-top: 12px;
 }
 
