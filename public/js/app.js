@@ -174,7 +174,7 @@ function renderLoginPage() {
             <label for="login-password">Password</label>
             <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password" />
           </div>
-          <cap-widget data-cap-api-endpoint="https://cap.zero-host.org/f6c8171b08/"></cap-widget>
+          <cap-widget data-cap-api-endpoint="https://cap.zero-host.org/f6c8171b08/" theme="dark"></cap-widget>
           <button type="submit" class="btn btn-primary btn-full" id="login-btn">
             Sign In
           </button>
@@ -225,7 +225,7 @@ function renderRegisterPage() {
               I agree to the privacy policy and consent to the processing of my personal data (email, username, IP address) for account management purposes. <span style="color:var(--accent-red)">*</span>
             </label>
           </div>
-          <cap-widget data-cap-api-endpoint="https://cap.zero-host.org/f6c8171b08/"></cap-widget>
+          <cap-widget data-cap-api-endpoint="https://cap.zero-host.org/f6c8171b08/" theme="dark"></cap-widget>
           <button type="submit" class="btn btn-primary btn-full" id="register-btn">
             Create Account
           </button>
@@ -738,7 +738,7 @@ async function renderCreateServer() {
           </div>
         </div>
         <div style="width:100%">
-          <cap-widget data-cap-api-endpoint="https://cap.zero-host.org/f6c8171b08/"></cap-widget>
+          <cap-widget data-cap-api-endpoint="https://cap.zero-host.org/f6c8171b08/" theme="dark"></cap-widget>
         </div>
         <button type="submit" class="btn btn-primary btn-full" id="create-btn" style="margin-top:16px">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>

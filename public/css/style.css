@@ -292,6 +292,14 @@ cap-widget {
   display: block !important;
   width: 100% !important;
   min-width: 100% !important;
+  --cap-background: #1c1917;
+  --cap-color: #f5f5f4;
+  --cap-border-color: rgba(238, 129, 50, 0.15);
+  --cap-checkbox-border-radius: 8px;
+  --cap-border-radius: 8px;
+  --cap-checkbox-background: transparent;
+  --cap-spinner-color: #ee8132;
+  --cap-spinner-background-color: rgba(238, 129, 50, 0.1);
 }
 
 .form-row .form-group {
