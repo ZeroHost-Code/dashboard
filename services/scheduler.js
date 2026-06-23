@@ -1,5 +1,5 @@
 import { query } from '../config/db.js';
-import { suspendPteroServer } from './pterodactyl.js';
+import { suspendPteroServer } from './pyrodactyl.js';
 
 async function suspendExpiredServers() {
   try {

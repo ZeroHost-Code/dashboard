@@ -1,4 +1,4 @@
-import { PTERO_URL, PTERO_API_KEY, SERVER_LIMITS, FEATURE_LIMITS, DEPLOY_LOCATIONS } from '../config/pterodactyl.js';
+import { PTERO_URL, PTERO_API_KEY, SERVER_LIMITS, FEATURE_LIMITS, DEPLOY_LOCATIONS } from '../config/pyrodactyl.js';
 
 const FETCH_TIMEOUT = 15000;
 const nodeCache = new Map();
@@ -212,7 +212,7 @@ export async function updatePteroPassword(userId, password) {
 }
 
 export async function updatePteroEmail(userId, email) {
-  // Pterodactyl requires all required fields on PATCH
+  // Pyrodactyl requires all required fields on PATCH
   const user = await getPteroUserById(userId);
   await pteroFetch(`/users/${userId}`, {
     method: 'PATCH',

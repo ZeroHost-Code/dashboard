@@ -383,7 +383,7 @@ async function renderDashboard() {
             Create Server
           </a>
           <div class="nav-section-label">Links</div>
-          <a class="nav-item" data-page="pterodactyl" href="/pterodactyl">
+          <a class="nav-item" data-page="pyrodactyl" href="/pyrodactyl">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M9 6V5a2 2 0 012-2h2a2 2 0 012 2v1M9 12h6M9 16h4"/></svg>
             Open Pyrodactyl
           </a>
@@ -425,7 +425,7 @@ async function renderDashboard() {
         <div class="page active" id="page-overview"></div>
         <div class="page" id="page-servers"></div>
         <div class="page" id="page-create"></div>
-        <div class="page" id="page-pterodactyl"></div>
+        <div class="page" id="page-pyrodactyl"></div>
         <div class="page" id="page-account"></div>
         <div class="page" id="page-server-detail"></div>
         <div class="page" id="page-log"></div>
@@ -494,7 +494,7 @@ function navigateTo(page) {
     if (basePage === 'overview') renderOverview();
     else if (basePage === 'servers') renderServers();
     else if (basePage === 'create') renderCreateServer();
-    else if (basePage === 'pterodactyl') renderPterodactyl();
+    else if (basePage === 'pyrodactyl') renderPyrodactyl();
     else if (basePage === 'account') {
       if (param === 'edit') renderAccountEdit();
       else if (param === 'links') renderAccountLinks();
@@ -536,7 +536,7 @@ window.addEventListener('popstate', () => {
     if (basePage === 'overview') renderOverview();
     else if (basePage === 'servers') renderServers();
     else if (basePage === 'create') renderCreateServer();
-    else if (basePage === 'pterodactyl') renderPterodactyl();
+    else if (basePage === 'pyrodactyl') renderPyrodactyl();
     else if (basePage === 'account') {
       if (param === 'edit') renderAccountEdit();
       else if (param === 'links') renderAccountLinks();
@@ -892,8 +892,8 @@ function renderServerRow(s) {
       </td>
       <td>
         <div style="display:flex;gap:6px">
-          <a class="btn btn-ghost btn-sm" href="/server/${s.id}" onclick="event.preventDefault();navigateTo('server/${s.id}')">Manage</a>
-          <a href="https://panel.zero-host.org/server/${s.identifier}" target="_blank" class="btn btn-ghost btn-sm">Open Pterodactyl</a>
+          <a class="btn btn-ghost btn-sm" href="/server/${s.id}" onclick="event.preventDefault();navigateTo('server/${s.id}')">Settings</a>
+          <a href="https://panel.zero-host.org/server/${s.identifier}" target="_blank" class="btn btn-ghost btn-sm">Open Pyrodactyl</a>
           ${canRenew ? html`
             <button class="btn btn-primary btn-sm btn-renew-server" data-server-id="${s.id}">Renew</button>
           ` : ''}
@@ -1139,15 +1139,15 @@ async function handleCreateServer(e) {
   }
 }
 
-// ===== PTERODACTYL PAGE =====
+// ===== PYRODACTYL PAGE =====
 let pteroTimeout = null;
 
-function renderPterodactyl() {
+function renderPyrodactyl() {
   if (pteroTimeout) clearTimeout(pteroTimeout);
-  const el = $('#page-pterodactyl');
+  const el = $('#page-pyrodactyl');
   el.innerHTML = html`
     <div class="page-header">
-      <h1 class="page-title">Pterodactyl Panel</h1>
+      <h1 class="page-title">Pyrodactyl Panel</h1>
       <p class="page-subtitle">Redirecting to the panel in 5 seconds...</p>
     </div>
     <div class="ptero-grid">
@@ -1155,9 +1155,9 @@ function renderPterodactyl() {
         <div class="ptero-card-icon">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M9 6V5a2 2 0 012-2h2a2 2 0 012 2v1M9 12h6M9 16h4"/></svg>
         </div>
-        <h2 class="ptero-card-title">Opening Pterodactyl...</h2>
+        <h2 class="ptero-card-title">Opening Pyrodactyl...</h2>
         <p class="ptero-card-desc">
-          You are being redirected to the Pterodactyl panel. If nothing happens, click the button below.
+          You are being redirected to the Pyrodactyl panel. If nothing happens, click the button below.
         </p>
         <div class="ptero-info" style="margin-bottom:24px">
           <div class="ptero-info-item">
@@ -1302,9 +1302,9 @@ function renderAccountEdit() {
       </div>
 
       <div class="card">
-        <h2 class="card-title" style="margin-bottom:20px">Pterodactyl API Key</h2>
+        <h2 class="card-title" style="margin-bottom:20px">Pyrodactyl API Key</h2>
         <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin-bottom:16px">
-          Add your Pterodactyl Client API key to enable live resource monitoring and server power state detection directly in the dashboard.
+          Add your Pyrodactyl Client API key to enable live resource monitoring and server power state detection directly in the dashboard.
           Generate one at <a href="https://panel.zero-host.org/account/api" target="_blank">panel.zero-host.org/account/api</a>.
         </p>
         <form id="api-key-form" style="max-width:480px">
@@ -1349,7 +1349,7 @@ async function handleSaveApiKey(e) {
     status.textContent = 'API key saved successfully!';
     status.style.color = 'var(--accent-green)';
     input.value = '';
-    showToast('Pterodactyl API key saved', 'success');
+    showToast('Pyrodactyl API key saved', 'success');
   } catch (err) {
     status.textContent = err.message;
     status.style.color = 'var(--accent-red)';
@@ -1664,7 +1664,7 @@ async function renderServerDetail(serverId) {
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
             <div>
               <h3 class="action-card-title">Open Panel</h3>
-              <p class="action-card-desc">Access the full Pterodactyl control panel to manage files, console, databases, schedules, and more.</p>
+              <p class="action-card-desc">Access the full Pyrodactyl control panel to manage files, console, databases, schedules, and more.</p>
             </div>
           </div>
           <a href="https://panel.zero-host.org/server/${s.identifier}" target="_blank" class="btn btn-primary btn-full">Open Panel</a>
@@ -1722,7 +1722,7 @@ async function fetchLiveResources(identifier) {
         <div class="empty-state" style="padding:24px">
           <div class="empty-state-title" style="font-size:0.95rem">No live data</div>
           <div class="empty-state-desc" style="font-size:0.82rem">
-            ${data.error || 'Add your Pterodactyl API key in Account → Linked Accounts to enable live monitoring.'}
+            ${data.error || 'Add your Pyrodactyl API key in Account → Linked Accounts to enable live monitoring.'}
           </div>
           <button class="btn btn-primary btn-sm" onclick="navigateTo('account/edit')" style="margin-top:8px;width:auto">Configure API Key</button>
         </div>

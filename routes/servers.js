@@ -10,8 +10,8 @@ import {
   unsuspendPteroServer,
   getEgg,
   getAllEggs,
-} from '../services/pterodactyl.js';
-import { PTERO_URL } from '../config/pterodactyl.js';
+} from '../services/pyrodactyl.js';
+import { PTERO_URL } from '../config/pyrodactyl.js';
 import { query } from '../config/db.js';
 import { verifyCap } from '../config/cap.js';
 import { logActivity } from '../services/activity.js';
@@ -25,8 +25,8 @@ router.get('/list', authenticateToken, async (req, res) => {
     try {
       servers = await getServersByUser(pteroId);
     } catch (err) {
-      console.error('List servers Pterodactyl error:', err.message);
-      return res.json({ servers: [], pteroError: 'Pterodactyl panel is currently unreachable.' });
+      console.error('List servers Pyrodactyl error:', err.message);
+      return res.json({ servers: [], pteroError: 'Pyrodactyl panel is currently unreachable.' });
     }
 
     for (const s of servers) {
@@ -38,7 +38,7 @@ router.get('/list', authenticateToken, async (req, res) => {
       }
     }
 
-    // Fetch live power state from Pterodactyl Client API
+    // Fetch live power state from Pyrodactyl Client API
     const userRows = await query('SELECT ptero_client_api_key FROM users WHERE id = ?', [req.user.userId]);
     const clientApiKey = userRows[0]?.ptero_client_api_key;
 
@@ -227,7 +227,7 @@ router.post('/renew/:id', authenticateToken, async (req, res) => {
       [row.status === 'suspended' ? 'active' : row.status, row.id]
     );
 
-    // Unsuspend on Pterodactyl if currently suspended
+    // Unsuspend on Pyrodactyl if currently suspended
     if (row.status === 'suspended') {
       try {
         await unsuspendPteroServer(serverId);
@@ -313,12 +313,12 @@ router.get('/overview', authenticateToken, async (req, res) => {
     try {
       servers = await getServersByUser(pteroId);
     } catch (err) {
-      console.error('Overview Pterodactyl error:', err.message);
+      console.error('Overview Pyrodactyl error:', err.message);
       return res.json({
         totalServers: 0,
         activeServers: 0,
         servers: [],
-        pteroError: 'Pterodactyl panel is currently unreachable. Some data may be unavailable.',
+        pteroError: 'Pyrodactyl panel is currently unreachable. Some data may be unavailable.',
       });
     }
 
@@ -350,7 +350,7 @@ router.get('/resources/:identifier', authenticateToken, async (req, res) => {
 
     const users = await query('SELECT ptero_client_api_key FROM users WHERE id = ?', [userId]);
     if (users.length === 0 || !users[0].ptero_client_api_key) {
-      return res.json({ resources: null, error: 'No Pterodactyl API key configured. Set one in Account settings.' });
+      return res.json({ resources: null, error: 'No Pyrodactyl API key configured. Set one in Account settings.' });
     }
 
     const apiKey = users[0].ptero_client_api_key;
@@ -384,7 +384,7 @@ router.put('/client-api-key', authenticateToken, async (req, res) => {
     }
 
     await query('UPDATE users SET ptero_client_api_key = ? WHERE id = ?', [apiKey.trim(), userId]);
-    logActivity(req.user.userId, 'api_key_updated', 'Updated Pterodactyl API key');
+    logActivity(req.user.userId, 'api_key_updated', 'Updated Pyrodactyl API key');
 
     res.json({ success: true });
   } catch (err) {
