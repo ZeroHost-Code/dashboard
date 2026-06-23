@@ -1572,7 +1572,7 @@ tbody tr:hover {
   left: 0;
   right: 0;
   height: 120px;
-  background: linear-gradient(transparent 0%, rgba(30,30,40,0.85) 70%, var(--bg-card) 100%);
+  background: linear-gradient(transparent, var(--bg-card));
   pointer-events: none;
 }
 
