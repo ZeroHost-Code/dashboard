@@ -413,7 +413,7 @@ async function renderDashboard() {
           <div style="padding:8px 12px 0;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
 
           </div>
-          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v0.9.7 BETA</div>
+          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v0.9.8 BETA</div>
         </div>
       </aside>
 
