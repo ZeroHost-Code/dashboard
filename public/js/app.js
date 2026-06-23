@@ -1731,6 +1731,7 @@ async function fetchLiveResources(identifier) {
     }
 
     const res = data.resources;
+    const currentState = data.current_state;
     const cpuPct = Math.round(res.cpu_absolute || 0);
     const memUsed = res.memory_bytes ? Math.round(res.memory_bytes / (1024 * 1024)) : 0;
     const memLimit = res.memory_limit_bytes ? Math.round(res.memory_limit_bytes / (1024 * 1024)) : 512;
@@ -1768,7 +1769,7 @@ async function fetchLiveResources(identifier) {
       </div>
       <div style="margin-top:12px;text-align:center;font-size:0.72rem;color:var(--text-muted)">
         Updated ${formatRelativeTime(new Date().toISOString())} · 
-        ${res.current_state ? html`Status: <strong>${res.current_state}</strong>` : ''}
+        ${currentState ? html`Status: <strong>${currentState}</strong>` : ''}
       </div>
     `;
 

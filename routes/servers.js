@@ -354,7 +354,7 @@ router.get('/resources/:identifier', authenticateToken, async (req, res) => {
     }
 
     const apiKey = users[0].ptero_client_api_key;
-    const pteroRes = await fetch(`https://panel.zero-host.org/api/client/servers/${identifier}/resources`, {
+    const pteroRes = await fetch(`${PTERO_URL}/api/client/servers/${identifier}/resources`, {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Accept': 'application/json',
@@ -367,7 +367,7 @@ router.get('/resources/:identifier', authenticateToken, async (req, res) => {
     }
 
     const data = await pteroRes.json();
-    res.json({ resources: data.attributes });
+    res.json({ resources: data.attributes.resources, current_state: data.attributes.current_state });
   } catch (err) {
     console.error('Resources error:', err.message);
     res.status(500).json({ error: 'Failed to fetch server resources' });
