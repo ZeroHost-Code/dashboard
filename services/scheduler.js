@@ -23,13 +23,26 @@ async function suspendExpiredServers() {
   }
 }
 
+function msUntilMidnight() {
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setDate(midnight.getDate() + 1);
+  midnight.setHours(0, 0, 0, 0);
+  return midnight.getTime() - now.getTime();
+}
+
 export function startScheduler() {
-  suspendExpiredServers();
-  setInterval(async () => {
-    const hour = new Date().getHours();
-    if (hour === 0) {
-      await suspendExpiredServers();
-    }
-  }, 3600000);
+  suspendExpiredServers().catch(err => console.error('Initial scheduler run failed:', err.message));
+  const tick = () => {
+    setTimeout(async () => {
+      try {
+        await suspendExpiredServers();
+      } catch (err) {
+        console.error('Scheduled suspension failed:', err.message);
+      }
+      tick();
+    }, msUntilMidnight());
+  };
+  tick();
   console.log('Server lifetime scheduler started');
 }

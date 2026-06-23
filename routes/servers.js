@@ -179,8 +179,12 @@ router.post('/create', authenticateToken, async (req, res) => {
 
 router.get('/details/:id', authenticateToken, async (req, res) => {
   try {
-    const server = await getServerById(req.params.id);
-    const meta = await query('SELECT * FROM server_meta WHERE ptero_server_id = ?', [req.params.id]);
+    const serverId = parseInt(req.params.id, 10);
+    if (isNaN(serverId)) {
+      return res.status(400).json({ error: 'Invalid server ID' });
+    }
+    const server = await getServerById(serverId);
+    const meta = await query('SELECT * FROM server_meta WHERE ptero_server_id = ?', [serverId]);
     server.serverMeta = meta.length > 0 ? meta[0] : null;
     res.json({ server });
   } catch (err) {
@@ -192,6 +196,9 @@ router.get('/details/:id', authenticateToken, async (req, res) => {
 router.post('/renew/:id', authenticateToken, async (req, res) => {
   try {
     const serverId = parseInt(req.params.id, 10);
+    if (isNaN(serverId)) {
+      return res.status(400).json({ error: 'Invalid server ID' });
+    }
     const pteroId = req.user.pteroId;
 
     const meta = await query('SELECT * FROM server_meta WHERE ptero_server_id = ?', [serverId]);
@@ -249,6 +256,9 @@ router.patch('/:id', authenticateToken, async (req, res) => {
   try {
     const { name } = req.body;
     const serverId = parseInt(req.params.id, 10);
+    if (isNaN(serverId)) {
+      return res.status(400).json({ error: 'Invalid server ID' });
+    }
     const pteroId = req.user.pteroId;
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -276,6 +286,9 @@ router.patch('/:id', authenticateToken, async (req, res) => {
 router.post('/:id/reinstall', authenticateToken, async (req, res) => {
   try {
     const serverId = parseInt(req.params.id, 10);
+    if (isNaN(serverId)) {
+      return res.status(400).json({ error: 'Invalid server ID' });
+    }
     const pteroId = req.user.pteroId;
 
     const servers = await getServersByUser(pteroId);
@@ -296,6 +309,9 @@ router.post('/:id/reinstall', authenticateToken, async (req, res) => {
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const serverId = parseInt(req.params.id, 10);
+    if (isNaN(serverId)) {
+      return res.status(400).json({ error: 'Invalid server ID' });
+    }
     await deletePteroServer(serverId);
     await query('DELETE FROM server_meta WHERE ptero_server_id = ?', [serverId]);
     await logActivity(req.user.userId, 'server_deleted', `Deleted server #${serverId}`);

@@ -360,6 +360,12 @@ cap-widget {
   box-shadow: 0 4px 20px rgba(239, 68, 68, 0.3);
 }
 
+.btn-danger:hover {
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(239, 68, 68, 0.45);
+}
+
 .btn-warning {
   background: linear-gradient(135deg, #f59e0b, #d97706);
   color: #fff;
