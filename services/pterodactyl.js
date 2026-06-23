@@ -232,16 +232,20 @@ export async function deletePteroUser(userId) {
 export async function getAllEggs() {
   const eggs = [];
 
-  const nest5 = await pteroFetch('/nests/5/eggs');
-  for (const e of nest5.data) {
-    const full = await getEgg(5, e.attributes.id);
-    eggs.push({ nest: 5, egg: full });
-  }
-
-  const nest6 = await pteroFetch('/nests/6/eggs');
-  for (const e of nest6.data) {
-    const full = await getEgg(6, e.attributes.id);
-    eggs.push({ nest: 6, egg: full });
+  for (const nestId of [5, 6, 7]) {
+    try {
+      const nestData = await pteroFetch(`/nests/${nestId}/eggs`);
+      for (const e of nestData.data) {
+        try {
+          const full = await getEgg(nestId, e.attributes.id);
+          eggs.push({ nest: nestId, egg: full });
+        } catch (err) {
+          console.error(`Failed to fetch egg ${e.attributes.id} from nest ${nestId}:`, err.message);
+        }
+      }
+    } catch (err) {
+      console.error(`Failed to fetch nest ${nestId}:`, err.message);
+    }
   }
 
   return eggs;

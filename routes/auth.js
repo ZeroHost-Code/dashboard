@@ -4,7 +4,8 @@ import argon2 from 'argon2';
 import { query } from '../config/db.js';
 import { generateToken, authenticateToken } from '../middleware/auth.js';
 import { createPteroUser, updatePteroPassword, updatePteroEmail, deletePteroUser, getServersByUser, deletePteroServer } from '../services/pterodactyl.js';
-import { verifyTurnstile } from '../config/turnstile.js';
+import { verifyCap } from '../config/cap.js';
+import { logActivity } from '../services/activity.js';
 
 const router = Router();
 
@@ -49,7 +50,7 @@ function validateUsername(username) {
 router.post('/register', async (req, res) => {
   let createdPteroUserId = null;
   try {
-    const { email, username, password, cfTurnstile, rgpdConsent } = req.body;
+    const { email, username, password, capToken, rgpdConsent } = req.body;
 
     if (!email || !username || !password) {
       return res.status(400).json({ error: 'Email, username and password are required' });
@@ -71,7 +72,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
     }
 
-    if (!await verifyTurnstile(cfTurnstile)) {
+    if (!await verifyCap(capToken)) {
       return res.status(400).json({ error: 'Please complete the security check' });
     }
 
@@ -131,6 +132,8 @@ router.post('/register', async (req, res) => {
       maxAge: 2 * 60 * 60 * 1000,
     });
 
+    logActivity(localUserId, 'account_registered', 'Created account');
+
     res.status(201).json({
       token,
       user: {
@@ -157,14 +160,14 @@ router.post('/register', async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
-    const { email, password, cfTurnstile } = req.body;
+    const { email, password, capToken } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // Turnstile verification
-    if (!await verifyTurnstile(cfTurnstile)) {
+    // Cap verification
+    if (!await verifyCap(capToken)) {
       return res.status(400).json({ error: 'Please complete the security check' });
     }
 
@@ -261,6 +264,7 @@ router.post('/change-password', authenticateToken, async (req, res) => {
       console.error('Failed to update Pterodactyl password:', err.message);
     }
 
+    logActivity(req.user.userId, 'password_changed', 'Changed password');
     res.json({ message: 'Password updated successfully' });
   } catch (err) {
     console.error('Change password error:', err.message);
@@ -311,6 +315,8 @@ router.post('/change-email', authenticateToken, async (req, res) => {
     // Update local DB
     await query('UPDATE users SET email = ? WHERE id = ?', [newEmail, userId]);
 
+    logActivity(userId, 'email_changed', `Changed email to ${newEmail}`);
+
     // Generate new token with updated email
     const token = generateToken({
       userId: user.id,
@@ -358,6 +364,8 @@ router.post('/delete-account', authenticateToken, async (req, res) => {
     if (!valid) {
       return res.status(401).json({ error: 'Password is incorrect' });
     }
+
+    logActivity(user.id, 'account_deleted', 'Deleted account');
 
     // Delete from local DB first (cascades to user_ips)
     await query('DELETE FROM users WHERE id = ?', [user.id]);

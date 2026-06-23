@@ -12,6 +12,7 @@ const tables = {
       { name: 'first_name', def: 'VARCHAR(255)' },
       { name: 'last_name', def: 'VARCHAR(255)' },
       { name: 'password_set', def: 'TINYINT(1) NOT NULL DEFAULT 0' },
+      { name: 'ptero_client_api_key', def: 'VARCHAR(255) DEFAULT NULL' },
       { name: 'created_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
     ],
   },
@@ -33,6 +34,16 @@ const tables = {
       { name: 'created_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
     ],
   },
+  activity_log: {
+    columns: [
+      { name: 'id', def: 'INT AUTO_INCREMENT PRIMARY KEY' },
+      { name: 'user_id', def: 'INT NOT NULL' },
+      { name: 'action', def: 'VARCHAR(50) NOT NULL' },
+      { name: 'details', def: 'VARCHAR(255) DEFAULT \'\'' },
+      { name: 'server_id', def: 'INT DEFAULT NULL' },
+      { name: 'created_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
+    ],
+  },
 
 };
 
@@ -51,7 +62,8 @@ const constraints = [
   { table: 'user_ips', sql: 'ALTER TABLE user_ips ADD INDEX idx_ip (ip_address)', name: 'idx_ip' },
   { table: 'user_ips', sql: 'ALTER TABLE user_ips ADD INDEX idx_user (user_id)', name: 'idx_user' },
   { table: 'user_ips', sql: 'ALTER TABLE user_ips ADD CONSTRAINT fk_user_ips_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE', name: 'fk_user_ips_user' },
-
+  { table: 'activity_log', sql: 'ALTER TABLE activity_log ADD INDEX idx_activity_user (user_id)', name: 'idx_activity_user' },
+  { table: 'activity_log', sql: 'ALTER TABLE activity_log ADD INDEX idx_activity_created (created_at)', name: 'idx_activity_created' },
 ];
 
 export async function migrate() {

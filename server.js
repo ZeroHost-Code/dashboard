@@ -11,6 +11,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
+import jwt from 'jsonwebtoken';
 import path from 'path';
 
 import authRoutes from './routes/auth.js';
@@ -18,6 +19,7 @@ import serverRoutes from './routes/servers.js';
 import { startScheduler } from './services/scheduler.js';
 import { migrate } from './config/migrate.js';
 import { query } from './config/db.js';
+import { getRecentActivity } from './services/activity.js';
 
 const app = express();
 let portFromFile = 3000;
@@ -32,13 +34,14 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net", "https://challenges.cloudflare.com", "https://pagead2.googlesyndication.com"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net", "https://pagead2.googlesyndication.com"],
       scriptSrcAttr: ["'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net", "https://challenges.cloudflare.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
-      connectSrc: ["'self'", "https://panel.zero-host.org", "https://challenges.cloudflare.com", "https://pagead2.googlesyndication.com"],
-      frameSrc: ["https://challenges.cloudflare.com", "https://googleads.g.doubleclick.net"],
+      connectSrc: ["'self'", "https://panel.zero-host.org", "https://cap.zero-host.org", "https://pagead2.googlesyndication.com", "https://cdn.jsdelivr.net"],
+      workerSrc: ["'self'", "blob:"],
+      frameSrc: ["https://cap.zero-host.org", "https://googleads.g.doubleclick.net"],
       objectSrc: ["'none'"],
     },
   },
@@ -89,6 +92,28 @@ app.use('/api', apiLimiter);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/servers', serverRoutes);
+
+app.get('/api/activity', async (req, res) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.userId;
+
+    const activities = await getRecentActivity(userId);
+    res.json({ activities });
+  } catch (err) {
+    if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+    console.error('Activity route error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch activities' });
+  }
+});
 
 app.get('/api/health', async (req, res) => {
   try {

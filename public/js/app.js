@@ -24,7 +24,7 @@ function renderCookieBanner() {
   banner.innerHTML = `
     <div class="cookie-banner-text">
       <p>
-        We use cookies for authentication and security (Cloudflare Turnstile). No tracking or advertising cookies are used.
+        We use cookies for authentication and security (Cap). No tracking or advertising cookies are used.
         For more information, read our privacy policy.
       </p>
     </div>
@@ -88,7 +88,7 @@ function gravatarUrl(email, size = 32) {
 }
 
 function html(strings, ...values) {
-  return strings.reduce((acc, str, i) => acc + str + (values[i] || ''), '');
+  return strings.reduce((acc, str, i) => acc + str + (values[i] ?? ''), '');
 }
 
 async function api(path, options = {}) {
@@ -150,28 +150,46 @@ function hideError(form) {
   if (errorEl) errorEl.classList.remove('show');
 }
 
-const turnstileWidgets = {};
 
-function initTurnstile(selector) {
-  const el = typeof selector === 'string' ? document.querySelector(selector) : selector;
-  if (!el) return;
-  const tryRender = () => {
-    if (typeof turnstile !== 'undefined') {
-      if (el.querySelector('iframe')) return;
-      const widgetId = turnstile.render(el, { sitekey: '0x4AAAAAADjivxHTaDDdYR8W', theme: 'dark' });
-      turnstileWidgets[selector] = widgetId;
-    } else {
-      setTimeout(tryRender, 200);
+
+function showCapModal() {
+  return new Promise((resolve) => {
+    if (!customElements.get('cap-widget')) {
+      resolve('');
+      return;
     }
-  };
-  tryRender();
-}
 
-function resetTurnstile(selector) {
-  const id = turnstileWidgets[selector];
-  if (typeof turnstile !== 'undefined' && id !== undefined) {
-    turnstile.reset(id);
-  }
+    const capApiEndpoint = 'https://cap.zero-host.org/f6c8171b08/';
+
+    const overlay = document.createElement('div');
+    overlay.className = 'cap-modal-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'cap-modal';
+
+    const widget = document.createElement('cap-widget');
+    widget.setAttribute('data-cap-api-endpoint', capApiEndpoint);
+    widget.setAttribute('theme', 'dark');
+
+    modal.appendChild(widget);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    setTimeout(() => {
+      const check = setInterval(() => {
+        const hiddenInput = widget.querySelector('[name="cap-token"]');
+        const token = widget.token || (hiddenInput && hiddenInput.value) || '';
+        if (token) {
+          clearInterval(check);
+          overlay.classList.add('cap-modal-fadeout');
+          setTimeout(() => {
+            overlay.remove();
+            resolve(token);
+          }, 300);
+        }
+      }, 200);
+    }, 100);
+  });
 }
 
 // ===== AUTH PAGES =====
@@ -196,7 +214,6 @@ function renderLoginPage() {
             <label for="login-password">Password</label>
             <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password" />
           </div>
-          <div id="login-turnstile" style="margin-bottom:20px"></div>
           <button type="submit" class="btn btn-primary btn-full" id="login-btn">
             Sign In
           </button>
@@ -210,7 +227,6 @@ function renderLoginPage() {
   `;
 
   $('#login-form').addEventListener('submit', handleLogin);
-  initTurnstile('#login-turnstile');
   $('#go-register').addEventListener('click', (e) => {
     e.preventDefault();
     renderRegisterPage();
@@ -243,12 +259,14 @@ function renderRegisterPage() {
             <input type="password" id="reg-password" placeholder="At least 8 characters" required autocomplete="new-password" />
           </div>
           <div class="consent-group">
-            <input type="checkbox" id="reg-rgpd-consent" required />
+            <label class="custom-checkbox">
+              <input type="checkbox" id="reg-rgpd-consent" required />
+              <span class="checkmark"></span>
+            </label>
             <label for="reg-rgpd-consent">
               I agree to the privacy policy and consent to the processing of my personal data (email, username, IP address) for account management purposes. <span style="color:var(--accent-red)">*</span>
             </label>
           </div>
-          <div id="register-turnstile" style="margin-bottom:20px"></div>
           <button type="submit" class="btn btn-primary btn-full" id="register-btn">
             Create Account
           </button>
@@ -262,7 +280,6 @@ function renderRegisterPage() {
   `;
 
   $('#register-form').addEventListener('submit', handleRegister);
-  initTurnstile('#register-turnstile');
   $('#go-login').addEventListener('click', (e) => {
     e.preventDefault();
     renderLoginPage();
@@ -277,13 +294,13 @@ async function handleLogin(e) {
   btn.innerHTML = '<span class="spinner"></span> Signing in...';
 
   try {
-    const turnstileToken = document.querySelector('#login-turnstile')?.querySelector('[name="cf-turnstile-response"]')?.value || '';
+    const capToken = await showCapModal();
     const data = await api('/auth/login', {
       method: 'POST',
       body: JSON.stringify({
         email: $('#login-email').value,
         password: $('#login-password').value,
-        cfTurnstile: turnstileToken,
+        capToken,
       }),
     });
     state.token = data.token;
@@ -293,7 +310,6 @@ async function handleLogin(e) {
     renderDashboard();
   } catch (err) {
     showError(e.target, err.message);
-    resetTurnstile('#login-turnstile');
   } finally {
     btn.disabled = false;
     btn.innerHTML = 'Sign In';
@@ -315,14 +331,14 @@ async function handleRegister(e) {
   btn.innerHTML = '<span class="spinner"></span> Creating...';
 
   try {
-    const turnstileToken = document.querySelector('#register-turnstile')?.querySelector('[name="cf-turnstile-response"]')?.value || '';
+    const capToken = await showCapModal();
     const data = await api('/auth/register', {
       method: 'POST',
       body: JSON.stringify({
         email: $('#reg-email').value,
         username: $('#reg-username').value,
         password: $('#reg-password').value,
-        cfTurnstile: turnstileToken,
+        capToken,
         rgpdConsent: true,
       }),
     });
@@ -333,7 +349,6 @@ async function handleRegister(e) {
     renderDashboard();
   } catch (err) {
     showError(e.target, err.message);
-    resetTurnstile('#register-turnstile');
   } finally {
     btn.disabled = false;
     btn.innerHTML = 'Create Account';
@@ -370,7 +385,7 @@ async function renderDashboard() {
           <div class="nav-section-label">Links</div>
           <a class="nav-item" data-page="pterodactyl" href="/pterodactyl">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M9 6V5a2 2 0 012-2h2a2 2 0 012 2v1M9 12h6M9 16h4"/></svg>
-            Open Pterodactyl
+            Open Pyrodactyl
           </a>
           <a class="nav-item" href="https://status.zero-host.org" target="_blank">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
@@ -398,7 +413,7 @@ async function renderDashboard() {
           <div style="padding:8px 12px 0;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
 
           </div>
-          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v0.9.6 BETA</div>
+          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v0.9.7 BETA</div>
         </div>
       </aside>
 
@@ -542,6 +557,14 @@ async function renderOverview() {
       <div class="stat-card"><div class="stat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="4"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div><div class="stat-value" id="stat-slots">—</div><div class="stat-label">Server Slots</div></div>
       <div class="stat-card"><div class="stat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div><div class="stat-value" id="stat-renew">—</div><div class="stat-label">To Renew</div></div>
     </div>
+    <div class="card" style="margin-bottom:20px" id="resource-summary-card">
+      <div class="card-header">
+        <h2 class="card-title">Resource Overview</h2>
+      </div>
+      <div id="resource-summary-content">
+        <div style="text-align:center;padding:16px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</div>
+      </div>
+    </div>
     <div class="card">
       <div class="card-header">
         <h2 class="card-title">Recent Servers</h2>
@@ -575,6 +598,38 @@ async function renderOverview() {
     $('#stat-renew').textContent = toRenew;
     state.servers = data.servers;
 
+    // Resource summary
+    const servers = data.servers;
+    const totalMem = servers.reduce((sum, s) => sum + (s.limits?.memory || 0), 0);
+    const totalCpu = servers.reduce((sum, s) => sum + (s.limits?.cpu || 0), 0);
+    const totalDisk = servers.reduce((sum, s) => sum + (s.limits?.disk || 0), 0);
+    const maxMem = limit * 512;
+    const maxDisk = limit * 3072;
+    const maxCpu = limit * 50;
+    const memPct = maxMem > 0 ? Math.min(100, Math.round((totalMem / maxMem) * 100)) : 0;
+    const cpuPct = maxCpu > 0 ? Math.min(100, Math.round((totalCpu / maxCpu) * 100)) : 0;
+    const diskPct = maxDisk > 0 ? Math.min(100, Math.round((totalDisk / maxDisk) * 100)) : 0;
+
+    $('#resource-summary-content').innerHTML = html`
+      <div class="resource-bars">
+        <div class="resource-bar-row">
+          <svg class="resource-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="6" y1="9" x2="6" y2="15"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="14" y1="9" x2="14" y2="15"/><line x1="18" y1="9" x2="18" y2="15"/></svg>
+          <div class="resource-bar-track" style="height:8px"><div class="resource-bar-fill memory" style="width:${memPct}%"></div></div>
+          <span class="resource-bar-label">${totalMem} / ${maxMem} MB</span>
+        </div>
+        <div class="resource-bar-row">
+          <svg class="resource-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><line x1="8" y1="2" x2="8" y2="4"/><line x1="16" y1="2" x2="16" y2="4"/><line x1="8" y1="20" x2="8" y2="22"/><line x1="16" y1="20" x2="16" y2="22"/><line x1="2" y1="8" x2="4" y2="8"/><line x1="2" y1="16" x2="4" y2="16"/><line x1="20" y1="8" x2="22" y2="8"/><line x1="20" y1="16" x2="22" y2="16"/></svg>
+          <div class="resource-bar-track" style="height:8px"><div class="resource-bar-fill cpu" style="width:${cpuPct}%"></div></div>
+          <span class="resource-bar-label">${totalCpu} / ${maxCpu}%</span>
+        </div>
+        <div class="resource-bar-row">
+          <svg class="resource-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          <div class="resource-bar-track" style="height:8px"><div class="resource-bar-fill disk" style="width:${diskPct}%"></div></div>
+          <span class="resource-bar-label">${(totalDisk / 1024).toFixed(1)} / ${(maxDisk / 1024).toFixed(1)} GB</span>
+        </div>
+      </div>
+    `;
+
     if (data.servers.length === 0 && !data.pteroError) {
       $('#recent-servers-list').innerHTML = html`
         <div class="empty-state">
@@ -592,10 +647,98 @@ async function renderOverview() {
         </div>
       `;
     }
+
+    renderActivity();
   } catch (err) {
     $('#recent-servers-list').innerHTML = html`
       <div style="text-align:center;padding:32px;color:var(--accent-red)">Failed to load: ${err.message}</div>
     `;
+  }
+}
+
+let activityIcons = {
+  server_created: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
+  server_renewed: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>',
+  server_renamed: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+  server_reinstalled: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>',
+  server_deleted: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>',
+  account_registered: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>',
+  password_changed: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>',
+  email_changed: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
+  account_deleted: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><circle cx="12" cy="18" r="1"/></svg>',
+  api_key_updated: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>',
+};
+
+function formatRelativeTime(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + 'm ago';
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return hours + 'h ago';
+  const days = Math.floor(hours / 24);
+  if (days < 7) return days + 'd ago';
+  return formatDate(dateStr);
+}
+
+function getActionLabel(action) {
+  const labels = {
+    server_created: 'Created server',
+    server_renewed: 'Renewed server',
+    server_renamed: 'Renamed server',
+    server_reinstalled: 'Reinstalled server',
+    server_deleted: 'Deleted server',
+    account_registered: 'Account created',
+    password_changed: 'Password changed',
+    email_changed: 'Email changed',
+    account_deleted: 'Account deleted',
+    api_key_updated: 'API key updated',
+  };
+  return labels[action] || action;
+}
+
+async function renderActivity() {
+  const el = $('#page-overview');
+  let activitySection = $('#activity-section');
+
+  if (!activitySection) {
+    const card = el.querySelector('.card:last-child');
+    const section = document.createElement('div');
+    section.id = 'activity-section';
+    section.className = 'card';
+    section.style.marginTop = '20px';
+    section.innerHTML = html`
+      <div class="card-header">
+        <h2 class="card-title">Recent Activity</h2>
+      </div>
+      <div id="activity-list"><div style="text-align:center;padding:24px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</div></div>
+    `;
+    card.parentNode.insertBefore(section, card.nextSibling);
+    activitySection = section;
+  }
+
+  try {
+    const data = await api('/activity');
+    const list = $('#activity-list');
+
+    if (data.activities.length === 0) {
+      list.innerHTML = '<div class="activity-empty">No activity yet. Create a server to get started.</div>';
+      return;
+    }
+
+    list.innerHTML = data.activities.slice(0, 10).map(a => html`
+      <div class="activity-item">
+        <div class="activity-icon activity-icon-${a.action}">${activityIcons[a.action] || ''}</div>
+        <div class="activity-content">
+          <div class="activity-action">${getActionLabel(a.action)}</div>
+          <div class="activity-details">${a.details || ''}</div>
+        </div>
+        <div class="activity-time">${formatRelativeTime(a.created_at)}</div>
+      </div>
+    `).join('');
+  } catch (err) {
+    const list = $('#activity-list');
+    if (list) list.innerHTML = '<div class="activity-empty">Could not load activity.</div>';
   }
 }
 
@@ -632,8 +775,8 @@ function renderServerCard(s) {
       <div class="server-card-details" style="cursor:pointer" onclick="navigateTo('server/${s.id}')">
         <span class="server-detail-tag">${eggName}</span>
         <span class="server-detail-tag">${allocStr}</span>
-        <span class="server-detail-tag">${s.limits.memory > 0 ? s.limits.memory + ' MB' : '∞'}</span>
       </div>
+
       ${meta ? html`
         <div class="server-card-expiry ${expClass}">
           <span>Expires: ${formatDate(meta.expires_at)}</span>
@@ -653,6 +796,39 @@ function renderServerCard(s) {
   `;
 }
 
+function renderServerRow(s) {
+  const eggName = s.eggDetails?.name || `Egg #${s.egg}`;
+  const alloc = s.allocationDetails;
+  const isInstalling = s.status === 'installing' || s.installed === 0 || s.installed === '0' || s.installed === false;
+  const isSuspended = s.status === 'suspended';
+  const statusClass = isSuspended ? 'status-suspended' : (isInstalling ? 'status-installing' : 'status-active');
+  const statusLabel = isSuspended ? 'Suspended' : (isInstalling ? 'Installing' : 'Active');
+  const allocStr = alloc ? `${alloc.alias || alloc.nodeFqdn || alloc.ip}:${alloc.port}` : (s.nodeFqdn || `Node #${s.node}`);
+  const meta = s.serverMeta;
+  const days = meta ? daysRemaining(meta.expires_at) : null;
+  const canRenew = days !== null && days <= 7 && days >= -7;
+  return html`
+    <tr>
+      <td><strong><a href="/server/${s.id}" onclick="event.preventDefault();navigateTo('server/${s.id}')" style="color:inherit;text-decoration:none">${s.name}</a></strong></td>
+      <td><span class="server-detail-tag">${eggName}</span></td>
+      <td><span class="server-detail-tag">${allocStr}</span></td>
+      <td>
+        <span class="server-card-status ${statusClass}">${statusLabel}</span>
+        ${s.currentState ? html`<span class="power-state-dot ${s.currentState}">${s.currentState.charAt(0).toUpperCase() + s.currentState.slice(1)}</span>` : ''}
+      </td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <a class="btn btn-ghost btn-sm" href="/server/${s.id}" onclick="event.preventDefault();navigateTo('server/${s.id}')">Manage</a>
+          <a href="https://panel.zero-host.org/server/${s.identifier}" target="_blank" class="btn btn-ghost btn-sm">Open Pterodactyl</a>
+          ${canRenew ? html`
+            <button class="btn btn-primary btn-sm btn-renew-server" data-server-id="${s.id}">Renew</button>
+          ` : ''}
+        </div>
+      </td>
+    </tr>
+  `;
+}
+
 // ===== SERVERS PAGE =====
 async function renderServers() {
   const el = $('#page-servers');
@@ -660,6 +836,18 @@ async function renderServers() {
     <div class="page-header">
       <h1 class="page-title">My Servers</h1>
       <p class="page-subtitle">All your servers on ZeroHost</p>
+    </div>
+    <div class="servers-toolbar">
+      <div class="search-wrapper">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="server-search-input" placeholder="Search servers..." autocomplete="off" />
+      </div>
+      <div class="filter-group" id="server-filters">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="active">Active</button>
+        <button class="filter-btn" data-filter="suspended">Suspended</button>
+        <button class="filter-btn" data-filter="installing">Installing</button>
+      </div>
     </div>
     <div class="table-container">
       <table>
@@ -691,35 +879,48 @@ async function renderServers() {
       return;
     }
 
-    $('#servers-table-body').innerHTML = data.servers.map(s => {
-      const eggName = s.eggDetails?.name || `Egg #${s.egg}`;
-      const alloc = s.allocationDetails;
-  const isInstalling = s.status === 'installing' || s.installed === 0 || s.installed === '0' || s.installed === false;
-      const isSuspended = s.status === 'suspended';
-      const statusClass = isSuspended ? 'status-suspended' : (isInstalling ? 'status-installing' : 'status-active');
-      const statusLabel = isSuspended ? 'Suspended' : (isInstalling ? 'Installing' : 'Active');
-      const meta = s.serverMeta;
-      const days = meta ? daysRemaining(meta.expires_at) : null;
-      const canRenew = days !== null && days <= 7 && days >= -7;
-      const expClass = days !== null && days <= 0 ? 'expired' : (days !== null && days <= 7 ? 'expiring' : '');
-      return html`
-        <tr>
-          <td><strong><a href="/server/${s.id}" onclick="event.preventDefault();navigateTo('server/${s.id}')" style="color:inherit;text-decoration:none">${s.name}</a></strong></td>
-          <td><span class="server-detail-tag">${eggName}</span></td>
-          <td><span class="server-detail-tag">${alloc ? `${alloc.alias || alloc.nodeFqdn || alloc.ip}:${alloc.port}` : (s.nodeFqdn || `Node #${s.node}`)}</span></td>
-          <td><span class="server-card-status ${statusClass}">${statusLabel}</span></td>
-          <td>
-            <div style="display:flex;gap:6px">
-              <a class="btn btn-ghost btn-sm" href="/server/${s.id}" onclick="event.preventDefault();navigateTo('server/${s.id}')">Manage</a>
-              <a href="https://panel.zero-host.org/server/${s.identifier}" target="_blank" class="btn btn-ghost btn-sm">Open Pterodactyl</a>
-              ${canRenew ? html`
-                <button class="btn btn-primary btn-sm btn-renew-server" data-server-id="${s.id}">Renew</button>
-              ` : ''}
-            </div>
-          </td>
-        </tr>
-      `;
-    }).join('');
+    function applyFilters() {
+      const searchTerm = ($('#server-search-input')?.value || '').toLowerCase();
+      const activeFilter = document.querySelector('.filter-btn.active')?.dataset?.filter || 'all';
+      const searchWords = searchTerm.split(/\s+/).filter(Boolean);
+
+      let filtered = data.servers;
+
+      if (activeFilter !== 'all') {
+        filtered = filtered.filter(s => {
+          if (activeFilter === 'installing') return s.status === 'installing' || s.installed === 0 || s.installed === '0' || s.installed === false;
+          return s.status === activeFilter;
+        });
+      }
+
+      if (searchWords.length > 0) {
+        filtered = filtered.filter(s => {
+          const eggName = s.eggDetails?.name || `Egg #${s.egg}`;
+          const searchable = [s.name, eggName, s.identifier || '', s.node?.toString() || ''].join(' ').toLowerCase();
+          return searchWords.every(w => searchable.includes(w));
+        });
+      }
+
+      $('#servers-table-body').innerHTML = filtered.map(s => renderServerRow(s)).join('');
+
+      if (filtered.length === 0) {
+        $('#servers-table-body').innerHTML = html`
+          <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary)">No servers match your search.</td></tr>
+        `;
+      }
+    }
+
+    $('#server-search-input').addEventListener('input', applyFilters);
+
+    document.querySelectorAll('#server-filters .filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#server-filters .filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        applyFilters();
+      });
+    });
+
+    applyFilters();
   } catch (err) {
     $('#servers-table-body').innerHTML = html`
       <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>
@@ -755,7 +956,7 @@ async function renderCreateServer() {
           </div>
         </div>
         <div id="egg-variables"></div>
-        <div class="card" style="margin-top:20px;background:var(--bg-secondary)">
+        <div class="card" style="margin-top:20px;margin-bottom:24px;background:var(--bg-secondary)">
           <div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px">Default resources</div>
           <div style="display:flex;gap:16px;flex-wrap:wrap">
             <span class="server-detail-tag">512 MB RAM</span>
@@ -763,7 +964,9 @@ async function renderCreateServer() {
             <span class="server-detail-tag">3 GB Disk</span>
           </div>
         </div>
-        <div id="create-turnstile" style="margin-top:20px"></div>
+        <div style="width:100%">
+          <cap-widget data-cap-api-endpoint="https://cap.zero-host.org/f6c8171b08/" theme="dark"></cap-widget>
+        </div>
         <button type="submit" class="btn btn-primary btn-full" id="create-btn" style="margin-top:16px">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
           Create Server
@@ -782,13 +985,12 @@ async function renderCreateServer() {
     }
   });
   $('#create-server-form').addEventListener('submit', handleCreateServer);
-  initTurnstile('#create-turnstile');
 
   try {
     const data = await api('/servers/eggs');
     eggCache = data.eggs;
     const dropdown = $('#custom-egg-dropdown');
-    const nestLabels = { 5: 'Application', 6: 'Code' };
+    const nestLabels = { 5: 'Application', 6: 'Code', 7: 'Database' };
     const grouped = {};
     for (const e of data.eggs) {
       if (!grouped[e.nestId]) grouped[e.nestId] = [];
@@ -810,7 +1012,11 @@ async function renderCreateServer() {
         handleEggChange();
       });
     });
-  } catch {}
+  } catch (err) {
+    $('#custom-egg-label').textContent = 'Failed to load eggs';
+    $('#custom-egg-trigger').disabled = true;
+    showToast('Could not load eggs: ' + err.message, 'error');
+  }
 }
 
 function handleEggChange() {
@@ -844,16 +1050,15 @@ async function handleCreateServer(e) {
   }
 
   try {
-    const turnstileToken = document.querySelector('#create-turnstile')?.querySelector('[name="cf-turnstile-response"]')?.value || '';
+    const capToken = document.querySelector('[name="cap-token"]')?.value || '';
     await api('/servers/create', {
       method: 'POST',
-      body: JSON.stringify({ name, nestId, eggId, environment, cfTurnstile: turnstileToken }),
+      body: JSON.stringify({ name, nestId, eggId, environment, capToken }),
     });
     showToast(`Server "${name}" created successfully!`, 'success');
     navigateTo('servers');
   } catch (err) {
     showToast(err.message, 'error');
-    resetTurnstile('#create-turnstile');
   } finally {
     btn.disabled = false;
     btn.innerHTML = 'Create Server';
@@ -1007,11 +1212,63 @@ function renderAccountEdit() {
           <button type="submit" class="btn btn-primary btn-full" id="change-pw-btn">Change Password</button>
         </form>
       </div>
+
+      <div class="card">
+        <h2 class="card-title" style="margin-bottom:20px">Pterodactyl API Key</h2>
+        <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin-bottom:16px">
+          Add your Pterodactyl Client API key to enable live resource monitoring and server power state detection directly in the dashboard.
+          Generate one at <a href="https://panel.zero-host.org/account/api" target="_blank">panel.zero-host.org/account/api</a>.
+        </p>
+        <form id="api-key-form" style="max-width:480px">
+          <div class="form-group">
+            <label for="ptero-api-key-input">API Key</label>
+            <input type="password" id="ptero-api-key-input" placeholder="ptla_..." autocomplete="off" />
+          </div>
+          <button type="submit" class="btn btn-primary btn-full" id="save-api-key-btn">Save</button>
+        </form>
+        <div id="api-key-status" style="margin-top:8px;font-size:0.82rem;color:var(--text-muted)"></div>
+      </div>
     </div>
   `;
 
   $('#change-email-form').addEventListener('submit', handleChangeEmail);
   $('#change-password-form').addEventListener('submit', handleChangePassword);
+  $('#api-key-form').addEventListener('submit', handleSaveApiKey);
+}
+
+async function handleSaveApiKey(e) {
+  e.preventDefault();
+  const btn = $('#save-api-key-btn');
+  const input = $('#ptero-api-key-input');
+  const status = $('#api-key-status');
+  const key = input.value.trim();
+
+  if (!key) {
+    status.textContent = 'Please enter an API key.';
+    status.style.color = 'var(--accent-red)';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  status.textContent = '';
+
+  try {
+    await api('/servers/client-api-key', {
+      method: 'PUT',
+      body: JSON.stringify({ apiKey: key }),
+    });
+    status.textContent = 'API key saved successfully!';
+    status.style.color = 'var(--accent-green)';
+    input.value = '';
+    showToast('Pterodactyl API key saved', 'success');
+  } catch (err) {
+    status.textContent = err.message;
+    status.style.color = 'var(--accent-red)';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Save';
+  }
 }
 
 function renderAccountLinks() {
@@ -1026,8 +1283,13 @@ function renderAccountLinks() {
         <p class="page-subtitle" style="margin:0">Manage your linked accounts</p>
       </div>
     </div>
-    <div class="card">
-      <p style="color:var(--text-muted);font-size:0.9rem">No third-party account linking available.</p>
+    <div class="card" style="margin-bottom:20px">
+      <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin:0">
+        No account linking system is currently active due to the complexity
+        of maintaining it both on the dashboard and the Pyrodactyl panel. This is why
+        we have removed account creation and login via Discord. Perhaps this will
+        return later.
+      </p>
     </div>
   `;
 }
@@ -1231,6 +1493,7 @@ async function renderServerDetail(serverId) {
 
       <div class="tabs">
         <button class="tab ${activeTab === 'info' ? 'active' : ''}" data-tab="info">Info</button>
+        <button class="tab ${activeTab === 'resources' ? 'active' : ''}" data-tab="resources">Resources</button>
         <button class="tab ${activeTab === 'actions' ? 'active' : ''}" data-tab="actions">Actions</button>
       </div>
 
@@ -1241,12 +1504,33 @@ async function renderServerDetail(serverId) {
             <div class="detail-list">
               <div class="detail-item"><span class="detail-label">Egg</span><span class="detail-value">${eggName}</span></div>
               <div class="detail-item"><span class="detail-label">Allocation</span><span class="detail-value">${allocStr}</span></div>
-              <div class="detail-item"><span class="detail-label">Memory</span><span class="detail-value">${s.limits.memory > 0 ? s.limits.memory + ' MB' : 'Unlimited'}</span></div>
-              <div class="detail-item"><span class="detail-label">Disk</span><span class="detail-value">${s.limits.disk > 0 ? s.limits.disk + ' MB' : 'Unlimited'}</span></div>
-              <div class="detail-item"><span class="detail-label">CPU</span><span class="detail-value">${s.limits.cpu}%</span></div>
               <div class="detail-item"><span class="detail-label">IO</span><span class="detail-value">${s.limits.io}</span></div>
               <div class="detail-item"><span class="detail-label">Swap</span><span class="detail-value">${s.limits.swap > 0 ? s.limits.swap + ' MB' : 'Disabled'}</span></div>
               <div class="detail-item"><span class="detail-label">Identifier</span><span class="detail-value" style="font-family:monospace">${s.identifier}</span></div>
+            </div>
+          </div>
+
+          <div class="card" id="server-resources-card">
+            <h2 class="card-title" style="margin-bottom:16px">Resources</h2>
+            <div class="resource-gauges">
+              <div class="resource-gauge">
+                <div class="resource-gauge-value" style="color:var(--accent-1)">${s.limits.memory > 0 ? s.limits.memory + ' MB' : '∞'}</div>
+                <div class="resource-gauge-label">Memory</div>
+                <div class="resource-gauge-bar"><div class="resource-gauge-fill" style="width:${s.limits.memory > 0 ? Math.min(100, (s.limits.memory / 512) * 100) : 100}%;background:linear-gradient(90deg,#ee8132,#f59e0b)"></div></div>
+                <div class="resource-gauge-sub">${s.limits.memory > 0 ? '512 MB max' : 'No limit'}</div>
+              </div>
+              <div class="resource-gauge">
+                <div class="resource-gauge-value" style="color:var(--accent-cyan)">${s.limits.cpu}%</div>
+                <div class="resource-gauge-label">CPU</div>
+                <div class="resource-gauge-bar"><div class="resource-gauge-fill" style="width:${s.limits.cpu}%;background:linear-gradient(90deg,#06b6d4,#3b82f6)"></div></div>
+                <div class="resource-gauge-sub">50% max</div>
+              </div>
+              <div class="resource-gauge">
+                <div class="resource-gauge-value" style="color:var(--accent-green)">${s.limits.disk > 0 ? (s.limits.disk / 1024).toFixed(1) + ' GB' : '∞'}</div>
+                <div class="resource-gauge-label">Disk</div>
+                <div class="resource-gauge-bar"><div class="resource-gauge-fill" style="width:${s.limits.disk > 0 ? Math.min(100, (s.limits.disk / 3072) * 100) : 100}%;background:linear-gradient(90deg,#059669,#10b981)"></div></div>
+                <div class="resource-gauge-sub">3 GB max</div>
+              </div>
             </div>
           </div>
 
@@ -1267,6 +1551,21 @@ async function renderServerDetail(serverId) {
             ` : html`
               <p style="color:var(--text-muted);font-size:0.88rem">No lifetime data available for this server.</p>
             `}
+          </div>
+        </div>
+      </div>
+
+      <div id="server-tab-resources" class="tab-content" style="display:${activeTab === 'resources' ? 'block' : 'none'}">
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <h2 class="card-title" style="margin:0">Live Resource Usage</h2>
+            <button class="btn btn-ghost btn-sm" id="refresh-resources-btn" style="width:auto">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
+              Refresh
+            </button>
+          </div>
+          <div id="live-resources-container">
+            <div style="text-align:center;padding:32px;color:var(--text-secondary)" id="live-resources-loading"><span class="spinner"></span> Fetching live data...</div>
           </div>
         </div>
       </div>
@@ -1307,6 +1606,10 @@ async function renderServerDetail(serverId) {
       </div>
     `;
 
+    if (activeTab === 'resources') {
+      fetchLiveResources(s.identifier);
+    }
+
   } catch (err) {
     el.innerHTML = html`
       <div class="empty-state">
@@ -1316,6 +1619,88 @@ async function renderServerDetail(serverId) {
         <button class="btn btn-primary" onclick="navigateTo('servers')">Back to Servers</button>
       </div>
     `;
+  }
+}
+
+async function fetchLiveResources(identifier) {
+  const container = $('#live-resources-container');
+  if (!container) return;
+
+  try {
+    const data = await api(`/servers/resources/${identifier}`);
+
+    if (!data.resources) {
+      container.innerHTML = html`
+        <div class="empty-state" style="padding:24px">
+          <div class="empty-state-title" style="font-size:0.95rem">No live data</div>
+          <div class="empty-state-desc" style="font-size:0.82rem">
+            ${data.error || 'Add your Pterodactyl API key in Account → Linked Accounts to enable live monitoring.'}
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="navigateTo('account/edit')" style="margin-top:8px;width:auto">Configure API Key</button>
+        </div>
+      `;
+      return;
+    }
+
+    const res = data.resources;
+    const cpuPct = Math.round(res.cpu_absolute || 0);
+    const memUsed = res.memory_bytes ? Math.round(res.memory_bytes / (1024 * 1024)) : 0;
+    const memLimit = res.memory_limit_bytes ? Math.round(res.memory_limit_bytes / (1024 * 1024)) : 512;
+    const memPct = memLimit > 0 ? Math.min(100, Math.round((memUsed / memLimit) * 100)) : 0;
+    const diskUsed = res.disk_bytes ? Math.round(res.disk_bytes / (1024 * 1024)) : 0;
+    const diskLimit = 3072;
+    const diskPct = diskLimit > 0 ? Math.min(100, Math.round((diskUsed / diskLimit) * 100)) : 0;
+
+    function usageClass(pct) {
+      if (pct >= 80) return 'usage-high';
+      if (pct >= 50) return 'usage-mid';
+      return 'usage-low';
+    }
+
+    container.innerHTML = html`
+      <div class="resource-gauges">
+        <div class="resource-gauge">
+          <div class="resource-gauge-value" style="color:${cpuPct >= 80 ? 'var(--accent-red)' : cpuPct >= 50 ? 'var(--accent-orange)' : 'var(--accent-cyan)'}">${cpuPct}%</div>
+          <div class="resource-gauge-label">CPU</div>
+          <div class="resource-gauge-bar"><div class="resource-gauge-fill ${usageClass(cpuPct)}" style="width:${cpuPct}%"></div></div>
+          <div class="resource-gauge-sub">${cpuPct >= 80 ? 'High load' : cpuPct >= 50 ? 'Moderate' : 'Idle'}</div>
+        </div>
+        <div class="resource-gauge">
+          <div class="resource-gauge-value" style="color:${memPct >= 80 ? 'var(--accent-red)' : memPct >= 50 ? 'var(--accent-orange)' : 'var(--accent-1)'}">${memUsed} / ${memLimit} MB</div>
+          <div class="resource-gauge-label">Memory</div>
+          <div class="resource-gauge-bar"><div class="resource-gauge-fill ${usageClass(memPct)}" style="width:${memPct}%"></div></div>
+          <div class="resource-gauge-sub">${memPct}% used</div>
+        </div>
+        <div class="resource-gauge">
+          <div class="resource-gauge-value" style="color:${diskPct >= 80 ? 'var(--accent-red)' : diskPct >= 50 ? 'var(--accent-orange)' : 'var(--accent-green)'}">${(diskUsed / 1024).toFixed(1)} / ${(diskLimit / 1024).toFixed(1)} GB</div>
+          <div class="resource-gauge-label">Disk</div>
+          <div class="resource-gauge-bar"><div class="resource-gauge-fill ${usageClass(diskPct)}" style="width:${diskPct}%"></div></div>
+          <div class="resource-gauge-sub">${diskPct}% used</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;text-align:center;font-size:0.72rem;color:var(--text-muted)">
+        Updated ${formatRelativeTime(new Date().toISOString())} · 
+        ${res.current_state ? html`Status: <strong>${res.current_state}</strong>` : ''}
+      </div>
+    `;
+
+    const refreshBtn = $('#refresh-resources-btn');
+    if (refreshBtn && !refreshBtn.dataset.listenerAttached) {
+      refreshBtn.dataset.listenerAttached = '1';
+      refreshBtn.addEventListener('click', () => {
+        container.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-secondary)" id="live-resources-loading"><span class="spinner"></span> Fetching live data...</div>';
+        fetchLiveResources(identifier);
+      });
+    }
+
+  } catch (err) {
+    if (container) {
+      container.innerHTML = html`
+        <div style="text-align:center;padding:24px;color:var(--text-muted);font-size:0.88rem">
+          Could not load live resources: ${err.message}
+        </div>
+      `;
+    }
   }
 }
 
