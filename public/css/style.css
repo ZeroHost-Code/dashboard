@@ -488,6 +488,67 @@ cap-widget {
   background: var(--accent-1);
 }
 
+.sidebar.collapsed {
+  width: 60px;
+}
+
+.sidebar.collapsed .sidebar-resizer {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-logo {
+  justify-content: center;
+}
+
+.sidebar.collapsed .sidebar-logo-text {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-header {
+  padding: 16px 12px;
+  justify-content: center;
+}
+
+.sidebar.collapsed .sidebar-nav {
+  padding: 12px 8px;
+}
+
+.sidebar.collapsed .nav-section-label {
+  display: none;
+}
+
+.sidebar.collapsed .nav-item {
+  font-size: 0;
+  justify-content: center;
+  padding: 10px 0;
+  gap: 0;
+}
+
+.sidebar.collapsed .nav-item svg {
+  font-size: 1rem;
+  width: 20px;
+  height: 20px;
+}
+
+.sidebar.collapsed .sidebar-footer {
+  padding: 8px 0;
+}
+
+.sidebar.collapsed .user-info {
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.sidebar.collapsed .user-name,
+.sidebar.collapsed .user-email,
+.sidebar.collapsed .sidebar-footer > div:last-child {
+  display: none;
+}
+
+.sidebar.collapsed ~ .main-content {
+  margin-left: 60px;
+}
+
 .main-content {
   position: relative;
   z-index: 1;

@@ -360,13 +360,18 @@ function initSidebarResize() {
   const resizer = $('#sidebar-resizer');
   if (!sidebar || !resizer) return;
 
-  const saved = localStorage.getItem('zh_sidebar_width');
-  if (saved) {
-    const w = parseInt(saved, 10);
-    if (w >= 180 && w <= 600) {
-      sidebar.style.width = w + 'px';
-      sidebar.style.setProperty('--sidebar-w', w + 'px');
-      document.querySelector('.main-content').style.marginLeft = w + 'px';
+  if (localStorage.getItem('zh_sidebar_collapsed') === 'true') {
+    sidebar.classList.add('collapsed');
+    document.querySelector('.main-content').style.marginLeft = '';
+  } else {
+    const saved = localStorage.getItem('zh_sidebar_width');
+    if (saved) {
+      const w = parseInt(saved, 10);
+      if (w >= 180 && w <= 600) {
+        sidebar.style.width = w + 'px';
+        sidebar.style.setProperty('--sidebar-w', w + 'px');
+        document.querySelector('.main-content').style.marginLeft = w + 'px';
+      }
     }
   }
 
@@ -398,6 +403,23 @@ function initSidebarResize() {
   }
 
   resizer.addEventListener('mousedown', onMouseDown);
+}
+
+function toggleSidebarCollapse() {
+  const sidebar = $('#sidebar');
+  const isCollapsed = sidebar.classList.toggle('collapsed');
+  localStorage.setItem('zh_sidebar_collapsed', isCollapsed);
+  const main = document.querySelector('.main-content');
+  if (isCollapsed) {
+    sidebar.dataset.prevWidth = sidebar.style.width || getComputedStyle(sidebar).width;
+    sidebar.style.width = '';
+    main.style.marginLeft = '';
+  } else {
+    const prev = sidebar.dataset.prevWidth || localStorage.getItem('zh_sidebar_width') || '260';
+    sidebar.style.width = prev;
+    sidebar.style.setProperty('--sidebar-w', prev);
+    main.style.marginLeft = prev;
+  }
 }
 
 // ===== DASHBOARD =====
@@ -503,6 +525,11 @@ async function renderDashboard() {
   $('#sidebar-user-info').addEventListener('click', (e) => {
     if (e.target.closest('#logout-btn')) return;
     navigateTo('account');
+  });
+
+  $('#sidebar-logo-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    toggleSidebarCollapse();
   });
 
   $('#hamburger-toggle').addEventListener('click', () => {
