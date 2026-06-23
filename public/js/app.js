@@ -355,6 +355,77 @@ async function handleRegister(e) {
   }
 }
 
+function initSidebarResize() {
+  const sidebar = $('#sidebar');
+  const resizer = $('#sidebar-resizer');
+  if (!sidebar || !resizer) return;
+
+  if (localStorage.getItem('zh_sidebar_collapsed') === 'true') {
+    sidebar.classList.add('collapsed');
+    document.querySelector('.main-content').style.marginLeft = '';
+  } else {
+    const saved = localStorage.getItem('zh_sidebar_width');
+    if (saved) {
+      const w = parseInt(saved, 10);
+      if (w >= 180 && w <= 600) {
+        sidebar.style.width = w + 'px';
+        sidebar.style.setProperty('--sidebar-w', w + 'px');
+        document.querySelector('.main-content').style.marginLeft = w + 'px';
+      }
+    }
+  }
+
+  let startX, startW;
+
+  function onMouseDown(e) {
+    startX = e.clientX;
+    startW = sidebar.getBoundingClientRect().width;
+    sidebar.classList.add('resizing');
+    document.documentElement.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }
+
+  function onMouseMove(e) {
+    const w = Math.min(600, Math.max(180, startW + e.clientX - startX));
+    sidebar.style.width = w + 'px';
+    sidebar.style.setProperty('--sidebar-w', w + 'px');
+    document.querySelector('.main-content').style.marginLeft = w + 'px';
+  }
+
+  function onMouseUp() {
+    sidebar.classList.remove('resizing');
+    document.documentElement.style.userSelect = '';
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+    const w = sidebar.getBoundingClientRect().width;
+    localStorage.setItem('zh_sidebar_width', Math.round(w));
+  }
+
+  resizer.addEventListener('mousedown', onMouseDown);
+}
+
+function toggleSidebarCollapse() {
+  const sidebar = $('#sidebar');
+  const main = document.querySelector('.main-content');
+  const wasCollapsed = sidebar.classList.contains('collapsed');
+  if (!wasCollapsed) {
+    sidebar.dataset.prevWidth = sidebar.style.width || sidebar.offsetWidth + 'px';
+    sidebar.classList.add('collapsed');
+    sidebar.style.width = '';
+    main.style.marginLeft = '';
+  } else {
+    sidebar.classList.remove('collapsed');
+    let prev = sidebar.dataset.prevWidth || localStorage.getItem('zh_sidebar_width');
+    if (!prev) prev = '260px';
+    if (!prev.endsWith('px')) prev += 'px';
+    sidebar.style.width = prev;
+    sidebar.style.setProperty('--sidebar-w', prev);
+    main.style.marginLeft = prev;
+  }
+  localStorage.setItem('zh_sidebar_collapsed', !wasCollapsed);
+}
+
 // ===== DASHBOARD =====
 async function renderDashboard() {
   const app = $('#app');
@@ -383,7 +454,7 @@ async function renderDashboard() {
             Create Server
           </a>
           <div class="nav-section-label">Links</div>
-          <a class="nav-item" data-page="pterodactyl" href="/pterodactyl">
+          <a class="nav-item" data-page="pyrodactyl" href="/pyrodactyl">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M9 6V5a2 2 0 012-2h2a2 2 0 012 2v1M9 12h6M9 16h4"/></svg>
             Open Pyrodactyl
           </a>
@@ -413,8 +484,9 @@ async function renderDashboard() {
           <div style="padding:8px 12px 0;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
 
           </div>
-          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v0.9.7 BETA</div>
+          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v0.9.8 BETA</div>
         </div>
+        <div class="sidebar-resizer" id="sidebar-resizer"></div>
       </aside>
 
       <button class="hamburger-toggle" id="hamburger-toggle" aria-label="Toggle menu">
@@ -425,9 +497,10 @@ async function renderDashboard() {
         <div class="page active" id="page-overview"></div>
         <div class="page" id="page-servers"></div>
         <div class="page" id="page-create"></div>
-        <div class="page" id="page-pterodactyl"></div>
+        <div class="page" id="page-pyrodactyl"></div>
         <div class="page" id="page-account"></div>
         <div class="page" id="page-server-detail"></div>
+        <div class="page" id="page-log"></div>
       </main>
     </div>
 
@@ -458,9 +531,16 @@ async function renderDashboard() {
     navigateTo('account');
   });
 
+  $('#sidebar-logo-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    toggleSidebarCollapse();
+  });
+
   $('#hamburger-toggle').addEventListener('click', () => {
     $('#sidebar').classList.toggle('open');
   });
+
+  initSidebarResize();
 
   const page = window.location.pathname.replace('/', '') || 'overview';
   navigateTo(page);
@@ -493,12 +573,14 @@ function navigateTo(page) {
     if (basePage === 'overview') renderOverview();
     else if (basePage === 'servers') renderServers();
     else if (basePage === 'create') renderCreateServer();
-    else if (basePage === 'pterodactyl') renderPterodactyl();
+    else if (basePage === 'pyrodactyl') renderPyrodactyl();
     else if (basePage === 'account') {
       if (param === 'edit') renderAccountEdit();
       else if (param === 'links') renderAccountLinks();
       else if (param === 'dangerous') renderDangerous();
       else renderAccount();
+    } else if (basePage === 'log') {
+      renderLog();
     }
   }
 
@@ -533,12 +615,14 @@ window.addEventListener('popstate', () => {
     if (basePage === 'overview') renderOverview();
     else if (basePage === 'servers') renderServers();
     else if (basePage === 'create') renderCreateServer();
-    else if (basePage === 'pterodactyl') renderPterodactyl();
+    else if (basePage === 'pyrodactyl') renderPyrodactyl();
     else if (basePage === 'account') {
       if (param === 'edit') renderAccountEdit();
       else if (param === 'links') renderAccountLinks();
       else if (param === 'dangerous') renderDangerous();
       else renderAccount();
+    } else if (basePage === 'log') {
+      renderLog();
     }
   }
 });
@@ -697,6 +781,63 @@ function getActionLabel(action) {
   return labels[action] || action;
 }
 
+async function renderLog(pageNum) {
+  const el = $('#page-log');
+  pageNum = pageNum || 1;
+  const limit = 50;
+  const offset = (pageNum - 1) * limit;
+
+  el.innerHTML = html`
+    <div class="page-header">
+      <h1 class="page-title">Activity Log</h1>
+      <p class="page-subtitle">All account activity</p>
+    </div>
+    <div class="card" style="margin-bottom:20px">
+      <div id="log-list">
+        <div style="text-align:center;padding:24px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</div>
+      </div>
+    </div>
+  `;
+
+  try {
+    const data = await api(`/activity?limit=${limit}&offset=${offset}`);
+    const list = $('#log-list');
+
+    if (data.activities.length === 0) {
+      list.innerHTML = '<div class="activity-empty">No activity found.</div>';
+      return;
+    }
+
+    const pageInfo = data.totalPages > 1 ? html`
+      <div class="log-pagination">
+        <button class="btn btn-ghost btn-sm" onclick="renderLog(${pageNum - 1})" ${pageNum <= 1 ? 'disabled' : ''}>Previous</button>
+        <span class="log-pagination-info">Page ${data.page} of ${data.totalPages} (${data.total} total)</span>
+        <button class="btn btn-ghost btn-sm" onclick="renderLog(${pageNum + 1})" ${pageNum >= data.totalPages ? 'disabled' : ''}>Next</button>
+      </div>
+    ` : '';
+
+    list.innerHTML = html`
+      ${pageInfo}
+      <div class="activity-list">
+        ${data.activities.map(a => html`
+          <div class="activity-item">
+            <div class="activity-icon activity-icon-${a.action}">${activityIcons[a.action] || ''}</div>
+            <div class="activity-content">
+              <div class="activity-action">${getActionLabel(a.action)}</div>
+              <div class="activity-details">${a.details || ''}</div>
+            </div>
+            <div class="activity-time">${formatRelativeTime(a.created_at)}</div>
+          </div>
+        `).join('')}
+      </div>
+      ${pageInfo}
+    `;
+  } catch (err) {
+    const list = $('#log-list');
+    if (list) list.innerHTML = '<div class="activity-empty">Could not load activity log.</div>';
+  }
+}
+
 async function renderActivity() {
   const el = $('#page-overview');
   let activitySection = $('#activity-section');
@@ -718,7 +859,7 @@ async function renderActivity() {
   }
 
   try {
-    const data = await api('/activity');
+    const data = await api('/activity?limit=5');
     const list = $('#activity-list');
 
     if (data.activities.length === 0) {
@@ -726,16 +867,28 @@ async function renderActivity() {
       return;
     }
 
-    list.innerHTML = data.activities.slice(0, 10).map(a => html`
-      <div class="activity-item">
-        <div class="activity-icon activity-icon-${a.action}">${activityIcons[a.action] || ''}</div>
-        <div class="activity-content">
-          <div class="activity-action">${getActionLabel(a.action)}</div>
-          <div class="activity-details">${a.details || ''}</div>
-        </div>
-        <div class="activity-time">${formatRelativeTime(a.created_at)}</div>
+    const showCount = Math.min(4, data.activities.length);
+    const hasMore = data.total > 4;
+
+    list.innerHTML = html`
+      <div class="activity-list${hasMore ? ' activity-list-truncated' : ''}">
+        ${data.activities.slice(0, showCount).map(a => html`
+          <div class="activity-item">
+            <div class="activity-icon activity-icon-${a.action}">${activityIcons[a.action] || ''}</div>
+            <div class="activity-content">
+              <div class="activity-action">${getActionLabel(a.action)}</div>
+              <div class="activity-details">${a.details || ''}</div>
+            </div>
+            <div class="activity-time">${formatRelativeTime(a.created_at)}</div>
+          </div>
+        `).join('')}
+        ${hasMore ? html`
+          <div class="activity-more-overlay">
+            <a class="btn btn-primary btn-sm" onclick="navigateTo('log')" style="width:auto">View all logs</a>
+          </div>
+        ` : ''}
       </div>
-    `).join('');
+    `;
   } catch (err) {
     const list = $('#activity-list');
     if (list) list.innerHTML = '<div class="activity-empty">Could not load activity.</div>';
@@ -801,8 +954,9 @@ function renderServerRow(s) {
   const alloc = s.allocationDetails;
   const isInstalling = s.status === 'installing' || s.installed === 0 || s.installed === '0' || s.installed === false;
   const isSuspended = s.status === 'suspended';
-  const statusClass = isSuspended ? 'status-suspended' : (isInstalling ? 'status-installing' : 'status-active');
-  const statusLabel = isSuspended ? 'Suspended' : (isInstalling ? 'Installing' : 'Active');
+  const powerState = s.currentState ? s.currentState.charAt(0).toUpperCase() + s.currentState.slice(1) : null;
+  const statusClass = isSuspended ? 'status-suspended' : (isInstalling ? 'status-installing' : (powerState === 'Offline' ? 'status-offline' : 'status-active'));
+  const statusLabel = isSuspended ? 'Suspended' : (isInstalling ? 'Installing' : (powerState || 'Active'));
   const allocStr = alloc ? `${alloc.alias || alloc.nodeFqdn || alloc.ip}:${alloc.port}` : (s.nodeFqdn || `Node #${s.node}`);
   const meta = s.serverMeta;
   const days = meta ? daysRemaining(meta.expires_at) : null;
@@ -814,12 +968,11 @@ function renderServerRow(s) {
       <td><span class="server-detail-tag">${allocStr}</span></td>
       <td>
         <span class="server-card-status ${statusClass}">${statusLabel}</span>
-        ${s.currentState ? html`<span class="power-state-dot ${s.currentState}">${s.currentState.charAt(0).toUpperCase() + s.currentState.slice(1)}</span>` : ''}
       </td>
       <td>
         <div style="display:flex;gap:6px">
-          <a class="btn btn-ghost btn-sm" href="/server/${s.id}" onclick="event.preventDefault();navigateTo('server/${s.id}')">Manage</a>
-          <a href="https://panel.zero-host.org/server/${s.identifier}" target="_blank" class="btn btn-ghost btn-sm">Open Pterodactyl</a>
+          <a class="btn btn-ghost btn-sm" href="/server/${s.id}" onclick="event.preventDefault();navigateTo('server/${s.id}')">Settings</a>
+          <a href="https://panel.zero-host.org/server/${s.identifier}" target="_blank" class="btn btn-ghost btn-sm">Open Pyrodactyl</a>
           ${canRenew ? html`
             <button class="btn btn-primary btn-sm btn-renew-server" data-server-id="${s.id}">Renew</button>
           ` : ''}
@@ -1065,15 +1218,15 @@ async function handleCreateServer(e) {
   }
 }
 
-// ===== PTERODACTYL PAGE =====
+// ===== PYRODACTYL PAGE =====
 let pteroTimeout = null;
 
-function renderPterodactyl() {
+function renderPyrodactyl() {
   if (pteroTimeout) clearTimeout(pteroTimeout);
-  const el = $('#page-pterodactyl');
+  const el = $('#page-pyrodactyl');
   el.innerHTML = html`
     <div class="page-header">
-      <h1 class="page-title">Pterodactyl Panel</h1>
+      <h1 class="page-title">Pyrodactyl Panel</h1>
       <p class="page-subtitle">Redirecting to the panel in 5 seconds...</p>
     </div>
     <div class="ptero-grid">
@@ -1081,9 +1234,9 @@ function renderPterodactyl() {
         <div class="ptero-card-icon">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M9 6V5a2 2 0 012-2h2a2 2 0 012 2v1M9 12h6M9 16h4"/></svg>
         </div>
-        <h2 class="ptero-card-title">Opening Pterodactyl...</h2>
+        <h2 class="ptero-card-title">Opening Pyrodactyl...</h2>
         <p class="ptero-card-desc">
-          You are being redirected to the Pterodactyl panel. If nothing happens, click the button below.
+          You are being redirected to the Pyrodactyl panel. If nothing happens, click the button below.
         </p>
         <div class="ptero-info" style="margin-bottom:24px">
           <div class="ptero-info-item">
@@ -1146,6 +1299,19 @@ function renderAccount() {
         </div>
       </div>
 
+      <div class="card account-menu-card" id="account-menu-logs" style="cursor:pointer">
+        <div class="account-menu-item">
+          <div class="account-menu-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          </div>
+          <div class="account-menu-text">
+            <div class="account-menu-title">Activity Log</div>
+            <div class="account-menu-desc">View all account activity</div>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+      </div>
+
       <div class="card account-menu-card" id="account-menu-dangerous" style="cursor:pointer">
         <div class="account-menu-item">
           <div class="account-menu-icon" style="color:var(--accent-red)">
@@ -1163,6 +1329,7 @@ function renderAccount() {
 
   $('#account-menu-edit').addEventListener('click', () => navigateTo('account/edit'));
   $('#account-menu-links').addEventListener('click', () => navigateTo('account/links'));
+  $('#account-menu-logs').addEventListener('click', () => navigateTo('log'));
   $('#account-menu-dangerous').addEventListener('click', () => navigateTo('account/dangerous'));
 }
 
@@ -1214,9 +1381,9 @@ function renderAccountEdit() {
       </div>
 
       <div class="card">
-        <h2 class="card-title" style="margin-bottom:20px">Pterodactyl API Key</h2>
+        <h2 class="card-title" style="margin-bottom:20px">Pyrodactyl API Key</h2>
         <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin-bottom:16px">
-          Add your Pterodactyl Client API key to enable live resource monitoring and server power state detection directly in the dashboard.
+          Add your Pyrodactyl Client API key to enable live resource monitoring and server power state detection directly in the dashboard.
           Generate one at <a href="https://panel.zero-host.org/account/api" target="_blank">panel.zero-host.org/account/api</a>.
         </p>
         <form id="api-key-form" style="max-width:480px">
@@ -1261,7 +1428,7 @@ async function handleSaveApiKey(e) {
     status.textContent = 'API key saved successfully!';
     status.style.color = 'var(--accent-green)';
     input.value = '';
-    showToast('Pterodactyl API key saved', 'success');
+    showToast('Pyrodactyl API key saved', 'success');
   } catch (err) {
     status.textContent = err.message;
     status.style.color = 'var(--accent-red)';
@@ -1576,7 +1743,7 @@ async function renderServerDetail(serverId) {
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
             <div>
               <h3 class="action-card-title">Open Panel</h3>
-              <p class="action-card-desc">Access the full Pterodactyl control panel to manage files, console, databases, schedules, and more.</p>
+              <p class="action-card-desc">Access the full Pyrodactyl control panel to manage files, console, databases, schedules, and more.</p>
             </div>
           </div>
           <a href="https://panel.zero-host.org/server/${s.identifier}" target="_blank" class="btn btn-primary btn-full">Open Panel</a>
@@ -1634,7 +1801,7 @@ async function fetchLiveResources(identifier) {
         <div class="empty-state" style="padding:24px">
           <div class="empty-state-title" style="font-size:0.95rem">No live data</div>
           <div class="empty-state-desc" style="font-size:0.82rem">
-            ${data.error || 'Add your Pterodactyl API key in Account → Linked Accounts to enable live monitoring.'}
+            ${data.error || 'Add your Pyrodactyl API key in Account → Linked Accounts to enable live monitoring.'}
           </div>
           <button class="btn btn-primary btn-sm" onclick="navigateTo('account/edit')" style="margin-top:8px;width:auto">Configure API Key</button>
         </div>
@@ -1643,6 +1810,7 @@ async function fetchLiveResources(identifier) {
     }
 
     const res = data.resources;
+    const currentState = data.current_state;
     const cpuPct = Math.round(res.cpu_absolute || 0);
     const memUsed = res.memory_bytes ? Math.round(res.memory_bytes / (1024 * 1024)) : 0;
     const memLimit = res.memory_limit_bytes ? Math.round(res.memory_limit_bytes / (1024 * 1024)) : 512;
@@ -1680,7 +1848,7 @@ async function fetchLiveResources(identifier) {
       </div>
       <div style="margin-top:12px;text-align:center;font-size:0.72rem;color:var(--text-muted)">
         Updated ${formatRelativeTime(new Date().toISOString())} · 
-        ${res.current_state ? html`Status: <strong>${res.current_state}</strong>` : ''}
+        ${currentState ? html`Status: <strong>${currentState}</strong>` : ''}
       </div>
     `;
 

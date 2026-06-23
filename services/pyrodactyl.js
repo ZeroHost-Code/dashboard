@@ -1,6 +1,7 @@
-import { PTERO_URL, PTERO_API_KEY, SERVER_LIMITS, FEATURE_LIMITS, DEPLOY_LOCATIONS } from '../config/pterodactyl.js';
+import { PTERO_URL, PTERO_API_KEY, SERVER_LIMITS, FEATURE_LIMITS, DEPLOY_LOCATIONS, NEST_IDS } from '../config/pyrodactyl.js';
 
 const FETCH_TIMEOUT = 15000;
+const CACHE_TTL = 5 * 60 * 1000;
 const nodeCache = new Map();
 
 async function fetchWithTimeout(url, options = {}, timeout = FETCH_TIMEOUT) {
@@ -65,10 +66,13 @@ export async function getPteroUserById(id) {
 }
 
 async function getNode(nodeId) {
-  if (nodeCache.has(nodeId)) return nodeCache.get(nodeId);
+  if (nodeCache.has(nodeId)) {
+    const cached = nodeCache.get(nodeId);
+    if (Date.now() - cached.ts < CACHE_TTL) return cached.data;
+  }
   const data = await pteroFetch(`/nodes/${nodeId}`);
   const node = data.attributes;
-  nodeCache.set(nodeId, node);
+  nodeCache.set(nodeId, { data: node, ts: Date.now() });
   return node;
 }
 
@@ -212,7 +216,7 @@ export async function updatePteroPassword(userId, password) {
 }
 
 export async function updatePteroEmail(userId, email) {
-  // Pterodactyl requires all required fields on PATCH
+  // Pyrodactyl requires all required fields on PATCH
   const user = await getPteroUserById(userId);
   await pteroFetch(`/users/${userId}`, {
     method: 'PATCH',
@@ -232,7 +236,7 @@ export async function deletePteroUser(userId) {
 export async function getAllEggs() {
   const eggs = [];
 
-  for (const nestId of [5, 6, 7]) {
+  for (const nestId of NEST_IDS) {
     try {
       const nestData = await pteroFetch(`/nests/${nestId}/eggs`);
       for (const e of nestData.data) {

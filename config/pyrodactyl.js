@@ -16,3 +16,5 @@ export const FEATURE_LIMITS = {
 };
 
 export const DEPLOY_LOCATIONS = [1];
+
+export const NEST_IDS = [5, 6, 7];

@@ -34,14 +34,14 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net", "https://pagead2.googlesyndication.com"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
       scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
-      connectSrc: ["'self'", "https://panel.zero-host.org", "https://cap.zero-host.org", "https://pagead2.googlesyndication.com", "https://cdn.jsdelivr.net"],
+      connectSrc: ["'self'", "https://panel.zero-host.org", "https://cap.zero-host.org", "https://cdn.jsdelivr.net"],
       workerSrc: ["'self'", "blob:"],
-      frameSrc: ["https://cap.zero-host.org", "https://googleads.g.doubleclick.net"],
+      frameSrc: ["https://cap.zero-host.org"],
       objectSrc: ["'none'"],
     },
   },
@@ -74,7 +74,7 @@ const authLimiter = rateLimit({
   message: { error: 'Too many attempts, try again later' },
   standardHeaders: true,
   legacyHeaders: false,
-  trustLevel: trustProxy ? 1 : 0,
+  trustProxy: trustProxy ? 1 : 0,
 });
 
 const apiLimiter = rateLimit({
@@ -83,7 +83,7 @@ const apiLimiter = rateLimit({
   message: { error: 'Too many requests' },
   standardHeaders: true,
   legacyHeaders: false,
-  trustLevel: trustProxy ? 1 : 0,
+  trustProxy: trustProxy ? 1 : 0,
 });
 
 app.use('/api/auth/login', authLimiter);
@@ -104,13 +104,21 @@ app.get('/api/activity', async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded.userId;
 
-    const activities = await getRecentActivity(userId);
-    res.json({ activities });
+    const limit = Math.max(1, Math.min(parseInt(req.query.limit, 10) || 20, 50));
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+    const result = await getRecentActivity(userId, limit, offset);
+    res.json({
+      activities: result.activities,
+      total: result.total,
+      page: Math.floor(offset / limit) + 1,
+      totalPages: Math.ceil(result.total / limit) || 1,
+      limit,
+    });
   } catch (err) {
     if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
-    console.error('Activity route error:', err.message);
+    console.error('Activity route error:', err.message, err.stack?.split('\n')[1]);
     res.status(500).json({ error: 'Failed to fetch activities' });
   }
 });
@@ -140,6 +148,7 @@ app.use((err, req, res, _next) => {
 
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled Promise rejection:', reason);
+  process.exit(1);
 });
 
 process.on('uncaughtException', (err) => {

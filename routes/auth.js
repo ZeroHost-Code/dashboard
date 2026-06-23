@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import argon2 from 'argon2';
 import { query } from '../config/db.js';
 import { generateToken, authenticateToken } from '../middleware/auth.js';
-import { createPteroUser, updatePteroPassword, updatePteroEmail, deletePteroUser, getServersByUser, deletePteroServer } from '../services/pterodactyl.js';
+import { createPteroUser, updatePteroPassword, updatePteroEmail, deletePteroUser, getServersByUser, deletePteroServer } from '../services/pyrodactyl.js';
 import { verifyCap } from '../config/cap.js';
 import { logActivity } from '../services/activity.js';
 
@@ -132,7 +132,7 @@ router.post('/register', async (req, res) => {
       maxAge: 2 * 60 * 60 * 1000,
     });
 
-    logActivity(localUserId, 'account_registered', 'Created account');
+    await logActivity(localUserId, 'account_registered', 'Created account');
 
     res.status(201).json({
       token,
@@ -148,7 +148,7 @@ router.post('/register', async (req, res) => {
     console.error('Register error:', err.message);
     if (createdPteroUserId) {
       deletePteroUser(createdPteroUserId).catch(e =>
-        console.error('Failed to clean up Pterodactyl user after registration failure:', e.message)
+        console.error('Failed to clean up Pyrodactyl user after registration failure:', e.message)
       );
     }
     if (err.message.includes('already exists') || err.message.includes('already been taken')) {
@@ -179,17 +179,17 @@ router.post('/login', async (req, res) => {
 
     const users = await query('SELECT * FROM users WHERE email = ?', [email]);
     if (users.length === 0) {
-      console.log('[LOGIN] User not found for email:', email);
+      if (process.env.NODE_ENV !== 'production') console.log('[LOGIN] User not found for email:', email);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     const user = users[0];
 
-    console.log('[LOGIN] User found:', { id: user.id, email: user.email, hashFirstChars: user.password_hash?.slice(0, 30), hashType: typeof user.password_hash });
+    if (process.env.NODE_ENV !== 'production') console.log('[LOGIN] User found:', { id: user.id, email: user.email });
 
     const validPassword = await argon2.verify(user.password_hash, password, { type: argon2.argon2id });
     if (!validPassword) {
-      console.log('[LOGIN] Password mismatch for user:', user.id);
+      if (process.env.NODE_ENV !== 'production') console.log('[LOGIN] Password mismatch for user:', user.id);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
@@ -261,10 +261,10 @@ router.post('/change-password', authenticateToken, async (req, res) => {
     try {
       await updatePteroPassword(pteroId, newPassword);
     } catch (err) {
-      console.error('Failed to update Pterodactyl password:', err.message);
+      console.error('Failed to update Pyrodactyl password:', err.message);
     }
 
-    logActivity(req.user.userId, 'password_changed', 'Changed password');
+    await logActivity(req.user.userId, 'password_changed', 'Changed password');
     res.json({ message: 'Password updated successfully' });
   } catch (err) {
     console.error('Change password error:', err.message);
@@ -304,18 +304,18 @@ router.post('/change-email', authenticateToken, async (req, res) => {
       return res.status(409).json({ error: 'Email is already in use' });
     }
 
-    // Update Pterodactyl
+    // Update Pyrodactyl
     try {
       await updatePteroEmail(pteroId, newEmail);
     } catch (err) {
-      console.error('Failed to update Pterodactyl email:', err.message);
+      console.error('Failed to update Pyrodactyl email:', err.message);
       return res.status(500).json({ error: 'Failed to update email on panel' });
     }
 
     // Update local DB
     await query('UPDATE users SET email = ? WHERE id = ?', [newEmail, userId]);
 
-    logActivity(userId, 'email_changed', `Changed email to ${newEmail}`);
+    await logActivity(userId, 'email_changed', `Changed email to ${newEmail}`);
 
     // Generate new token with updated email
     const token = generateToken({
@@ -365,12 +365,12 @@ router.post('/delete-account', authenticateToken, async (req, res) => {
       return res.status(401).json({ error: 'Password is incorrect' });
     }
 
-    logActivity(user.id, 'account_deleted', 'Deleted account');
+    await logActivity(user.id, 'account_deleted', 'Deleted account');
 
     // Delete from local DB first (cascades to user_ips)
     await query('DELETE FROM users WHERE id = ?', [user.id]);
 
-    // Then try to clean up Pterodactyl (best effort)
+    // Then try to clean up Pyrodactyl (best effort)
     if (pteroId) {
       try {
         const servers = await getServersByUser(pteroId);
@@ -388,7 +388,7 @@ router.post('/delete-account', authenticateToken, async (req, res) => {
       try {
         await deletePteroUser(pteroId);
       } catch (err) {
-        console.error('Failed to delete Pterodactyl user:', err.message);
+        console.error('Failed to delete Pyrodactyl user:', err.message);
       }
     }
 
@@ -441,8 +441,8 @@ router.get('/export-data', authenticateToken, async (req, res) => {
           firstName: user.first_name,
           lastName: user.last_name,
           createdAt: user.created_at,
-          pterodactylId: user.ptero_user_id,
-          pterodactylUuid: user.ptero_uuid,
+          pyrodactylId: user.ptero_user_id,
+          pyrodactylUuid: user.ptero_uuid,
         },
         security: {
           loggedIpAddresses: ips.map(ip => ({
