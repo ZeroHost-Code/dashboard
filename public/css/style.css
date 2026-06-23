@@ -1559,21 +1559,9 @@ tbody tr:hover {
   font-size: 0.88rem;
 }
 
-.activity-list-truncated {
-  max-height: 340px;
-  overflow: hidden;
-  position: relative;
-}
-
-.activity-list-truncated::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 100px;
-  background: linear-gradient(transparent, var(--bg-card));
-  pointer-events: none;
+.activity-list-truncated + .activity-more-overlay {
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding-top: 12px;
 }
 
 .activity-more-overlay {
