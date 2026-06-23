@@ -132,7 +132,7 @@ router.post('/register', async (req, res) => {
       maxAge: 2 * 60 * 60 * 1000,
     });
 
-    logActivity(localUserId, 'account_registered', 'Created account');
+    await logActivity(localUserId, 'account_registered', 'Created account');
 
     res.status(201).json({
       token,
@@ -264,7 +264,7 @@ router.post('/change-password', authenticateToken, async (req, res) => {
       console.error('Failed to update Pyrodactyl password:', err.message);
     }
 
-    logActivity(req.user.userId, 'password_changed', 'Changed password');
+    await logActivity(req.user.userId, 'password_changed', 'Changed password');
     res.json({ message: 'Password updated successfully' });
   } catch (err) {
     console.error('Change password error:', err.message);
@@ -315,7 +315,7 @@ router.post('/change-email', authenticateToken, async (req, res) => {
     // Update local DB
     await query('UPDATE users SET email = ? WHERE id = ?', [newEmail, userId]);
 
-    logActivity(userId, 'email_changed', `Changed email to ${newEmail}`);
+    await logActivity(userId, 'email_changed', `Changed email to ${newEmail}`);
 
     // Generate new token with updated email
     const token = generateToken({
@@ -365,7 +365,7 @@ router.post('/delete-account', authenticateToken, async (req, res) => {
       return res.status(401).json({ error: 'Password is incorrect' });
     }
 
-    logActivity(user.id, 'account_deleted', 'Deleted account');
+    await logActivity(user.id, 'account_deleted', 'Deleted account');
 
     // Delete from local DB first (cascades to user_ips)
     await query('DELETE FROM users WHERE id = ?', [user.id]);

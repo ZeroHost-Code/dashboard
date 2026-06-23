@@ -163,7 +163,7 @@ router.post('/create', authenticateToken, async (req, res) => {
       [server.id, req.user.userId, 'active']
     ).catch(err => console.error('Failed to log server meta:', err.message));
 
-    logActivity(req.user.userId, 'server_created', `Created server "${name}"`, server.id);
+    await logActivity(req.user.userId, 'server_created', `Created server "${name}"`, server.id);
     res.status(201).json({ server });
   } catch (err) {
     console.error('Create server error:', err.message);
@@ -236,7 +236,7 @@ router.post('/renew/:id', authenticateToken, async (req, res) => {
       }
     }
 
-    logActivity(req.user.userId, 'server_renewed', `Renewed server #${serverId}`, serverId);
+    await logActivity(req.user.userId, 'server_renewed', `Renewed server #${serverId}`, serverId);
     const updated = await query('SELECT * FROM server_meta WHERE id = ?', [row.id]);
     res.json({ serverMeta: updated[0] });
   } catch (err) {
@@ -265,7 +265,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
     }
 
     await renamePteroServer(serverId, name.trim());
-    logActivity(req.user.userId, 'server_renamed', `Renamed server #${serverId} to "${name.trim()}"`, serverId);
+    await logActivity(req.user.userId, 'server_renamed', `Renamed server #${serverId} to "${name.trim()}"`, serverId);
     res.json({ success: true });
   } catch (err) {
     console.error('Rename server error:', err.message);
@@ -285,7 +285,7 @@ router.post('/:id/reinstall', authenticateToken, async (req, res) => {
     }
 
     await reinstallPteroServer(serverId);
-    logActivity(req.user.userId, 'server_reinstalled', `Reinstalled server #${serverId}`, serverId);
+    await logActivity(req.user.userId, 'server_reinstalled', `Reinstalled server #${serverId}`, serverId);
     res.json({ success: true });
   } catch (err) {
     console.error('Reinstall server error:', err.message);
@@ -298,7 +298,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     const serverId = parseInt(req.params.id, 10);
     await deletePteroServer(serverId);
     await query('DELETE FROM server_meta WHERE ptero_server_id = ?', [serverId]);
-    logActivity(req.user.userId, 'server_deleted', `Deleted server #${serverId}`);
+    await logActivity(req.user.userId, 'server_deleted', `Deleted server #${serverId}`);
     res.json({ success: true });
   } catch (err) {
     console.error('Delete server error:', err.message);
@@ -384,7 +384,7 @@ router.put('/client-api-key', authenticateToken, async (req, res) => {
     }
 
     await query('UPDATE users SET ptero_client_api_key = ? WHERE id = ?', [apiKey.trim(), userId]);
-    logActivity(req.user.userId, 'api_key_updated', 'Updated Pyrodactyl API key');
+    await logActivity(req.user.userId, 'api_key_updated', 'Updated Pyrodactyl API key');
 
     res.json({ success: true });
   } catch (err) {

@@ -148,6 +148,7 @@ app.use((err, req, res, _next) => {
 
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled Promise rejection:', reason);
+  process.exit(1);
 });
 
 process.on('uncaughtException', (err) => {
