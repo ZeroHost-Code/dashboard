@@ -535,6 +535,10 @@ cap-widget {
   padding: 0;
 }
 
+.sidebar.collapsed #logout-btn {
+  display: none;
+}
+
 .sidebar.collapsed .user-info {
   justify-content: center;
   padding: 4px 0;
