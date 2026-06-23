@@ -536,7 +536,7 @@ cap-widget {
 }
 
 .sidebar.collapsed #logout-btn {
-  display: none;
+  display: none !important;
 }
 
 .sidebar.collapsed .user-info {

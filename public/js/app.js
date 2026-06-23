@@ -407,19 +407,23 @@ function initSidebarResize() {
 
 function toggleSidebarCollapse() {
   const sidebar = $('#sidebar');
-  const isCollapsed = sidebar.classList.toggle('collapsed');
-  localStorage.setItem('zh_sidebar_collapsed', isCollapsed);
   const main = document.querySelector('.main-content');
-  if (isCollapsed) {
-    sidebar.dataset.prevWidth = sidebar.style.width || getComputedStyle(sidebar).width;
+  const wasCollapsed = sidebar.classList.contains('collapsed');
+  if (!wasCollapsed) {
+    sidebar.dataset.prevWidth = sidebar.style.width || sidebar.offsetWidth + 'px';
+    sidebar.classList.add('collapsed');
     sidebar.style.width = '';
     main.style.marginLeft = '';
   } else {
-    const prev = sidebar.dataset.prevWidth || localStorage.getItem('zh_sidebar_width') || '260';
+    sidebar.classList.remove('collapsed');
+    let prev = sidebar.dataset.prevWidth || localStorage.getItem('zh_sidebar_width');
+    if (!prev) prev = '260px';
+    if (!prev.endsWith('px')) prev += 'px';
     sidebar.style.width = prev;
     sidebar.style.setProperty('--sidebar-w', prev);
     main.style.marginLeft = prev;
   }
+  localStorage.setItem('zh_sidebar_collapsed', !wasCollapsed);
 }
 
 // ===== DASHBOARD =====
