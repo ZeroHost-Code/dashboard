@@ -104,21 +104,21 @@ app.get('/api/activity', async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded.userId;
 
-    const limit = Math.min(parseInt(req.query.limit) || 20, 50);
-    const offset = parseInt(req.query.offset) || 0;
+    const limit = Math.max(1, Math.min(parseInt(req.query.limit) || 20, 50));
+    const offset = Math.max(0, parseInt(req.query.offset) || 0);
     const result = await getRecentActivity(userId, limit, offset);
     res.json({
       activities: result.activities,
       total: result.total,
       page: Math.floor(offset / limit) + 1,
-      totalPages: Math.ceil(result.total / limit),
+      totalPages: Math.ceil(result.total / limit) || 1,
       limit,
     });
   } catch (err) {
     if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
-    console.error('Activity route error:', err.message);
+    console.error('Activity route error:', err.message, err.stack?.split('\n')[1]);
     res.status(500).json({ error: 'Failed to fetch activities' });
   }
 });
