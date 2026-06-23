@@ -11,10 +11,14 @@ export async function logActivity(userId, action, details = '', serverId = null)
   }
 }
 
-export async function getRecentActivity(userId, limit = 20) {
-  const rows = await query(
-    'SELECT * FROM activity_log WHERE user_id = ? ORDER BY created_at DESC LIMIT ?',
-    [userId, limit]
+export async function getRecentActivity(userId, limit = 20, offset = 0) {
+  const [countResult] = await query(
+    'SELECT COUNT(*) as total FROM activity_log WHERE user_id = ?',
+    [userId]
   );
-  return rows;
+  const rows = await query(
+    'SELECT * FROM activity_log WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
+    [userId, limit, offset]
+  );
+  return { activities: rows, total: countResult.total };
 }

@@ -428,6 +428,7 @@ async function renderDashboard() {
         <div class="page" id="page-pterodactyl"></div>
         <div class="page" id="page-account"></div>
         <div class="page" id="page-server-detail"></div>
+        <div class="page" id="page-log"></div>
       </main>
     </div>
 
@@ -499,6 +500,8 @@ function navigateTo(page) {
       else if (param === 'links') renderAccountLinks();
       else if (param === 'dangerous') renderDangerous();
       else renderAccount();
+    } else if (basePage === 'log') {
+      renderLog();
     }
   }
 
@@ -539,6 +542,8 @@ window.addEventListener('popstate', () => {
       else if (param === 'links') renderAccountLinks();
       else if (param === 'dangerous') renderDangerous();
       else renderAccount();
+    } else if (basePage === 'log') {
+      renderLog();
     }
   }
 });
@@ -697,6 +702,63 @@ function getActionLabel(action) {
   return labels[action] || action;
 }
 
+async function renderLog(pageNum) {
+  const el = $('#page-log');
+  pageNum = pageNum || 1;
+  const limit = 50;
+  const offset = (pageNum - 1) * limit;
+
+  el.innerHTML = html`
+    <div class="page-header">
+      <h1 class="page-title">Activity Log</h1>
+      <p class="page-subtitle">All account activity</p>
+    </div>
+    <div class="card" style="margin-bottom:20px">
+      <div id="log-list">
+        <div style="text-align:center;padding:24px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</div>
+      </div>
+    </div>
+  `;
+
+  try {
+    const data = await api(`/activity?limit=${limit}&offset=${offset}`);
+    const list = $('#log-list');
+
+    if (data.activities.length === 0) {
+      list.innerHTML = '<div class="activity-empty">No activity found.</div>';
+      return;
+    }
+
+    const pageInfo = data.totalPages > 1 ? html`
+      <div class="log-pagination">
+        <button class="btn btn-ghost btn-sm" onclick="renderLog(${pageNum - 1})" ${pageNum <= 1 ? 'disabled' : ''}>Previous</button>
+        <span class="log-pagination-info">Page ${data.page} of ${data.totalPages} (${data.total} total)</span>
+        <button class="btn btn-ghost btn-sm" onclick="renderLog(${pageNum + 1})" ${pageNum >= data.totalPages ? 'disabled' : ''}>Next</button>
+      </div>
+    ` : '';
+
+    list.innerHTML = html`
+      ${pageInfo}
+      <div class="activity-list">
+        ${data.activities.map(a => html`
+          <div class="activity-item">
+            <div class="activity-icon activity-icon-${a.action}">${activityIcons[a.action] || ''}</div>
+            <div class="activity-content">
+              <div class="activity-action">${getActionLabel(a.action)}</div>
+              <div class="activity-details">${a.details || ''}</div>
+            </div>
+            <div class="activity-time">${formatRelativeTime(a.created_at)}</div>
+          </div>
+        `).join('')}
+      </div>
+      ${pageInfo}
+    `;
+  } catch (err) {
+    const list = $('#log-list');
+    if (list) list.innerHTML = '<div class="activity-empty">Could not load activity log.</div>';
+  }
+}
+
 async function renderActivity() {
   const el = $('#page-overview');
   let activitySection = $('#activity-section');
@@ -718,7 +780,7 @@ async function renderActivity() {
   }
 
   try {
-    const data = await api('/activity');
+    const data = await api('/activity?limit=5');
     const list = $('#activity-list');
 
     if (data.activities.length === 0) {
@@ -726,16 +788,28 @@ async function renderActivity() {
       return;
     }
 
-    list.innerHTML = data.activities.slice(0, 10).map(a => html`
-      <div class="activity-item">
-        <div class="activity-icon activity-icon-${a.action}">${activityIcons[a.action] || ''}</div>
-        <div class="activity-content">
-          <div class="activity-action">${getActionLabel(a.action)}</div>
-          <div class="activity-details">${a.details || ''}</div>
-        </div>
-        <div class="activity-time">${formatRelativeTime(a.created_at)}</div>
+    const showCount = Math.min(4, data.activities.length);
+    const hasMore = data.total > 4;
+
+    list.innerHTML = html`
+      <div class="activity-list${hasMore ? ' activity-list-truncated' : ''}">
+        ${data.activities.slice(0, showCount).map(a => html`
+          <div class="activity-item">
+            <div class="activity-icon activity-icon-${a.action}">${activityIcons[a.action] || ''}</div>
+            <div class="activity-content">
+              <div class="activity-action">${getActionLabel(a.action)}</div>
+              <div class="activity-details">${a.details || ''}</div>
+            </div>
+            <div class="activity-time">${formatRelativeTime(a.created_at)}</div>
+          </div>
+        `).join('')}
       </div>
-    `).join('');
+      ${hasMore ? html`
+        <div class="activity-more-overlay">
+          <a class="btn btn-primary btn-sm" onclick="navigateTo('log')" style="margin-top:12px;width:auto">View all logs</a>
+        </div>
+      ` : ''}
+    `;
   } catch (err) {
     const list = $('#activity-list');
     if (list) list.innerHTML = '<div class="activity-empty">Could not load activity.</div>';

@@ -1559,6 +1559,48 @@ tbody tr:hover {
   font-size: 0.88rem;
 }
 
+.activity-list-truncated {
+  max-height: 340px;
+  overflow: hidden;
+  position: relative;
+}
+
+.activity-list-truncated::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+  background: linear-gradient(transparent, var(--bg-card));
+  pointer-events: none;
+}
+
+.activity-more-overlay {
+  text-align: center;
+  padding: 12px 0 4px;
+}
+
+/* ===== LOG PAGE ===== */
+.log-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 0;
+}
+
+.log-pagination-info {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.log-pagination .btn-ghost[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 /* ===== SEARCH & FILTERS ===== */
 .servers-toolbar {
   display: flex;

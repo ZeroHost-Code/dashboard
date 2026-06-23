@@ -104,8 +104,16 @@ app.get('/api/activity', async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded.userId;
 
-    const activities = await getRecentActivity(userId);
-    res.json({ activities });
+    const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+    const offset = parseInt(req.query.offset) || 0;
+    const result = await getRecentActivity(userId, limit, offset);
+    res.json({
+      activities: result.activities,
+      total: result.total,
+      page: Math.floor(offset / limit) + 1,
+      totalPages: Math.ceil(result.total / limit),
+      limit,
+    });
   } catch (err) {
     if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Invalid or expired token' });
