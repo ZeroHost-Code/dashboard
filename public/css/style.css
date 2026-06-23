@@ -1314,10 +1314,10 @@ tbody tr:hover {
   justify-content: space-between;
   gap: 20px;
   flex-wrap: wrap;
-  animation: slideUp 0.4s ease;
+  animation: slideUpFromBelow 0.4s ease;
 }
 
-@keyframes slideUp {
+@keyframes slideUpFromBelow {
   from { transform: translateY(100%); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
