@@ -74,7 +74,7 @@ const authLimiter = rateLimit({
   message: { error: 'Too many attempts, try again later' },
   standardHeaders: true,
   legacyHeaders: false,
-  trustLevel: trustProxy ? 1 : 0,
+  trustProxy: trustProxy ? 1 : 0,
 });
 
 const apiLimiter = rateLimit({
@@ -83,7 +83,7 @@ const apiLimiter = rateLimit({
   message: { error: 'Too many requests' },
   standardHeaders: true,
   legacyHeaders: false,
-  trustLevel: trustProxy ? 1 : 0,
+  trustProxy: trustProxy ? 1 : 0,
 });
 
 app.use('/api/auth/login', authLimiter);
@@ -104,8 +104,8 @@ app.get('/api/activity', async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded.userId;
 
-    const limit = Math.max(1, Math.min(parseInt(req.query.limit) || 20, 50));
-    const offset = Math.max(0, parseInt(req.query.offset) || 0);
+    const limit = Math.max(1, Math.min(parseInt(req.query.limit, 10) || 20, 50));
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
     const result = await getRecentActivity(userId, limit, offset);
     res.json({
       activities: result.activities,
