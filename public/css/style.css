@@ -1571,8 +1571,11 @@ tbody tr:hover {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 120px;
-  background: linear-gradient(transparent, var(--bg-card));
+  height: 100px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  mask-image: linear-gradient(transparent, #000 80%);
+  -webkit-mask-image: linear-gradient(transparent, #000 80%);
   pointer-events: none;
 }
 
