@@ -875,8 +875,9 @@ function renderServerRow(s) {
   const alloc = s.allocationDetails;
   const isInstalling = s.status === 'installing' || s.installed === 0 || s.installed === '0' || s.installed === false;
   const isSuspended = s.status === 'suspended';
-  const statusClass = isSuspended ? 'status-suspended' : (isInstalling ? 'status-installing' : 'status-active');
-  const statusLabel = isSuspended ? 'Suspended' : (isInstalling ? 'Installing' : 'Active');
+  const powerState = s.currentState ? s.currentState.charAt(0).toUpperCase() + s.currentState.slice(1) : null;
+  const statusClass = isSuspended ? 'status-suspended' : (isInstalling ? 'status-installing' : (powerState === 'Offline' ? 'status-offline' : 'status-active'));
+  const statusLabel = isSuspended ? 'Suspended' : (isInstalling ? 'Installing' : (powerState || 'Active'));
   const allocStr = alloc ? `${alloc.alias || alloc.nodeFqdn || alloc.ip}:${alloc.port}` : (s.nodeFqdn || `Node #${s.node}`);
   const meta = s.serverMeta;
   const days = meta ? daysRemaining(meta.expires_at) : null;
@@ -888,7 +889,6 @@ function renderServerRow(s) {
       <td><span class="server-detail-tag">${allocStr}</span></td>
       <td>
         <span class="server-card-status ${statusClass}">${statusLabel}</span>
-        ${s.currentState ? html`<span class="power-state-dot ${s.currentState}">${s.currentState.charAt(0).toUpperCase() + s.currentState.slice(1)}</span>` : ''}
       </td>
       <td>
         <div style="display:flex;gap:6px">

@@ -771,6 +771,11 @@ cap-widget {
   color: var(--accent-orange);
 }
 
+.status-offline {
+  background: rgba(107, 114, 128, 0.12);
+  color: #9ca3af;
+}
+
 .server-card-details {
   display: flex;
   flex-wrap: wrap;
