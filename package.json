@@ -1,11 +1,11 @@
 {
   "name": "zerohost-dashboard",
-  "version": "0.9.7",
+  "version": "0.9.8",
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "npm i && node server.js",
-    "dev": "npm i && node --watch server.js"
+    "start": "node server.js",
+    "dev": "node --watch server.js"
   },
   "dependencies": {
     "argon2": "^0.41.1",
