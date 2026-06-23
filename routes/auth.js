@@ -179,17 +179,17 @@ router.post('/login', async (req, res) => {
 
     const users = await query('SELECT * FROM users WHERE email = ?', [email]);
     if (users.length === 0) {
-      console.log('[LOGIN] User not found for email:', email);
+      if (process.env.NODE_ENV !== 'production') console.log('[LOGIN] User not found for email:', email);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     const user = users[0];
 
-    console.log('[LOGIN] User found:', { id: user.id, email: user.email, hashFirstChars: user.password_hash?.slice(0, 30), hashType: typeof user.password_hash });
+    if (process.env.NODE_ENV !== 'production') console.log('[LOGIN] User found:', { id: user.id, email: user.email });
 
     const validPassword = await argon2.verify(user.password_hash, password, { type: argon2.argon2id });
     if (!validPassword) {
-      console.log('[LOGIN] Password mismatch for user:', user.id);
+      if (process.env.NODE_ENV !== 'production') console.log('[LOGIN] Password mismatch for user:', user.id);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
