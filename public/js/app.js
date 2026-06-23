@@ -355,6 +355,51 @@ async function handleRegister(e) {
   }
 }
 
+function initSidebarResize() {
+  const sidebar = $('#sidebar');
+  const resizer = $('#sidebar-resizer');
+  if (!sidebar || !resizer) return;
+
+  const saved = localStorage.getItem('zh_sidebar_width');
+  if (saved) {
+    const w = parseInt(saved, 10);
+    if (w >= 180 && w <= 600) {
+      sidebar.style.width = w + 'px';
+      sidebar.style.setProperty('--sidebar-w', w + 'px');
+      document.querySelector('.main-content').style.marginLeft = w + 'px';
+    }
+  }
+
+  let startX, startW;
+
+  function onMouseDown(e) {
+    startX = e.clientX;
+    startW = sidebar.getBoundingClientRect().width;
+    sidebar.classList.add('resizing');
+    document.documentElement.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }
+
+  function onMouseMove(e) {
+    const w = Math.min(600, Math.max(180, startW + e.clientX - startX));
+    sidebar.style.width = w + 'px';
+    sidebar.style.setProperty('--sidebar-w', w + 'px');
+    document.querySelector('.main-content').style.marginLeft = w + 'px';
+  }
+
+  function onMouseUp() {
+    sidebar.classList.remove('resizing');
+    document.documentElement.style.userSelect = '';
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+    const w = sidebar.getBoundingClientRect().width;
+    localStorage.setItem('zh_sidebar_width', Math.round(w));
+  }
+
+  resizer.addEventListener('mousedown', onMouseDown);
+}
+
 // ===== DASHBOARD =====
 async function renderDashboard() {
   const app = $('#app');
@@ -415,6 +460,7 @@ async function renderDashboard() {
           </div>
           <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v0.9.8 BETA</div>
         </div>
+        <div class="sidebar-resizer" id="sidebar-resizer"></div>
       </aside>
 
       <button class="hamburger-toggle" id="hamburger-toggle" aria-label="Toggle menu">
@@ -462,6 +508,8 @@ async function renderDashboard() {
   $('#hamburger-toggle').addEventListener('click', () => {
     $('#sidebar').classList.toggle('open');
   });
+
+  initSidebarResize();
 
   const page = window.location.pathname.replace('/', '') || 'overview';
   navigateTo(page);
