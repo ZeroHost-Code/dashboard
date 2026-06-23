@@ -1559,14 +1559,30 @@ tbody tr:hover {
   font-size: 0.88rem;
 }
 
-.activity-list-truncated + .activity-more-overlay {
-  border-top: 1px solid rgba(255,255,255,0.06);
-  padding-top: 12px;
+.activity-list-truncated {
+  max-height: 280px;
+  overflow: hidden;
+  position: relative;
+}
+
+.activity-list-truncated::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 120px;
+  background: linear-gradient(transparent 0%, rgba(30,30,40,0.85) 70%, var(--bg-card) 100%);
+  pointer-events: none;
 }
 
 .activity-more-overlay {
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  right: 0;
   text-align: center;
-  padding: 12px 0 4px;
+  z-index: 2;
 }
 
 /* ===== LOG PAGE ===== */

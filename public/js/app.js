@@ -803,12 +803,12 @@ async function renderActivity() {
             <div class="activity-time">${formatRelativeTime(a.created_at)}</div>
           </div>
         `).join('')}
+        ${hasMore ? html`
+          <div class="activity-more-overlay">
+            <a class="btn btn-primary btn-sm" onclick="navigateTo('log')" style="width:auto">View all logs</a>
+          </div>
+        ` : ''}
       </div>
-      ${hasMore ? html`
-        <div class="activity-more-overlay">
-          <a class="btn btn-primary btn-sm" onclick="navigateTo('log')" style="margin-top:12px;width:auto">View all logs</a>
-        </div>
-      ` : ''}
     `;
   } catch (err) {
     const list = $('#activity-list');
