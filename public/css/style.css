@@ -1137,10 +1137,6 @@ tbody tr:hover {
   to { opacity: 1; transform: translateY(0); }
 }
 
-
-  transition: width 0.5s ease;
-}
-
 /* ===== RESPONSIVE ===== */
 .hamburger-toggle {
   display: none;
