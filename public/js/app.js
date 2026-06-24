@@ -355,10 +355,14 @@ async function handleRegister(e) {
   }
 }
 
+let sidebarResizeInitialized = false;
+
 function initSidebarResize() {
   const sidebar = $('#sidebar');
   const resizer = $('#sidebar-resizer');
   if (!sidebar || !resizer) return;
+  if (sidebarResizeInitialized) return;
+  sidebarResizeInitialized = true;
 
   if (localStorage.getItem('zh_sidebar_collapsed') === 'true') {
     sidebar.classList.add('collapsed');
