@@ -1169,6 +1169,12 @@ async function handleCreateServer(e) {
     btn.innerHTML = 'Create Server';
     return;
   }
+  if (name.length < 1 || name.length > 255) {
+    showToast('Server name must be between 1 and 255 characters', 'error');
+    btn.disabled = false;
+    btn.innerHTML = 'Create Server';
+    return;
+  }
 
   const [eggId, nestId] = eggVal.split(',').map(Number);
   const egg = eggCache.find(e => e.eggId === eggId && e.nestId === nestId);
