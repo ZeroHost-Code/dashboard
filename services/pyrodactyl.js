@@ -23,17 +23,26 @@ const headers = {
 
 async function pteroFetch(path, options = {}) {
   const url = `${PTERO_URL}/api/application${path}`;
-  const res = await fetchWithTimeout(url, {
-    ...options,
-    headers: { ...headers, ...options.headers },
-  });
-  if (res.status === 204) return null;
-  const data = await res.json();
-  if (!res.ok) {
-    const detail = data?.errors?.[0]?.detail || JSON.stringify(data);
-    throw new Error(detail);
+  const maxRetries = 3;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const res = await fetchWithTimeout(url, {
+      ...options,
+      headers: { ...headers, ...options.headers },
+    });
+    if (res.status === 204) return null;
+    if (res.status === 429 && attempt < maxRetries) {
+      const wait = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
+      console.warn(`pteroFetch rate limited (429), retry ${attempt}/${maxRetries} after ${wait}ms`);
+      await new Promise(r => setTimeout(r, wait));
+      continue;
+    }
+    const data = await res.json();
+    if (!res.ok) {
+      const detail = data?.errors?.[0]?.detail || JSON.stringify(data);
+      throw new Error(detail);
+    }
+    return data;
   }
-  return data;
 }
 
 export async function createPteroUser({ email, username, firstName, lastName, password }) {
