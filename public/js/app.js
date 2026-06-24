@@ -1562,7 +1562,7 @@ function handleDeleteAccountClick() {
       <input type="password" id="delete-acc-pw" placeholder="Your password" required />
     </div>
     <div class="modal-actions">
-      <button class="btn btn-ghost btn-full" id="modal-cancel-btn">Cancel</button>
+      <button class="btn btn-ghost btn-full" class="modal-cancel-btn">Cancel</button>
       <button class="btn btn-danger btn-full" id="confirm-delete-acc-btn">Delete Forever</button>
     </div>
   `;
@@ -1899,7 +1899,7 @@ document.addEventListener('click', function(e) {
         <input type="text" id="rename-server-input" value="${serverName}" maxlength="255" required />
       </div>
       <div class="modal-actions">
-        <button class="btn btn-ghost btn-full" id="modal-cancel-btn">Cancel</button>
+        <button class="btn btn-ghost btn-full" class="modal-cancel-btn">Cancel</button>
         <button class="btn btn-primary btn-full" id="confirm-rename-btn" data-server-id="${serverId}">Rename</button>
       </div>
     `;
@@ -1929,7 +1929,7 @@ document.addEventListener('click', function(e) {
         </p>
       </div>
       <div class="modal-actions">
-        <button class="btn btn-ghost btn-full" id="modal-cancel-btn">Cancel</button>
+        <button class="btn btn-ghost btn-full" class="modal-cancel-btn">Cancel</button>
         <button class="btn btn-warning btn-full" id="confirm-reinstall-btn" data-server-id="${serverId}">Reinstall</button>
       </div>
     `;
@@ -1951,7 +1951,7 @@ document.addEventListener('click', function(e) {
         This action is irreversible and will permanently remove the server.
       </p>
       <div class="modal-actions">
-        <button class="btn btn-ghost btn-full" id="modal-cancel-btn">Cancel</button>
+        <button class="btn btn-ghost btn-full" class="modal-cancel-btn">Cancel</button>
         <button class="btn btn-danger btn-full" id="confirm-delete-btn" data-server-id="${serverId}">
           Delete Forever
         </button>
@@ -1961,7 +1961,7 @@ document.addEventListener('click', function(e) {
     return;
   }
 
-  if (e.target.closest('#modal-cancel-btn') || e.target.closest('.modal-overlay') && !e.target.closest('.modal')) {
+  if (e.target.closest('.modal-cancel-btn') || e.target.closest('.modal-overlay') && !e.target.closest('.modal')) {
     $('#modal-overlay').classList.remove('open');
     return;
   }
