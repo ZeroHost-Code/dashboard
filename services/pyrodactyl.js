@@ -2,6 +2,7 @@ import { PTERO_URL, PTERO_API_KEY, SERVER_LIMITS, FEATURE_LIMITS, DEPLOY_LOCATIO
 
 const FETCH_TIMEOUT = 15000;
 const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_MAX_SIZE = 50;
 const nodeCache = new Map();
 
 async function fetchWithTimeout(url, options = {}, timeout = FETCH_TIMEOUT) {
@@ -81,7 +82,17 @@ async function getNode(nodeId) {
   }
   const data = await pteroFetch(`/nodes/${nodeId}`);
   const node = data.attributes;
+  if (nodeCache.size >= CACHE_MAX_SIZE) {
+    const oldest = nodeCache.keys().next().value;
+    nodeCache.delete(oldest);
+  }
   nodeCache.set(nodeId, { data: node, ts: Date.now() });
+  if (nodeCache.size % 10 === 0) {
+    const cutoff = Date.now() - CACHE_TTL;
+    for (const [id, entry] of nodeCache) {
+      if (entry.ts < cutoff) nodeCache.delete(id);
+    }
+  }
   return node;
 }
 
