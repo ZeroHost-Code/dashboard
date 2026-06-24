@@ -484,7 +484,7 @@ async function renderDashboard() {
           <div style="padding:8px 12px 0;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
 
           </div>
-          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v0.9.8 BETA</div>
+          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v0.9.9 BETA</div>
         </div>
         <div class="sidebar-resizer" id="sidebar-resizer"></div>
       </aside>
@@ -641,14 +641,6 @@ async function renderOverview() {
       <div class="stat-card"><div class="stat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="4"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div><div class="stat-value" id="stat-slots">—</div><div class="stat-label">Server Slots</div></div>
       <div class="stat-card"><div class="stat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div><div class="stat-value" id="stat-renew">—</div><div class="stat-label">To Renew</div></div>
     </div>
-    <div class="card" style="margin-bottom:20px" id="resource-summary-card">
-      <div class="card-header">
-        <h2 class="card-title">Resource Overview</h2>
-      </div>
-      <div id="resource-summary-content">
-        <div style="text-align:center;padding:16px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</div>
-      </div>
-    </div>
     <div class="card">
       <div class="card-header">
         <h2 class="card-title">Recent Servers</h2>
@@ -681,38 +673,6 @@ async function renderOverview() {
     }).length;
     $('#stat-renew').textContent = toRenew;
     state.servers = data.servers;
-
-    // Resource summary
-    const servers = data.servers;
-    const totalMem = servers.reduce((sum, s) => sum + (s.limits?.memory || 0), 0);
-    const totalCpu = servers.reduce((sum, s) => sum + (s.limits?.cpu || 0), 0);
-    const totalDisk = servers.reduce((sum, s) => sum + (s.limits?.disk || 0), 0);
-    const maxMem = limit * 512;
-    const maxDisk = limit * 3072;
-    const maxCpu = limit * 50;
-    const memPct = maxMem > 0 ? Math.min(100, Math.round((totalMem / maxMem) * 100)) : 0;
-    const cpuPct = maxCpu > 0 ? Math.min(100, Math.round((totalCpu / maxCpu) * 100)) : 0;
-    const diskPct = maxDisk > 0 ? Math.min(100, Math.round((totalDisk / maxDisk) * 100)) : 0;
-
-    $('#resource-summary-content').innerHTML = html`
-      <div class="resource-bars">
-        <div class="resource-bar-row">
-          <svg class="resource-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="6" y1="9" x2="6" y2="15"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="14" y1="9" x2="14" y2="15"/><line x1="18" y1="9" x2="18" y2="15"/></svg>
-          <div class="resource-bar-track" style="height:8px"><div class="resource-bar-fill memory" style="width:${memPct}%"></div></div>
-          <span class="resource-bar-label">${totalMem} / ${maxMem} MB</span>
-        </div>
-        <div class="resource-bar-row">
-          <svg class="resource-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><line x1="8" y1="2" x2="8" y2="4"/><line x1="16" y1="2" x2="16" y2="4"/><line x1="8" y1="20" x2="8" y2="22"/><line x1="16" y1="20" x2="16" y2="22"/><line x1="2" y1="8" x2="4" y2="8"/><line x1="2" y1="16" x2="4" y2="16"/><line x1="20" y1="8" x2="22" y2="8"/><line x1="20" y1="16" x2="22" y2="16"/></svg>
-          <div class="resource-bar-track" style="height:8px"><div class="resource-bar-fill cpu" style="width:${cpuPct}%"></div></div>
-          <span class="resource-bar-label">${totalCpu} / ${maxCpu}%</span>
-        </div>
-        <div class="resource-bar-row">
-          <svg class="resource-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-          <div class="resource-bar-track" style="height:8px"><div class="resource-bar-fill disk" style="width:${diskPct}%"></div></div>
-          <span class="resource-bar-label">${(totalDisk / 1024).toFixed(1)} / ${(maxDisk / 1024).toFixed(1)} GB</span>
-        </div>
-      </div>
-    `;
 
     if (data.servers.length === 0 && !data.pteroError) {
       $('#recent-servers-list').innerHTML = html`
