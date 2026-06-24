@@ -978,7 +978,6 @@ async function renderServers() {
         </tbody>
       </table>
     </div>
-    </div>
   `;
 
   try {
