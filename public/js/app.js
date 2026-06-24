@@ -1135,6 +1135,25 @@ async function renderCreateServer() {
 function handleEggChange() {
   const varsEl = $('#egg-variables');
   varsEl.innerHTML = '';
+  const eggVal = $('#custom-egg-trigger').dataset.value;
+  if (!eggVal) return;
+  const [eggId, nestId] = eggVal.split(',').map(Number);
+  const egg = eggCache.find(e => e.eggId === eggId && e.nestId === nestId);
+  if (!egg || !egg.variables || egg.variables.length === 0) return;
+  const userViewable = egg.variables.filter(v => v.userViewable !== 0);
+  if (userViewable.length === 0) return;
+  let htmlStr = '<div class="card" style="margin-top:20px;padding:20px"><h3 style="font-size:0.95rem;font-weight:700;margin-bottom:16px">Egg Variables</h3>';
+  for (const v of userViewable) {
+    const isEditable = v.userEditable !== 0;
+    const desc = v.description ? `<p style="font-size:0.75rem;color:var(--text-muted);margin-top:2px">${v.description}</p>` : '';
+    if (isEditable) {
+      htmlStr += `<div class="form-group"><label for="egg-var-${v.envVariable}">${v.name}</label><input type="text" id="egg-var-${v.envVariable}" value="${v.defaultValue || ''}" placeholder="${v.name}" />${desc}</div>`;
+    } else {
+      htmlStr += `<div class="form-group"><label>${v.name}</label><input type="text" value="${v.defaultValue || ''}" disabled />${desc}</div>`;
+    }
+  }
+  htmlStr += '</div>';
+  varsEl.innerHTML = htmlStr;
 }
 
 async function handleCreateServer(e) {
@@ -1158,7 +1177,8 @@ async function handleCreateServer(e) {
   const environment = {};
   if (egg && egg.variables) {
     for (const v of egg.variables) {
-      environment[v.envVariable] = v.defaultValue || '';
+      const input = document.getElementById(`egg-var-${v.envVariable}`);
+      environment[v.envVariable] = input ? input.value.trim() : (v.defaultValue || '');
     }
   }
 
