@@ -99,8 +99,10 @@ export async function migrate() {
     try {
       await query(c.sql);
       console.log(`Applied constraint: ${c.name}`);
-    } catch {
-      // Constraint already exists or table missing — safe to ignore
+    } catch (err) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`Skipped constraint ${c.name}: ${err.message}`);
+      }
     }
   }
 }
