@@ -1018,6 +1018,7 @@ async function renderServers() {
       if (activeFilter !== 'all') {
         filtered = filtered.filter(s => {
           if (activeFilter === 'installing') return s.status === 'installing' || s.installed === 0 || s.installed === '0' || s.installed === false;
+          if (activeFilter === 'active') return s.status !== 'suspended' && !(s.status === 'installing' || s.installed === 0 || s.installed === '0' || s.installed === false);
           return s.status === activeFilter;
         });
       }
