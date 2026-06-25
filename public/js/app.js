@@ -1327,6 +1327,19 @@ function renderAccount() {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
         </div>
       </div>
+
+      <div class="card account-menu-card" id="account-menu-logout" style="cursor:pointer">
+        <div class="account-menu-item">
+          <div class="account-menu-icon" style="color:var(--accent-red)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+          </div>
+          <div class="account-menu-text">
+            <div class="account-menu-title">Sign Out</div>
+            <div class="account-menu-desc">Logout from your account</div>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+      </div>
     </div>
   `;
 
@@ -1334,6 +1347,14 @@ function renderAccount() {
   $('#account-menu-links').addEventListener('click', () => navigateTo('account/links'));
   $('#account-menu-logs').addEventListener('click', () => navigateTo('log'));
   $('#account-menu-dangerous').addEventListener('click', () => navigateTo('account/dangerous'));
+  $('#account-menu-logout').addEventListener('click', async () => {
+    try { await api('/auth/logout', { method: 'POST' }); } catch {}
+    state.token = null;
+    state.user = null;
+    localStorage.removeItem('zh_token');
+    localStorage.removeItem('zh_user');
+    renderLoginPage();
+  });
 }
 
 function renderAccountEdit() {
