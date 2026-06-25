@@ -464,6 +464,7 @@ cap-widget {
   left: 0;
   bottom: 0;
   z-index: 100;
+  overflow: hidden;
   transition: transform var(--transition);
 }
 
@@ -662,6 +663,15 @@ cap-widget {
   padding: 8px 12px;
 }
 
+.user-info > div:first-child {
+  min-width: 0;
+  overflow: hidden;
+}
+.user-info > div:first-child > div:last-child {
+  min-width: 0;
+  overflow: hidden;
+}
+
 .user-avatar {
   width: 32px;
   height: 32px;
@@ -680,11 +690,17 @@ cap-widget {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .user-email {
   font-size: 0.75rem;
   color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .main-content {
