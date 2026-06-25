@@ -592,7 +592,7 @@ cap-widget {
 
 .sidebar-nav {
   flex: 1;
-  padding: 16px 12px;
+  padding: 8px 12px;
   overflow-y: auto;
   position: relative;
 }
