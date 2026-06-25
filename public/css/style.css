@@ -563,6 +563,27 @@ cap-widget {
   margin-left: 60px;
 }
 
+.sidebar-tooltip {
+  position: fixed;
+  z-index: 10000;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity 0.15s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+}
+
+.sidebar-tooltip.visible {
+  opacity: 1;
+}
+
 .main-content {
   position: relative;
   z-index: 1;

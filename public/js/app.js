@@ -469,6 +469,7 @@ async function renderDashboard() {
             ${window.location.hostname === 'beta.zero-host.org' ? 'Switch to Stable' : 'Switch to Beta'}
           </a>
         </nav>
+        <div class="sidebar-tooltip" id="sidebar-tooltip"></div>
         <div class="sidebar-footer">
           <div class="user-info" id="sidebar-user-info" style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer">
             <div style="display:flex;align-items:center;gap:10px">
@@ -544,8 +545,57 @@ async function renderDashboard() {
 
   initSidebarResize();
 
+  initSidebarTooltip();
+
   const page = window.location.pathname.replace('/', '') || 'overview';
   navigateTo(page);
+}
+
+function initSidebarTooltip() {
+  const sidebar = $('#sidebar');
+  const sidebarNav = document.querySelector('.sidebar-nav');
+  const tooltip = document.getElementById('sidebar-tooltip');
+  let tooltipTimer = null;
+  let tooltipQuickMode = false;
+
+  function showTooltipForItem(item) {
+    const text = item.textContent.trim();
+    if (!text) return;
+    tooltip.textContent = text;
+    const rect = item.getBoundingClientRect();
+    tooltip.style.top = (rect.top + rect.height / 2) + 'px';
+    tooltip.style.left = (rect.right + 10) + 'px';
+    tooltip.classList.add('visible');
+  }
+
+  function hideTooltip() {
+    tooltip.classList.remove('visible');
+    clearTimeout(tooltipTimer);
+    tooltipQuickMode = false;
+  }
+
+  sidebarNav.addEventListener('mouseover', (e) => {
+    const item = e.target.closest('.nav-item');
+    if (!item) return;
+    if (!sidebar.classList.contains('collapsed')) return;
+
+    clearTimeout(tooltipTimer);
+
+    if (tooltipQuickMode) {
+      showTooltipForItem(item);
+    } else {
+      tooltipTimer = setTimeout(() => {
+        showTooltipForItem(item);
+        tooltipQuickMode = true;
+      }, 5000);
+    }
+  });
+
+  sidebarNav.addEventListener('mouseleave', () => {
+    if (tooltip.classList.contains('visible') || tooltipTimer) {
+      hideTooltip();
+    }
+  });
 }
 
 function navigateTo(page) {
@@ -1315,19 +1365,6 @@ function renderAccount() {
         </div>
       </div>
 
-      <div class="card account-menu-card" id="account-menu-dangerous" style="cursor:pointer">
-        <div class="account-menu-item">
-          <div class="account-menu-icon" style="color:var(--accent-red)">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><circle cx="12" cy="18" r="1"/></svg>
-          </div>
-          <div class="account-menu-text">
-            <div class="account-menu-title">Dangerous Zone & Export Account Data</div>
-            <div class="account-menu-desc">Delete your account or export your personal data (RGPD)</div>
-          </div>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
-        </div>
-      </div>
-
       <div class="card account-menu-card" id="account-menu-logout" style="cursor:pointer">
         <div class="account-menu-item">
           <div class="account-menu-icon" style="color:var(--accent-red)">
@@ -1336,6 +1373,19 @@ function renderAccount() {
           <div class="account-menu-text">
             <div class="account-menu-title">Sign Out</div>
             <div class="account-menu-desc">Logout from your account</div>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+      </div>
+
+      <div class="card account-menu-card" id="account-menu-dangerous" style="cursor:pointer">
+        <div class="account-menu-item">
+          <div class="account-menu-icon" style="color:var(--accent-red)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><circle cx="12" cy="18" r="1"/></svg>
+          </div>
+          <div class="account-menu-text">
+            <div class="account-menu-title">Dangerous Zone & Export Account Data</div>
+            <div class="account-menu-desc">Delete your account or export your personal data (RGPD)</div>
           </div>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
         </div>
