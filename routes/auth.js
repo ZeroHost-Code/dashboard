@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import jwt from 'jsonwebtoken';
 import argon2 from 'argon2';
 import { query } from '../config/db.js';
 import { generateToken, authenticateToken } from '../middleware/auth.js';
