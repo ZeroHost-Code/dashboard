@@ -594,6 +594,18 @@ cap-widget {
   flex: 1;
   padding: 16px 12px;
   overflow-y: auto;
+  position: relative;
+}
+
+.nav-indicator {
+  position: absolute;
+  left: 0;
+  width: 3px;
+  background: var(--accent-1);
+  border-radius: 0 4px 4px 0;
+  transition: top var(--transition), height var(--transition), opacity var(--transition);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .nav-section-label {

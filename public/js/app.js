@@ -443,6 +443,7 @@ async function renderDashboard() {
           </a>
         </div>
         <nav class="sidebar-nav">
+          <div class="nav-indicator" id="nav-indicator"></div>
           <div class="nav-section-label">Main</div>
           <a class="nav-item active" data-page="overview" href="/overview">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
@@ -584,8 +585,22 @@ function navigateTo(page) {
     }
   }
 
+  updateNavIndicator();
+
   if (window.innerWidth <= 768) {
     $('#sidebar').classList.remove('open');
+  }
+}
+
+function updateNavIndicator() {
+  const activeNav = document.querySelector('.nav-item.active');
+  const indicator = document.getElementById('nav-indicator');
+  if (activeNav && indicator) {
+    indicator.style.top = activeNav.offsetTop + 'px';
+    indicator.style.height = activeNav.offsetHeight + 'px';
+    indicator.style.opacity = '1';
+  } else if (indicator) {
+    indicator.style.opacity = '0';
   }
 }
 
@@ -625,6 +640,7 @@ window.addEventListener('popstate', () => {
       renderLog();
     }
   }
+  updateNavIndicator();
 });
 
 // ===== OVERVIEW =====
