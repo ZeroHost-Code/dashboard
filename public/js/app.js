@@ -428,6 +428,7 @@ function toggleSidebarCollapse() {
     main.style.marginLeft = prev;
   }
   localStorage.setItem('zh_sidebar_collapsed', !wasCollapsed);
+  updateNavIndicator();
 }
 
 // ===== DASHBOARD =====

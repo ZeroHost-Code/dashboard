@@ -525,6 +525,11 @@ cap-widget {
   gap: 0;
 }
 
+.sidebar.collapsed .nav-indicator {
+  left: 8px;
+  width: calc(100% - 16px);
+}
+
 .sidebar.collapsed .nav-item svg {
   font-size: 1rem;
   width: 20px;
