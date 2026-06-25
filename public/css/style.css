@@ -599,10 +599,11 @@ cap-widget {
 
 .nav-indicator {
   position: absolute;
-  left: 0;
-  width: 3px;
-  background: var(--accent-1);
-  border-radius: 0 4px 4px 0;
+  left: 12px;
+  width: calc(100% - 24px);
+  background: rgba(238, 129, 50, 0.12);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--accent-1);
   transition: top var(--transition), height var(--transition), opacity var(--transition);
   pointer-events: none;
   z-index: 1;
@@ -627,9 +628,11 @@ cap-widget {
   font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition);
+  transition: color var(--transition);
   text-decoration: none;
   margin-bottom: 2px;
+  position: relative;
+  z-index: 2;
 }
 
 .nav-item:hover {
@@ -639,7 +642,6 @@ cap-widget {
 
 .nav-item.active {
   color: var(--accent-1);
-  background: rgba(238, 129, 50, 0.12);
 }
 
 .nav-item svg {
