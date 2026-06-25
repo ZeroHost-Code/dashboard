@@ -557,6 +557,7 @@ function initSidebarTooltip() {
   const tooltip = document.getElementById('sidebar-tooltip');
   let tooltipTimer = null;
   let tooltipQuickMode = false;
+  let currentItem = null;
 
   function showTooltipForItem(item) {
     const text = item.textContent.trim();
@@ -572,6 +573,7 @@ function initSidebarTooltip() {
     tooltip.classList.remove('visible');
     clearTimeout(tooltipTimer);
     tooltipQuickMode = false;
+    currentItem = null;
   }
 
   sidebarNav.addEventListener('mouseover', (e) => {
@@ -579,15 +581,18 @@ function initSidebarTooltip() {
     if (!item) return;
     if (!sidebar.classList.contains('collapsed')) return;
 
-    clearTimeout(tooltipTimer);
+    if (item !== currentItem) {
+      clearTimeout(tooltipTimer);
+      currentItem = item;
 
-    if (tooltipQuickMode) {
-      showTooltipForItem(item);
-    } else {
-      tooltipTimer = setTimeout(() => {
+      if (tooltipQuickMode) {
         showTooltipForItem(item);
-        tooltipQuickMode = true;
-      }, 5000);
+      } else {
+        tooltipTimer = setTimeout(() => {
+          showTooltipForItem(item);
+          tooltipQuickMode = true;
+        }, 3000);
+      }
     }
   });
 
