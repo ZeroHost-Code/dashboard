@@ -390,6 +390,40 @@ router.get('/resources/:identifier', authenticateToken, async (req, res) => {
   }
 });
 
+router.get('/auto-login', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const users = await query('SELECT ptero_client_api_key FROM users WHERE id = ?', [userId]);
+
+    if (!users[0]?.ptero_client_api_key) {
+      return res.json({ autoLogin: false, panelUrl: PTERO_URL });
+    }
+
+    const apiKey = users[0].ptero_client_api_key;
+    const pteroRes = await fetch(`${PTERO_URL}/api/client/account/one-time-token`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!pteroRes.ok) {
+      return res.json({ autoLogin: false, panelUrl: PTERO_URL });
+    }
+
+    const data = await pteroRes.json();
+    const token = data.attributes?.token || data.token;
+
+    res.json({ autoLogin: true, token, panelUrl: PTERO_URL });
+  } catch (err) {
+    console.error('Auto-login error:', err.message);
+    res.status(500).json({ error: 'Failed to generate auto-login link' });
+  }
+});
+
 router.put('/client-api-key', authenticateToken, async (req, res) => {
   try {
     const { apiKey } = req.body;

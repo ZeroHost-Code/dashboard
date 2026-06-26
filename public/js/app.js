@@ -45,6 +45,14 @@ function renderCookieBanner() {
   });
 }
 
+async function openPyrodactylPanel(serverIdentifier) {
+  const data = await api('/servers/auto-login');
+  let url = data.autoLogin
+    ? `${data.panelUrl}/auth/login?token=${data.token}${serverIdentifier ? `&redirect=${encodeURIComponent('/server/' + serverIdentifier)}` : ''}`
+    : `${data.panelUrl}${serverIdentifier ? '/server/' + serverIdentifier : ''}`;
+  window.open(url, '_blank');
+}
+
 function $(sel) { return document.querySelector(sel); }
 function md5(s) {
   function F(x,y,z) { return (x & y) | (~x & z); }
@@ -969,10 +977,10 @@ function renderServerCard(s) {
         </div>
       ` : ''}
       <div class="server-card-actions">
-        <a href="https://panel.zero-host.org/server/${s.identifier}" target="_blank" class="btn btn-ghost btn-sm">
+        <button class="btn btn-ghost btn-sm" onclick="openPyrodactylPanel('${s.identifier}')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
           Open Panel
-        </a>
+        </button>
         ${canRenew ? html`
           <button class="btn btn-primary btn-sm btn-renew-server" data-server-id="${s.id}">Renew</button>
         ` : ''}
@@ -1004,7 +1012,7 @@ function renderServerRow(s) {
       <td>
         <div style="display:flex;gap:6px">
           <a class="btn btn-ghost btn-sm" href="/server/${s.id}" onclick="event.preventDefault();navigateTo('server/${s.id}')">Settings</a>
-          <a href="https://panel.zero-host.org/server/${s.identifier}" target="_blank" class="btn btn-ghost btn-sm">Open Pyrodactyl</a>
+          <button class="btn btn-ghost btn-sm" onclick="openPyrodactylPanel('${s.identifier}')">Manage Pyrodactyl</button>
           ${canRenew ? html`
             <button class="btn btn-primary btn-sm btn-renew-server" data-server-id="${s.id}">Renew</button>
           ` : ''}
@@ -1277,15 +1285,12 @@ async function handleCreateServer(e) {
 }
 
 // ===== PYRODACTYL PAGE =====
-let pteroTimeout = null;
-
 function renderPyrodactyl() {
-  if (pteroTimeout) clearTimeout(pteroTimeout);
   const el = $('#page-pyrodactyl');
   el.innerHTML = html`
     <div class="page-header">
       <h1 class="page-title">Pyrodactyl Panel</h1>
-      <p class="page-subtitle">Redirecting to the panel in 5 seconds...</p>
+      <p class="page-subtitle">Opening Pyrodactyl with auto-login...</p>
     </div>
     <div class="ptero-grid">
       <div class="card ptero-card">
@@ -1294,32 +1299,16 @@ function renderPyrodactyl() {
         </div>
         <h2 class="ptero-card-title">Opening Pyrodactyl...</h2>
         <p class="ptero-card-desc">
-          You are being redirected to the Pyrodactyl panel. If nothing happens, click the button below.
+          You are being automatically logged in to the Pyrodactyl panel. If nothing happens, click the button below.
         </p>
-        <div class="ptero-info" style="margin-bottom:24px">
-          <div class="ptero-info-item">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-            <span><strong>Login:</strong> use your dashboard email and password</span>
-          </div>
-          <div class="ptero-info-item">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            <span><strong>Same password</strong> as your dashboard account</span>
-          </div>
-        </div>
-        <a href="https://panel.zero-host.org" target="_blank" class="btn btn-primary btn-full" id="ptero-open-btn">
+        <button class="btn btn-primary btn-full" id="ptero-open-btn" onclick="openPyrodactylPanel()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
           Open Panel Now
-        </a>
+        </button>
       </div>
     </div>
   `;
-  pteroTimeout = setTimeout(() => {
-    window.open('https://panel.zero-host.org', '_blank');
-  }, 5000);
-  document.getElementById('ptero-open-btn').addEventListener('click', () => {
-    clearTimeout(pteroTimeout);
-    pteroTimeout = null;
-  });
+  setTimeout(() => openPyrodactylPanel(), 500);
 }
 
 // ===== ACCOUNT PAGE =====
@@ -1825,7 +1814,7 @@ async function renderServerDetail(serverId) {
               <p class="action-card-desc">Access the full Pyrodactyl control panel to manage files, console, databases, schedules, and more.</p>
             </div>
           </div>
-          <a href="https://panel.zero-host.org/server/${s.identifier}" target="_blank" class="btn btn-primary btn-full">Open Panel</a>
+          <button class="btn btn-primary btn-full" onclick="openPyrodactylPanel('${s.identifier}')">Open Panel</button>
         </div>
 
         <div class="action-card">
