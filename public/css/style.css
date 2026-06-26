@@ -993,6 +993,7 @@ tbody tr:hover {
 
 /* ===== TABS ===== */
 .tabs {
+  position: relative;
   display: flex;
   gap: 4px;
   margin-bottom: 24px;
@@ -1008,9 +1009,8 @@ tbody tr:hover {
   font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
-  border-bottom: 2px solid transparent;
   margin-bottom: -1px;
-  transition: color 0.15s, border-color 0.15s;
+  transition: color 0.15s;
 }
 
 .tab:hover {
@@ -1019,7 +1019,16 @@ tbody tr:hover {
 
 .tab.active {
   color: var(--accent-1);
-  border-bottom-color: var(--accent-1);
+}
+
+.tab-indicator {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: var(--accent-1);
+  transition: left 0.2s ease, width 0.2s ease;
+  pointer-events: none;
 }
 
 .tab-content {

@@ -1742,10 +1742,11 @@ async function renderServerDetail(serverId) {
         </div>
       </div>
 
-      <div class="tabs">
+      <div class="tabs" id="server-detail-tabs">
         <button class="tab ${activeTab === 'info' ? 'active' : ''}" data-tab="info">Info</button>
         <button class="tab ${activeTab === 'resources' ? 'active' : ''}" data-tab="resources">Resources</button>
         <button class="tab ${activeTab === 'actions' ? 'active' : ''}" data-tab="actions">Actions</button>
+        <div class="tab-indicator" id="tab-indicator"></div>
       </div>
 
       <div id="server-tab-info" class="tab-content" style="display:${activeTab === 'info' ? 'block' : 'none'}">
@@ -1877,6 +1878,15 @@ async function renderServerDetail(serverId) {
     if (activeTab === 'resources') {
       fetchLiveResources(s.identifier);
     }
+
+    requestAnimationFrame(() => {
+      const indicator = $('#tab-indicator');
+      const activeTabEl = $('#server-detail-tabs .tab.active');
+      if (indicator && activeTabEl) {
+        indicator.style.left = activeTabEl.offsetLeft + 'px';
+        indicator.style.width = activeTabEl.offsetWidth + 'px';
+      }
+    });
 
   } catch (err) {
     el.innerHTML = html`
