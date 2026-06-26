@@ -45,11 +45,10 @@ function renderCookieBanner() {
   });
 }
 
-async function openPyrodactylPanel(serverIdentifier) {
-  const data = await api('/servers/auto-login');
-  let url = data.autoLogin
-    ? `${data.panelUrl}/auth/login?token=${data.token}${serverIdentifier ? `&redirect=${encodeURIComponent('/server/' + serverIdentifier)}` : ''}`
-    : `${data.panelUrl}${serverIdentifier ? '/server/' + serverIdentifier : ''}`;
+const PTERO_URL = 'https://ptero.zerohost.fr';
+
+function openPyrodactylPanel(serverIdentifier) {
+  const url = `${PTERO_URL}${serverIdentifier ? '/server/' + serverIdentifier : ''}`;
   window.open(url, '_blank');
 }
 
@@ -1289,7 +1288,7 @@ function renderPyrodactyl() {
   el.innerHTML = html`
     <div class="page-header">
       <h1 class="page-title">Pyrodactyl Panel</h1>
-      <p class="page-subtitle">Opening Pyrodactyl with auto-login...</p>
+      <p class="page-subtitle">Access your Pyrodactyl panel</p>
     </div>
     <div class="ptero-grid">
       <div class="card ptero-card">
@@ -1298,7 +1297,7 @@ function renderPyrodactyl() {
         </div>
         <h2 class="ptero-card-title">Opening Pyrodactyl...</h2>
         <p class="ptero-card-desc">
-          You are being automatically logged in to the Pyrodactyl panel. If nothing happens, click the button below.
+          Click the button below to open the Pyrodactyl panel.
         </p>
         <button class="btn btn-primary btn-full" id="ptero-open-btn" onclick="openPyrodactylPanel()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
