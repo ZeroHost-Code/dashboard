@@ -739,7 +739,7 @@ async function renderOverview() {
     </div>
     <div class="card">
       <div class="card-header">
-        <h2 class="card-title">Recent Servers</h2>
+        <h2 class="card-title">Your Servers</h2>
       </div>
       <div id="recent-servers-list">
         <div style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</div>
