@@ -1713,6 +1713,7 @@ async function renderServerDetail(serverId) {
   try {
     const data = await api(`/servers/details/${serverId}`);
     const s = data.server;
+    state.serverIdentifier = s.identifier;
     const meta = s.serverMeta;
     const eggName = s.eggDetails?.name || `Egg #${s.egg}`;
     const alloc = s.allocationDetails;
@@ -1879,14 +1880,18 @@ async function renderServerDetail(serverId) {
       fetchLiveResources(s.identifier);
     }
 
-    requestAnimationFrame(() => {
-      const indicator = $('#tab-indicator');
-      const activeTabEl = $('#server-detail-tabs .tab.active');
-      if (indicator && activeTabEl) {
-        indicator.style.left = activeTabEl.offsetLeft + 'px';
-        indicator.style.width = activeTabEl.offsetWidth + 'px';
-      }
-    });
+    // Disable transition for initial position to prevent sliding from 0
+    const indicator = $('#tab-indicator');
+    const activeTabEl = $('#server-detail-tabs .tab.active');
+    if (indicator && activeTabEl) {
+      const pos = activeTabEl.offsetLeft;
+      const w = activeTabEl.offsetWidth;
+      indicator.style.transition = 'none';
+      indicator.style.left = pos + 'px';
+      indicator.style.width = w + 'px';
+      void indicator.offsetWidth;
+      indicator.style.transition = '';
+    }
 
   } catch (err) {
     el.innerHTML = html`
@@ -1983,13 +1988,39 @@ async function fetchLiveResources(identifier) {
   }
 }
 
+// ===== TAB SWITCHING =====
+function switchTab(tabBtn) {
+  if (!$('#tab-indicator')) return;
+  const tabName = tabBtn.dataset.tab;
+  state.serverDetailTab = tabName;
+
+  document.querySelectorAll('#server-detail-tabs .tab').forEach(t => t.classList.remove('active'));
+  tabBtn.classList.add('active');
+
+  document.querySelectorAll('#page-server-detail .tab-content').forEach(c => c.style.display = 'none');
+  const target = $('#server-tab-' + tabName);
+  if (target) target.style.display = 'block';
+
+  const indicator = $('#tab-indicator');
+  if (indicator) {
+    indicator.style.left = tabBtn.offsetLeft + 'px';
+    indicator.style.width = tabBtn.offsetWidth + 'px';
+  }
+
+  if (tabName === 'resources') {
+    const container = $('#live-resources-container');
+    if (container && container.querySelector('.resource-gauge') === null) {
+      fetchLiveResources(state.serverIdentifier);
+    }
+  }
+}
+
 // ===== DELETE SERVER =====
 document.addEventListener('click', function(e) {
   const tabBtn = e.target.closest('.tab');
   if (tabBtn && !tabBtn.classList.contains('active')) {
     e.preventDefault();
-    state.serverDetailTab = tabBtn.dataset.tab;
-    renderServerDetail(state.serverId);
+    switchTab(tabBtn);
     return;
   }
 
