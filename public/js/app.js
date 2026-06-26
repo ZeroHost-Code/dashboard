@@ -612,7 +612,6 @@ function initSidebarTooltip() {
 }
 
 function navigateTo(page) {
-  if (pteroTimeout) clearTimeout(pteroTimeout);
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
