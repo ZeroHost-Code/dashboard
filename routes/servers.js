@@ -186,6 +186,27 @@ router.get('/details/:id', authenticateToken, async (req, res) => {
     const server = await getServerById(serverId);
     const meta = await query('SELECT * FROM server_meta WHERE ptero_server_id = ?', [serverId]);
     server.serverMeta = meta.length > 0 ? meta[0] : null;
+
+    const users = await query('SELECT ptero_client_api_key FROM users WHERE id = ?', [req.user.userId]);
+    const clientApiKey = users[0]?.ptero_client_api_key;
+    if (clientApiKey) {
+      try {
+        const pteroRes = await fetch(`${PTERO_URL}/api/client/servers/${server.identifier}/resources`, {
+          headers: {
+            'Authorization': `Bearer ${clientApiKey}`,
+            'Accept': 'application/json',
+          },
+          signal: AbortSignal.timeout(8000),
+        });
+        if (pteroRes.ok) {
+          const data = await pteroRes.json();
+          server.currentState = data.attributes.current_state;
+        }
+      } catch {
+        server.currentState = null;
+      }
+    }
+
     res.json({ server });
   } catch (err) {
     console.error('Get server error:', err.message);
@@ -387,6 +408,40 @@ router.get('/resources/:identifier', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Resources error:', err.message);
     res.status(500).json({ error: 'Failed to fetch server resources' });
+  }
+});
+
+router.post('/power/:identifier', authenticateToken, async (req, res) => {
+  try {
+    const { identifier } = req.params;
+    const { signal } = req.body;
+    const userId = req.user.userId;
+
+    const users = await query('SELECT ptero_client_api_key FROM users WHERE id = ?', [userId]);
+    if (!users[0]?.ptero_client_api_key) {
+      return res.status(400).json({ error: 'No Pyrodactyl API key configured' });
+    }
+
+    const apiKey = users[0].ptero_client_api_key;
+    const pteroRes = await fetch(`${PTERO_URL}/api/client/servers/${identifier}/power`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ signal }),
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!pteroRes.ok) {
+      return res.status(502).json({ error: 'Failed to send power command' });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Power command error:', err.message);
+    res.status(500).json({ error: 'Failed to send power command' });
   }
 });
 

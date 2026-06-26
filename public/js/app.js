@@ -52,6 +52,24 @@ function openPyrodactylPanel(serverIdentifier) {
   window.open(url, '_blank');
 }
 
+async function sendPowerCommand(identifier, signal) {
+  const btn = event?.target;
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px"></span>';
+  }
+  try {
+    await api(`/servers/power/${identifier}`, { method: 'POST', body: JSON.stringify({ signal }) });
+  } catch (err) {
+    alert('Failed to send ' + signal + ' command: ' + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = signal.charAt(0).toUpperCase() + signal.slice(1);
+    }
+  }
+}
+
 function $(sel) { return document.querySelector(sel); }
 function md5(s) {
   function F(x,y,z) { return (x & y) | (~x & z); }
@@ -1804,6 +1822,23 @@ async function renderServerDetail(serverId) {
       </div>
 
       <div id="server-tab-actions" class="tab-content" style="display:${activeTab === 'actions' ? 'block' : 'none'}">
+        <div class="action-card">
+          <div class="action-card-header">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            <div>
+              <h3 class="action-card-title">Power Controls</h3>
+              <p class="action-card-desc">
+                Current state: <strong>${s.currentState || 'Unknown'}</strong>
+              </p>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-success btn-full" style="flex:1" onclick="sendPowerCommand('${s.identifier}','start')" ${s.currentState === 'running' ? 'disabled' : ''}>Start</button>
+            <button class="btn btn-warning btn-full" style="flex:1" onclick="sendPowerCommand('${s.identifier}','stop')" ${s.currentState !== 'running' ? 'disabled' : ''}>Stop</button>
+            <button class="btn btn-ghost btn-full" style="flex:1" onclick="sendPowerCommand('${s.identifier}','restart')" ${s.currentState !== 'running' ? 'disabled' : ''}>Restart</button>
+          </div>
+        </div>
+
         <div class="action-card">
           <div class="action-card-header">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
