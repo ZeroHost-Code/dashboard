@@ -1726,8 +1726,8 @@ tbody tr:hover {
   height: 100px;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  mask-image: linear-gradient(transparent 70%, #000 90%);
-  -webkit-mask-image: linear-gradient(transparent 70%, #000 90%);
+  mask-image: linear-gradient(transparent, #000 90%);
+  -webkit-mask-image: linear-gradient(transparent, #000 90%);
   pointer-events: none;
 }
 
