@@ -528,7 +528,7 @@ async function renderDashboard() {
         <div class="page" id="page-pyrodactyl"></div>
         <div class="page" id="page-account"></div>
         <div class="page" id="page-server-detail"></div>
-        <div class="page" id="page-log"></div>
+        <div class="page" id="page-logs"></div>
       </main>
     </div>
 
@@ -660,7 +660,7 @@ function navigateTo(page) {
       else if (param === 'links') renderAccountLinks();
       else if (param === 'dangerous') renderDangerous();
       else renderAccount();
-    } else if (basePage === 'log') {
+    } else if (basePage === 'logs') {
       renderLog();
     }
   }
@@ -716,7 +716,7 @@ window.addEventListener('popstate', () => {
       else if (param === 'links') renderAccountLinks();
       else if (param === 'dangerous') renderDangerous();
       else renderAccount();
-    } else if (basePage === 'log') {
+    } else if (basePage === 'logs') {
       renderLog();
     }
   }
@@ -838,7 +838,7 @@ function getActionLabel(action) {
 }
 
 async function renderLog(pageNum) {
-  const el = $('#page-log');
+  const el = $('#page-logs');
   pageNum = pageNum || 1;
   const limit = 50;
   const offset = (pageNum - 1) * limit;
@@ -940,7 +940,7 @@ async function renderActivity() {
         `).join('')}
         ${hasMore ? html`
           <div class="activity-more-overlay">
-            <a class="btn btn-primary btn-sm" onclick="navigateTo('log')" style="width:auto">View all logs</a>
+            <a class="btn btn-primary btn-sm" onclick="navigateTo('logs')" style="width:auto">View all logs</a>
           </div>
         ` : ''}
       </div>
@@ -1405,7 +1405,7 @@ function renderAccount() {
 
   $('#account-menu-edit').addEventListener('click', () => navigateTo('account/edit'));
   $('#account-menu-links').addEventListener('click', () => navigateTo('account/links'));
-  $('#account-menu-logs').addEventListener('click', () => navigateTo('log'));
+  $('#account-menu-logs').addEventListener('click', () => navigateTo('logs'));
   $('#account-menu-dangerous').addEventListener('click', () => navigateTo('account/dangerous'));
   $('#account-menu-logout').addEventListener('click', async () => {
     try { await api('/auth/logout', { method: 'POST' }); } catch {}
