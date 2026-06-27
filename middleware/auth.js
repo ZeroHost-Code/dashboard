@@ -4,6 +4,8 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 if (!JWT_SECRET) {
   console.error('Missing JWT_SECRET environment variable');
+} else if (/[\$\(\)]/.test(JWT_SECRET)) {
+  console.error('JWT_SECRET contains unresolved shell expansion characters ($(), backticks). Generate a proper random key (e.g. openssl rand -hex 32) and hardcode it in .env');
 }
 
 export function authenticateToken(req, res, next) {
