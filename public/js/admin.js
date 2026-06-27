@@ -363,8 +363,7 @@ async function renderAdminServerDetail(serverId) {
             <textarea id="admin-suspend-reason" rows="2" placeholder="Enter reason for suspension..." style="resize:vertical;width:100%;padding:10px 14px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:inherit;font-size:0.88rem"></textarea>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn btn-danger" id="admin-btn-suspend" style="width:auto">${isSuspended ? 'Re-suspend' : 'Suspend'}</button>
-            ${isSuspended ? ahtml`<button class="btn btn-primary" id="admin-btn-unsuspend" style="width:auto">Unsuspend</button>` : ''}
+            ${isSuspended ? ahtml`<button class="btn btn-primary" id="admin-btn-unsuspend" style="width:auto">Unsuspend</button>` : ahtml`<button class="btn btn-danger" id="admin-btn-suspend" style="width:auto">Suspend</button>`}
             <button class="btn btn-warning" id="admin-btn-stop" style="width:auto">Stop</button>
             ${!isSuspended ? ahtml`<button class="btn btn-ghost" id="admin-btn-renew-now" style="width:auto">Renew Now</button>` : ''}
           </div>
