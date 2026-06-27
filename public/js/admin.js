@@ -366,7 +366,7 @@ async function renderAdminServerDetail(serverId) {
             <button class="btn btn-danger" id="admin-btn-suspend" style="width:auto">${isSuspended ? 'Re-suspend' : 'Suspend'}</button>
             ${isSuspended ? ahtml`<button class="btn btn-primary" id="admin-btn-unsuspend" style="width:auto">Unsuspend</button>` : ''}
             <button class="btn btn-warning" id="admin-btn-stop" style="width:auto">Stop</button>
-            <button class="btn btn-ghost" id="admin-btn-renew-now" style="width:auto">Renew Now</button>
+            ${!isSuspended ? ahtml`<button class="btn btn-ghost" id="admin-btn-renew-now" style="width:auto">Renew Now</button>` : ''}
           </div>
           <div id="admin-action-msg" style="margin-top:12px;display:none"></div>
         </div>
