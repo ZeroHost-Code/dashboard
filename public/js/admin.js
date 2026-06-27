@@ -149,8 +149,11 @@ function renderAdminLayout() {
     <div class="admin-layout">
       <nav class="admin-navbar">
         <div class="admin-navbar-left">
-          <img src="https://status.zero-host.org/upload/logo1.png?t=1781280015614" alt="ZeroHost" class="admin-navbar-logo" />
-          <span class="admin-navbar-brand">Zero<span style="color:var(--accent-3)">Host</span> <span class="admin-badge">Admin</span></span>
+          <a href="/" class="sidebar-logo" style="text-decoration:none">
+            <img src="https://status.zero-host.org/upload/logo1.png?t=1781280015614" alt="ZeroHost" />
+            <span class="sidebar-logo-text">Zero<span style="color:var(--accent-3)">Host</span></span>
+          </a>
+          <span class="admin-badge">Admin</span>
         </div>
         <div class="admin-navbar-center">
           <a class="admin-nav-link active" data-page="servers" href="/admin/servers">
