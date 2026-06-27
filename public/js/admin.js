@@ -313,33 +313,76 @@ async function renderAdminServerDetail(serverId) {
           <span class="server-card-status ${statusClass}" style="font-size:0.8rem">${statusLabel}</span>
         </div>
       </div>
-      <div class="server-detail-grid">
-        <div class="card">
-          <h2 class="card-title" style="margin-bottom:16px">Server Info</h2>
-          <div class="detail-list">
-            <div class="detail-item"><span class="detail-label">Owner</span><span class="detail-value">${s.owner?.username || 'Unknown'} (${s.owner?.email || 'N/A'})</span></div>
-            <div class="detail-item"><span class="detail-label">Egg</span><span class="detail-value">${eggName}</span></div>
-            <div class="detail-item"><span class="detail-label">Allocation</span><span class="detail-value">${allocStr}</span></div>
-            <div class="detail-item"><span class="detail-label">Identifier</span><span class="detail-value" style="font-family:monospace">${s.identifier}</span></div>
-            <div class="detail-item"><span class="detail-label">Memory</span><span class="detail-value">${s.limits.memory > 0 ? s.limits.memory + ' MB' : '∞'}</span></div>
-            <div class="detail-item"><span class="detail-label">CPU</span><span class="detail-value">${s.limits.cpu}%</span></div>
-            <div class="detail-item"><span class="detail-label">Disk</span><span class="detail-value">${s.limits.disk > 0 ? (s.limits.disk / 1024).toFixed(1) + ' GB' : '∞'}</span></div>
-            <div class="detail-item"><span class="detail-label">IO</span><span class="detail-value">${s.limits.io}</span></div>
-            <div class="detail-item"><span class="detail-label">Swap</span><span class="detail-value">${s.limits.swap > 0 ? s.limits.swap + ' MB' : 'Disabled'}</span></div>
-          </div>
-        </div>
-        ${meta ? ahtml`
+
+      <div class="tabs" id="admin-server-tabs">
+        <button class="tab active" data-tab="info">Info</button>
+        <button class="tab" data-tab="admin">Admin</button>
+        <div class="tab-indicator" id="admin-tab-indicator"></div>
+      </div>
+
+      <div id="admin-server-tab-info" class="tab-content" style="display:block">
+        <div class="server-detail-grid">
           <div class="card">
-            <h2 class="card-title" style="margin-bottom:16px">Lifetime</h2>
+            <h2 class="card-title" style="margin-bottom:16px">Server Info</h2>
             <div class="detail-list">
-              <div class="detail-item"><span class="detail-label">Created</span><span class="detail-value">${formatDate(meta.created_at)}</span></div>
-              <div class="detail-item"><span class="detail-label">Expires</span><span class="detail-value">${formatDate(meta.expires_at)}</span></div>
-              <div class="detail-item"><span class="detail-label">Status</span><span class="detail-value" style="text-transform:capitalize">${meta.status}</span></div>
+              <div class="detail-item"><span class="detail-label">Owner</span><span class="detail-value">${s.owner?.username || 'Unknown'} (${s.owner?.email || 'N/A'})</span></div>
+              <div class="detail-item"><span class="detail-label">Egg</span><span class="detail-value">${eggName}</span></div>
+              <div class="detail-item"><span class="detail-label">Allocation</span><span class="detail-value">${allocStr}</span></div>
+              <div class="detail-item"><span class="detail-label">Identifier</span><span class="detail-value" style="font-family:monospace">${s.identifier}</span></div>
+              <div class="detail-item"><span class="detail-label">Memory</span><span class="detail-value">${s.limits.memory > 0 ? s.limits.memory + ' MB' : '∞'}</span></div>
+              <div class="detail-item"><span class="detail-label">CPU</span><span class="detail-value">${s.limits.cpu}%</span></div>
+              <div class="detail-item"><span class="detail-label">Disk</span><span class="detail-value">${s.limits.disk > 0 ? (s.limits.disk / 1024).toFixed(1) + ' GB' : '∞'}</span></div>
+              <div class="detail-item"><span class="detail-label">IO</span><span class="detail-value">${s.limits.io}</span></div>
+              <div class="detail-item"><span class="detail-label">Swap</span><span class="detail-value">${s.limits.swap > 0 ? s.limits.swap + ' MB' : 'Disabled'}</span></div>
             </div>
           </div>
-        ` : ''}
+          ${meta ? ahtml`
+            <div class="card">
+              <h2 class="card-title" style="margin-bottom:16px">Lifetime</h2>
+              <div class="detail-list">
+                <div class="detail-item"><span class="detail-label">Created</span><span class="detail-value">${formatDate(meta.created_at)}</span></div>
+                <div class="detail-item"><span class="detail-label">Expires</span><span class="detail-value">${formatDate(meta.expires_at)}</span></div>
+                <div class="detail-item"><span class="detail-label">Status</span><span class="detail-value" style="text-transform:capitalize">${meta.status}</span></div>
+                ${meta.status === 'suspended' && meta.suspend_reason ? ahtml`
+                  <div class="detail-item"><span class="detail-label">Reason</span><span class="detail-value" style="color:var(--accent-red)">${meta.suspend_reason}</span></div>
+                ` : ''}
+              </div>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+
+      <div id="admin-server-tab-admin" class="tab-content" style="display:none">
+        <div class="card" style="margin-bottom:16px">
+          <h2 class="card-title" style="margin-bottom:16px">Suspend</h2>
+          <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:12px">
+            Suspend this server. The user will see the reason on their dashboard and cannot renew until unsuspended.
+          </p>
+          <div class="form-group">
+            <label for="admin-suspend-reason">Reason (optional)</label>
+            <textarea id="admin-suspend-reason" rows="2" placeholder="Enter reason for suspension..." style="resize:vertical;width:100%;padding:10px 14px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:inherit;font-size:0.88rem"></textarea>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-danger" id="admin-btn-suspend" style="width:auto">${isSuspended ? 'Re-suspend' : 'Suspend'}</button>
+            ${isSuspended ? ahtml`<button class="btn btn-primary" id="admin-btn-unsuspend" style="width:auto">Unsuspend</button>` : ''}
+            <button class="btn btn-warning" id="admin-btn-stop" style="width:auto">Stop</button>
+            <button class="btn btn-ghost" id="admin-btn-renew-now" style="width:auto">Renew Now</button>
+          </div>
+          <div id="admin-action-msg" style="margin-top:12px;display:none"></div>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title" style="margin-bottom:16px">Danger Zone</h2>
+          <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:12px">
+            Irreversible actions.
+          </p>
+          <button class="btn btn-danger" id="admin-btn-delete" style="width:auto">Delete Server</button>
+        </div>
       </div>
     `;
+
+    initAdminTabs();
+    initAdminActions(serverId);
   } catch (err) {
     detailPage.innerHTML = ahtml`
       <div class="page-header">
@@ -351,6 +394,151 @@ async function renderAdminServerDetail(serverId) {
       </div>
     `;
   }
+}
+
+function initAdminTabs() {
+  const tabs = $a('#admin-server-tabs');
+  if (!tabs) return;
+  const indicator = $a('#admin-tab-indicator');
+  const btns = tabs.querySelectorAll('.tab');
+
+  function switchTab(tabBtn) {
+    const tabName = tabBtn.dataset.tab;
+    btns.forEach(t => t.classList.remove('active'));
+    tabBtn.classList.add('active');
+
+    document.querySelectorAll('#admin-page-server-detail .tab-content').forEach(c => c.style.display = 'none');
+    const target = $a('#admin-server-tab-' + tabName);
+    if (target) target.style.display = 'block';
+
+    if (indicator) {
+      indicator.style.left = tabBtn.offsetLeft + 'px';
+      indicator.style.width = tabBtn.offsetWidth + 'px';
+    }
+  }
+
+  btns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.classList.contains('active')) return;
+      switchTab(btn);
+    });
+  });
+
+  // Set initial indicator position
+  const activeBtn = tabs.querySelector('.tab.active');
+  if (activeBtn && indicator) {
+    indicator.style.left = activeBtn.offsetLeft + 'px';
+    indicator.style.width = activeBtn.offsetWidth + 'px';
+  }
+}
+
+function initAdminActions(serverId) {
+  const msgEl = $a('#admin-action-msg');
+
+  function showMsg(text, type = 'success') {
+    if (!msgEl) return;
+    msgEl.textContent = text;
+    msgEl.style.display = 'block';
+    msgEl.style.color = type === 'error' ? 'var(--accent-red)' : 'var(--accent-green)';
+  }
+
+  function clearMsg() {
+    if (msgEl) msgEl.style.display = 'none';
+  }
+
+  $a('#admin-btn-suspend')?.addEventListener('click', async () => {
+    const btn = $a('#admin-btn-suspend');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Suspending...';
+    clearMsg();
+    try {
+      const reason = $a('#admin-suspend-reason')?.value?.trim() || '';
+      await adminApi(`/servers/${serverId}/suspend`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: reason || undefined }),
+      });
+      showMsg('Server suspended successfully');
+      setTimeout(() => renderAdminServerDetail(serverId), 1500);
+    } catch (err) {
+      showMsg(err.message, 'error');
+      btn.disabled = false;
+      btn.innerHTML = 'Suspend';
+    }
+  });
+
+  $a('#admin-btn-unsuspend')?.addEventListener('click', async () => {
+    const btn = $a('#admin-btn-unsuspend');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Unsuspending...';
+    clearMsg();
+    try {
+      await adminApi(`/servers/${serverId}/unsuspend`, {
+        method: 'POST',
+      });
+      showMsg('Server unsuspended successfully');
+      setTimeout(() => renderAdminServerDetail(serverId), 1500);
+    } catch (err) {
+      showMsg(err.message, 'error');
+      btn.disabled = false;
+      btn.innerHTML = 'Unsuspend';
+    }
+  });
+
+  $a('#admin-btn-stop')?.addEventListener('click', async () => {
+    const btn = $a('#admin-btn-stop');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Stopping...';
+    clearMsg();
+    try {
+      await adminApi(`/servers/${serverId}/stop`, {
+        method: 'POST',
+      });
+      showMsg('Server stopped successfully');
+      btn.disabled = false;
+      btn.innerHTML = 'Stop';
+    } catch (err) {
+      showMsg(err.message, 'error');
+      btn.disabled = false;
+      btn.innerHTML = 'Stop';
+    }
+  });
+
+  $a('#admin-btn-renew-now')?.addEventListener('click', async () => {
+    const btn = $a('#admin-btn-renew-now');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Expiring...';
+    clearMsg();
+    try {
+      await adminApi(`/servers/${serverId}/renew-now`, {
+        method: 'POST',
+      });
+      showMsg('Server has been expired. The user can renew to reactivate it.');
+      setTimeout(() => renderAdminServerDetail(serverId), 1500);
+    } catch (err) {
+      showMsg(err.message, 'error');
+      btn.disabled = false;
+      btn.innerHTML = 'Renew Now';
+    }
+  });
+
+  $a('#admin-btn-delete')?.addEventListener('click', async () => {
+    if (!confirm('Are you sure you want to permanently delete this server? This action cannot be undone.')) return;
+    const btn = $a('#admin-btn-delete');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Deleting...';
+    clearMsg();
+    try {
+      await adminApi(`/servers/${serverId}`, {
+        method: 'DELETE',
+      });
+      showMsg('Server deleted');
+      setTimeout(() => adminNavigateTo('servers'), 1500);
+    } catch (err) {
+      showMsg(err.message, 'error');
+      btn.disabled = false;
+      btn.innerHTML = 'Delete Server';
+    }
+  });
 }
 
 function formatDate(d) {

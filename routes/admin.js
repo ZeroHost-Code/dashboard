@@ -3,10 +3,12 @@ import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 import { authenticateToken } from '../middleware/auth.js';
 import { query } from '../config/db.js';
-import { getAllServers, getServerById } from '../services/pyrodactyl.js';
+import { getAllServers, getServerById, suspendPteroServer, unsuspendPteroServer, deletePteroServer } from '../services/pyrodactyl.js';
+import { logActivity } from '../services/activity.js';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET;
+const PTERO_URL = process.env.PTERO_URL;
 
 function requireAdmin(req, res, next) {
   if (!req.user?.isAdmin) {
@@ -103,6 +105,126 @@ router.get('/servers/:id', authenticateToken, requireAdmin, async (req, res) => 
   } catch (err) {
     console.error('Admin server detail error:', err.message);
     res.status(500).json({ error: 'Failed to fetch server details' });
+  }
+});
+
+router.post('/servers/:id/suspend', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const serverId = parseInt(req.params.id, 10);
+    if (isNaN(serverId)) {
+      return res.status(400).json({ error: 'Invalid server ID' });
+    }
+
+    const reason = req.body.reason || null;
+    await suspendPteroServer(serverId);
+
+    if (reason) {
+      await query('UPDATE server_meta SET status = ?, suspend_reason = ? WHERE ptero_server_id = ?', ['suspended', reason, serverId]);
+    } else {
+      await query('UPDATE server_meta SET status = ?, suspend_reason = NULL WHERE ptero_server_id = ?', ['suspended', serverId]);
+    }
+
+    await logActivity(req.user.userId, 'admin_suspend', `Admin suspended server #${serverId}${reason ? ': ' + reason : ''}`, serverId);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Admin suspend error:', err.message);
+    res.status(500).json({ error: 'Failed to suspend server: ' + err.message });
+  }
+});
+
+router.post('/servers/:id/unsuspend', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const serverId = parseInt(req.params.id, 10);
+    if (isNaN(serverId)) {
+      return res.status(400).json({ error: 'Invalid server ID' });
+    }
+
+    await unsuspendPteroServer(serverId);
+    await query('UPDATE server_meta SET status = ?, suspend_reason = NULL WHERE ptero_server_id = ?', ['active', serverId]);
+    await logActivity(req.user.userId, 'admin_unsuspend', `Admin unsuspended server #${serverId}`, serverId);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Admin unsuspend error:', err.message);
+    res.status(500).json({ error: 'Failed to unsuspend server: ' + err.message });
+  }
+});
+
+router.post('/servers/:id/stop', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const serverId = parseInt(req.params.id, 10);
+    if (isNaN(serverId)) {
+      return res.status(400).json({ error: 'Invalid server ID' });
+    }
+
+    const server = await getServerById(serverId);
+    const meta = await query('SELECT user_id FROM server_meta WHERE ptero_server_id = ?', [serverId]);
+    if (meta.length === 0) {
+      return res.status(404).json({ error: 'Server meta not found' });
+    }
+
+    const users = await query('SELECT ptero_client_api_key FROM users WHERE id = ?', [meta[0].user_id]);
+    if (!users[0]?.ptero_client_api_key) {
+      return res.status(400).json({ error: 'Server owner has no Pyrodactyl API key configured' });
+    }
+
+    const pteroRes = await fetch(`${PTERO_URL}/api/client/servers/${server.identifier}/power`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${users[0].ptero_client_api_key}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ signal: 'stop' }),
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!pteroRes.ok) {
+      return res.status(502).json({ error: 'Failed to send stop command to panel' });
+    }
+
+    await logActivity(req.user.userId, 'admin_stop', `Admin stopped server #${serverId}`, serverId);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Admin stop error:', err.message);
+    res.status(500).json({ error: 'Failed to stop server: ' + err.message });
+  }
+});
+
+router.post('/servers/:id/renew-now', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const serverId = parseInt(req.params.id, 10);
+    if (isNaN(serverId)) {
+      return res.status(400).json({ error: 'Invalid server ID' });
+    }
+
+    await suspendPteroServer(serverId);
+    await query(
+      'UPDATE server_meta SET expires_at = DATE_SUB(NOW(), INTERVAL 1 DAY), status = ?, suspend_reason = ? WHERE ptero_server_id = ?',
+      ['suspended', 'Expired by admin', serverId]
+    );
+
+    await logActivity(req.user.userId, 'admin_renew_now', `Admin force-expired server #${serverId}`, serverId);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Admin renew-now error:', err.message);
+    res.status(500).json({ error: 'Failed to expire server: ' + err.message });
+  }
+});
+
+router.delete('/servers/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const serverId = parseInt(req.params.id, 10);
+    if (isNaN(serverId)) {
+      return res.status(400).json({ error: 'Invalid server ID' });
+    }
+
+    await deletePteroServer(serverId);
+    await query('DELETE FROM server_meta WHERE ptero_server_id = ?', [serverId]);
+    await logActivity(req.user.userId, 'admin_delete', `Admin deleted server #${serverId}`, serverId);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Admin delete error:', err.message);
+    res.status(500).json({ error: 'Failed to delete server: ' + err.message });
   }
 });
 

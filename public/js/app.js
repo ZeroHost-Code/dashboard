@@ -1787,6 +1787,13 @@ async function renderServerDetail(serverId) {
         </div>
       </div>
 
+      ${isSuspended && meta?.suspend_reason ? html`
+        <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:16px;margin-bottom:24px">
+          <div style="font-weight:700;color:var(--accent-red);margin-bottom:4px">Server Suspended</div>
+          <div style="color:var(--text-secondary);font-size:0.88rem">${meta.suspend_reason}</div>
+        </div>
+      ` : ''}
+
       <div class="tabs" id="server-detail-tabs">
         <button class="tab ${activeTab === 'info' ? 'active' : ''}" data-tab="info">Info</button>
         <button class="tab ${activeTab === 'resources' ? 'active' : ''}" data-tab="resources">Resources</button>
@@ -1838,6 +1845,9 @@ async function renderServerDetail(serverId) {
                 <div class="detail-item"><span class="detail-label">Created</span><span class="detail-value">${formatDate(meta.created_at)}</span></div>
                 <div class="detail-item ${expClass}"><span class="detail-label">Expires</span><span class="detail-value">${formatDate(meta.expires_at)} ${days !== null ? '(' + (days > 0 ? days + ' days' : 'Expired') + ')' : ''}</span></div>
                 <div class="detail-item"><span class="detail-label">Status</span><span class="detail-value" style="text-transform:capitalize">${meta.status}</span></div>
+                ${meta.status === 'suspended' && meta.suspend_reason ? html`
+                  <div class="detail-item"><span class="detail-label">Reason</span><span class="detail-value" style="color:var(--accent-red)">${meta.suspend_reason}</span></div>
+                ` : ''}
               </div>
               ${canRenew ? html`
                 <button class="btn btn-primary btn-full btn-renew-server" data-server-id="${s.id}" style="margin-top:16px">Renew Server (90 days)</button>

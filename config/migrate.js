@@ -25,6 +25,7 @@ const tables = {
       { name: 'created_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
       { name: 'expires_at', def: 'TIMESTAMP NOT NULL' },
       { name: 'status', def: "ENUM('active', 'suspended', 'expired') DEFAULT 'active'" },
+      { name: 'suspend_reason', def: 'TEXT DEFAULT NULL' },
     ],
   },
   user_ips: {

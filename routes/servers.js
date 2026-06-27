@@ -251,7 +251,7 @@ router.post('/renew/:id', authenticateToken, async (req, res) => {
 
     // Extend by 90 days
     await query(
-      'UPDATE server_meta SET expires_at = DATE_ADD(expires_at, INTERVAL 90 DAY), status = ? WHERE id = ?',
+      'UPDATE server_meta SET expires_at = DATE_ADD(expires_at, INTERVAL 90 DAY), status = ?, suspend_reason = NULL WHERE id = ?',
       [row.status === 'suspended' ? 'active' : row.status, row.id]
     );
 
