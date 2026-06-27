@@ -12,6 +12,7 @@ const tables = {
       { name: 'first_name', def: 'VARCHAR(255)' },
       { name: 'last_name', def: 'VARCHAR(255)' },
       { name: 'password_set', def: 'TINYINT(1) NOT NULL DEFAULT 0' },
+      { name: 'is_admin', def: 'TINYINT(1) NOT NULL DEFAULT 0' },
       { name: 'ptero_client_api_key', def: 'VARCHAR(255) DEFAULT NULL' },
       { name: 'created_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
     ],
@@ -24,6 +25,8 @@ const tables = {
       { name: 'created_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
       { name: 'expires_at', def: 'TIMESTAMP NOT NULL' },
       { name: 'status', def: "ENUM('active', 'suspended', 'expired') DEFAULT 'active'" },
+      { name: 'suspend_reason', def: 'TEXT DEFAULT NULL' },
+      { name: 'suspended_by', def: "VARCHAR(20) DEFAULT NULL" },
     ],
   },
   user_ips: {
@@ -99,8 +102,10 @@ export async function migrate() {
     try {
       await query(c.sql);
       console.log(`Applied constraint: ${c.name}`);
-    } catch {
-      // Constraint already exists or table missing — safe to ignore
+    } catch (err) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`Skipped constraint ${c.name}: ${err.message}`);
+      }
     }
   }
 }

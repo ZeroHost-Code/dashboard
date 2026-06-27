@@ -45,6 +45,31 @@ function renderCookieBanner() {
   });
 }
 
+const PTERO_URL = 'https://panel.zero-host.org';
+
+function openPyrodactylPanel(serverIdentifier) {
+  const url = `${PTERO_URL}${serverIdentifier ? '/server/' + serverIdentifier : ''}`;
+  window.open(url, '_blank');
+}
+
+async function sendPowerCommand(identifier, signal, event) {
+  const btn = event?.target;
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px"></span>';
+  }
+  try {
+    await api(`/servers/power/${identifier}`, { method: 'POST', body: JSON.stringify({ signal }) });
+  } catch (err) {
+    alert('Failed to send ' + signal + ' command: ' + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = signal.charAt(0).toUpperCase() + signal.slice(1);
+    }
+  }
+}
+
 function $(sel) { return document.querySelector(sel); }
 function md5(s) {
   function F(x,y,z) { return (x & y) | (~x & z); }
@@ -114,7 +139,7 @@ async function api(path, options = {}) {
     state.user = null;
     localStorage.removeItem('zh_token');
     localStorage.removeItem('zh_user');
-    renderLoginPage();
+    navigateTo('login');
     throw new Error('Session expired. Please sign in again.');
   }
   if (!res.ok) throw new Error(data.error || 'Request failed');
@@ -220,7 +245,7 @@ function renderLoginPage() {
 
         </form>
         <div class="auth-footer">
-          Don't have an account? <a href="#" id="go-register">Create one</a>
+          Don't have an account? <a href="/signup" id="go-register">Create one</a>
         </div>
       </div>
     </div>
@@ -229,7 +254,7 @@ function renderLoginPage() {
   $('#login-form').addEventListener('submit', handleLogin);
   $('#go-register').addEventListener('click', (e) => {
     e.preventDefault();
-    renderRegisterPage();
+    navigateTo('signup');
   });
 }
 
@@ -273,7 +298,7 @@ function renderRegisterPage() {
 
         </form>
         <div class="auth-footer">
-          Already have an account? <a href="#" id="go-login">Sign in</a>
+          Already have an account? <a href="/login" id="go-login">Sign in</a>
         </div>
       </div>
     </div>
@@ -282,7 +307,7 @@ function renderRegisterPage() {
   $('#register-form').addEventListener('submit', handleRegister);
   $('#go-login').addEventListener('click', (e) => {
     e.preventDefault();
-    renderLoginPage();
+    navigateTo('login');
   });
 }
 
@@ -307,6 +332,7 @@ async function handleLogin(e) {
     state.user = data.user;
     localStorage.setItem('zh_token', data.token);
     localStorage.setItem('zh_user', JSON.stringify(data.user));
+    history.replaceState({ page: 'overview' }, '', '/');
     renderDashboard();
   } catch (err) {
     showError(e.target, err.message);
@@ -346,6 +372,7 @@ async function handleRegister(e) {
     state.user = data.user;
     localStorage.setItem('zh_token', data.token);
     localStorage.setItem('zh_user', JSON.stringify(data.user));
+    history.replaceState({ page: 'overview' }, '', '/');
     renderDashboard();
   } catch (err) {
     showError(e.target, err.message);
@@ -355,10 +382,14 @@ async function handleRegister(e) {
   }
 }
 
+let sidebarResizeInitialized = false;
+
 function initSidebarResize() {
   const sidebar = $('#sidebar');
   const resizer = $('#sidebar-resizer');
   if (!sidebar || !resizer) return;
+  if (sidebarResizeInitialized) return;
+  sidebarResizeInitialized = true;
 
   if (localStorage.getItem('zh_sidebar_collapsed') === 'true') {
     sidebar.classList.add('collapsed');
@@ -424,10 +455,12 @@ function toggleSidebarCollapse() {
     main.style.marginLeft = prev;
   }
   localStorage.setItem('zh_sidebar_collapsed', !wasCollapsed);
+  updateNavIndicator();
 }
 
 // ===== DASHBOARD =====
 async function renderDashboard() {
+  if (typeof adminTakingOver !== 'undefined' && adminTakingOver) return;
   const app = $('#app');
   app.innerHTML = html`
     <div class="dashboard-layout">
@@ -439,8 +472,9 @@ async function renderDashboard() {
           </a>
         </div>
         <nav class="sidebar-nav">
+          <div class="nav-indicator" id="nav-indicator"></div>
           <div class="nav-section-label">Main</div>
-          <a class="nav-item active" data-page="overview" href="/overview">
+          <a class="nav-item active" data-page="overview" href="/">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
             Overview
           </a>
@@ -454,19 +488,16 @@ async function renderDashboard() {
             Create Server
           </a>
           <div class="nav-section-label">Links</div>
-          <a class="nav-item" data-page="pyrodactyl" href="/pyrodactyl">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M9 6V5a2 2 0 012-2h2a2 2 0 012 2v1M9 12h6M9 16h4"/></svg>
-            Open Pyrodactyl
+          <a class="nav-item" href="https://hub.zero-host.org" target="_blank">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            Links Hub
           </a>
-          <a class="nav-item" href="https://status.zero-host.org" target="_blank">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-            View Status
-          </a>
-          <a class="nav-item" href="https://discord.zero-host.org" target="_blank">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0416-.084.077.077 0 01.034-.0508c.1258-.0933.2517-.1919.3718-.2908a.074.074 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2908a.077.077 0 01.034.0508.077.077 0 01-.0417.084c-.5978.3429-1.2196.6447-1.8722.8923a.077.077 0 00-.0416.1057c.3528.699.7644 1.3638 1.226 1.9942a.076.076 0 00.0842.0276c1.961-.6066 3.9495-1.5218 5.9929-3.0294a.077.077 0 00.0312-.0561c.5004-5.053-.838-9.5539-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z"/></svg>
-            Join Discord
+          <a class="nav-item" href="${window.location.hostname === 'beta.zero-host.org' ? 'https://dashboard.zero-host.org' : 'https://beta.zero-host.org'}" target="_blank">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+            ${window.location.hostname === 'beta.zero-host.org' ? 'Switch to Stable' : 'Switch to Beta'}
           </a>
         </nav>
+        <div class="sidebar-tooltip" id="sidebar-tooltip"></div>
         <div class="sidebar-footer">
           <div class="user-info" id="sidebar-user-info" style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer">
             <div style="display:flex;align-items:center;gap:10px">
@@ -484,7 +515,7 @@ async function renderDashboard() {
           <div style="padding:8px 12px 0;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
 
           </div>
-          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v0.9.9 BETA</div>
+          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v1.0.0</div>
         </div>
         <div class="sidebar-resizer" id="sidebar-resizer"></div>
       </aside>
@@ -500,7 +531,7 @@ async function renderDashboard() {
         <div class="page" id="page-pyrodactyl"></div>
         <div class="page" id="page-account"></div>
         <div class="page" id="page-server-detail"></div>
-        <div class="page" id="page-log"></div>
+        <div class="page" id="page-logs"></div>
       </main>
     </div>
 
@@ -523,7 +554,7 @@ async function renderDashboard() {
     state.user = null;
     localStorage.removeItem('zh_token');
     localStorage.removeItem('zh_user');
-    renderLoginPage();
+    navigateTo('login');
   });
 
   $('#sidebar-user-info').addEventListener('click', (e) => {
@@ -542,23 +573,107 @@ async function renderDashboard() {
 
   initSidebarResize();
 
+  initSidebarTooltip();
+
   const page = window.location.pathname.replace('/', '') || 'overview';
   navigateTo(page);
 }
 
+function initSidebarTooltip() {
+  const sidebar = $('#sidebar');
+  const sidebarNav = document.querySelector('.sidebar-nav');
+  const tooltip = document.getElementById('sidebar-tooltip');
+  let tooltipTimer = null;
+  let tooltipQuickMode = false;
+  let currentItem = null;
+
+  function showTooltipForItem(item) {
+    const text = item.textContent.trim();
+    if (!text) return;
+    tooltip.textContent = text;
+    const rect = item.getBoundingClientRect();
+    tooltip.style.top = (rect.top + rect.height / 2) + 'px';
+    tooltip.style.left = (rect.right + 10) + 'px';
+    tooltip.classList.add('visible');
+  }
+
+  function hideTooltip() {
+    tooltip.classList.remove('visible');
+    clearTimeout(tooltipTimer);
+    tooltipQuickMode = false;
+    currentItem = null;
+  }
+
+  sidebarNav.addEventListener('mouseover', (e) => {
+    const item = e.target.closest('.nav-item');
+    if (!item) return;
+    if (!sidebar.classList.contains('collapsed')) return;
+
+    if (item !== currentItem) {
+      clearTimeout(tooltipTimer);
+      currentItem = item;
+
+      if (tooltipQuickMode) {
+        showTooltipForItem(item);
+      } else {
+        tooltipTimer = setTimeout(() => {
+          showTooltipForItem(item);
+          tooltipQuickMode = true;
+        }, 3000);
+      }
+    }
+  });
+
+  sidebarNav.addEventListener('mouseleave', () => {
+    if (tooltip.classList.contains('visible') || tooltipTimer) {
+      hideTooltip();
+    }
+  });
+}
+
 function navigateTo(page) {
-  if (pteroTimeout) clearTimeout(pteroTimeout);
+  const parts = page.split('/');
+  let basePage = parts[0] || 'overview';
+  const param = parts[1];
+
+  // Auth pages - redirect to / if already logged in
+  if ((basePage === 'login' || basePage === 'signup') && state.token) {
+    basePage = 'overview';
+  }
+
+  // Handle auth pages (no dashboard needed)
+  if (basePage === 'login') {
+    renderLoginPage();
+    history.pushState({ page: 'login' }, '', '/login');
+    return;
+  }
+  if (basePage === 'signup') {
+    renderRegisterPage();
+    history.pushState({ page: 'signup' }, '', '/signup');
+    return;
+  }
+
+  // Auth guard: require valid token for all other pages
+  if (!state.token) {
+    renderLoginPage();
+    history.pushState({ page: 'login' }, '', '/login');
+    return;
+  }
+
+  // Ensure dashboard layout exists
+  if (!document.querySelector('.dashboard-layout')) {
+    renderDashboard();
+    return;
+  }
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-
-  const parts = page.split('/');
-  const basePage = parts[0];
-  const param = parts[1];
 
   state.currentPage = basePage;
   state.serverId = param ? parseInt(param) : null;
   state.serverDetailTab = 'info';
-  history.pushState({ page: basePage, serverId: state.serverId }, '', `/${page}`);
+  const url = basePage === 'overview' && !param ? '/' : `/${page}`;
+  history.pushState({ page: basePage, serverId: state.serverId }, '', url);
 
   if (basePage === 'server' && state.serverId) {
     const targetPage = $('#page-server-detail');
@@ -579,21 +694,45 @@ function navigateTo(page) {
       else if (param === 'links') renderAccountLinks();
       else if (param === 'dangerous') renderDangerous();
       else renderAccount();
-    } else if (basePage === 'log') {
+    } else if (basePage === 'logs') {
       renderLog();
     }
   }
+
+  updateNavIndicator();
 
   if (window.innerWidth <= 768) {
     $('#sidebar').classList.remove('open');
   }
 }
 
+function updateNavIndicator() {
+  const activeNav = document.querySelector('.nav-item.active');
+  const indicator = document.getElementById('nav-indicator');
+  if (activeNav && indicator) {
+    indicator.style.top = activeNav.offsetTop + 'px';
+    indicator.style.height = activeNav.offsetHeight + 'px';
+    indicator.style.opacity = '1';
+  } else if (indicator) {
+    indicator.style.opacity = '0';
+  }
+}
+
 window.addEventListener('popstate', () => {
   const path = window.location.pathname;
+  if (path.startsWith('/admin')) return; // Handled by admin.js
   const parts = path.replace(/^\//, '').split('/');
-  const basePage = parts[0] || 'overview';
+  let basePage = parts[0] || 'overview';
   const param = parts[1];
+
+  // Auth pages - redirect to / if already logged in
+  if ((basePage === 'login' || basePage === 'signup') && state.token) {
+    basePage = 'overview';
+  }
+
+  if (basePage === 'login') { renderLoginPage(); return; }
+  if (basePage === 'signup') { renderRegisterPage(); return; }
+  if (!state.token) { renderLoginPage(); return; }
 
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -621,10 +760,11 @@ window.addEventListener('popstate', () => {
       else if (param === 'links') renderAccountLinks();
       else if (param === 'dangerous') renderDangerous();
       else renderAccount();
-    } else if (basePage === 'log') {
+    } else if (basePage === 'logs') {
       renderLog();
     }
   }
+  updateNavIndicator();
 });
 
 // ===== OVERVIEW =====
@@ -643,7 +783,7 @@ async function renderOverview() {
     </div>
     <div class="card">
       <div class="card-header">
-        <h2 class="card-title">Recent Servers</h2>
+        <h2 class="card-title">Your Servers</h2>
       </div>
       <div id="recent-servers-list">
         <div style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</div>
@@ -742,7 +882,7 @@ function getActionLabel(action) {
 }
 
 async function renderLog(pageNum) {
-  const el = $('#page-log');
+  const el = $('#page-logs');
   pageNum = pageNum || 1;
   const limit = 50;
   const offset = (pageNum - 1) * limit;
@@ -844,7 +984,7 @@ async function renderActivity() {
         `).join('')}
         ${hasMore ? html`
           <div class="activity-more-overlay">
-            <a class="btn btn-primary btn-sm" onclick="navigateTo('log')" style="width:auto">View all logs</a>
+            <a class="btn btn-primary btn-sm" onclick="navigateTo('logs')" style="width:auto">View all logs</a>
           </div>
         ` : ''}
       </div>
@@ -897,10 +1037,10 @@ function renderServerCard(s) {
         </div>
       ` : ''}
       <div class="server-card-actions">
-        <a href="https://panel.zero-host.org/server/${s.identifier}" target="_blank" class="btn btn-ghost btn-sm">
+        <button class="btn btn-ghost btn-sm" onclick="openPyrodactylPanel('${s.identifier}')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
           Open Panel
-        </a>
+        </button>
         ${canRenew ? html`
           <button class="btn btn-primary btn-sm btn-renew-server" data-server-id="${s.id}">Renew</button>
         ` : ''}
@@ -932,7 +1072,7 @@ function renderServerRow(s) {
       <td>
         <div style="display:flex;gap:6px">
           <a class="btn btn-ghost btn-sm" href="/server/${s.id}" onclick="event.preventDefault();navigateTo('server/${s.id}')">Settings</a>
-          <a href="https://panel.zero-host.org/server/${s.identifier}" target="_blank" class="btn btn-ghost btn-sm">Open Pyrodactyl</a>
+          <button class="btn btn-ghost btn-sm" onclick="openPyrodactylPanel('${s.identifier}')">Manage Pyrodactyl</button>
           ${canRenew ? html`
             <button class="btn btn-primary btn-sm btn-renew-server" data-server-id="${s.id}">Renew</button>
           ` : ''}
@@ -978,7 +1118,6 @@ async function renderServers() {
         </tbody>
       </table>
     </div>
-    </div>
   `;
 
   try {
@@ -1002,6 +1141,7 @@ async function renderServers() {
       if (activeFilter !== 'all') {
         filtered = filtered.filter(s => {
           if (activeFilter === 'installing') return s.status === 'installing' || s.installed === 0 || s.installed === '0' || s.installed === false;
+          if (activeFilter === 'active') return s.status !== 'suspended' && !(s.status === 'installing' || s.installed === 0 || s.installed === '0' || s.installed === false);
           return s.status === activeFilter;
         });
       }
@@ -1135,6 +1275,25 @@ async function renderCreateServer() {
 function handleEggChange() {
   const varsEl = $('#egg-variables');
   varsEl.innerHTML = '';
+  const eggVal = $('#custom-egg-trigger').dataset.value;
+  if (!eggVal) return;
+  const [eggId, nestId] = eggVal.split(',').map(Number);
+  const egg = eggCache.find(e => e.eggId === eggId && e.nestId === nestId);
+  if (!egg || !egg.variables || egg.variables.length === 0) return;
+  const userViewable = egg.variables.filter(v => v.userViewable !== 0);
+  if (userViewable.length === 0) return;
+  let htmlStr = '<div class="card" style="margin-top:20px;padding:20px"><h3 style="font-size:0.95rem;font-weight:700;margin-bottom:16px">Egg Variables</h3>';
+  for (const v of userViewable) {
+    const isEditable = v.userEditable !== 0;
+    const desc = v.description ? `<p style="font-size:0.75rem;color:var(--text-muted);margin-top:2px">${v.description}</p>` : '';
+    if (isEditable) {
+      htmlStr += `<div class="form-group"><label for="egg-var-${v.envVariable}">${v.name}</label><input type="text" id="egg-var-${v.envVariable}" value="${v.defaultValue || ''}" placeholder="${v.name}" />${desc}</div>`;
+    } else {
+      htmlStr += `<div class="form-group"><label>${v.name}</label><input type="text" value="${v.defaultValue || ''}" disabled />${desc}</div>`;
+    }
+  }
+  htmlStr += '</div>';
+  varsEl.innerHTML = htmlStr;
 }
 
 async function handleCreateServer(e) {
@@ -1151,6 +1310,12 @@ async function handleCreateServer(e) {
     btn.innerHTML = 'Create Server';
     return;
   }
+  if (name.length < 1 || name.length > 255) {
+    showToast('Server name must be between 1 and 255 characters', 'error');
+    btn.disabled = false;
+    btn.innerHTML = 'Create Server';
+    return;
+  }
 
   const [eggId, nestId] = eggVal.split(',').map(Number);
   const egg = eggCache.find(e => e.eggId === eggId && e.nestId === nestId);
@@ -1158,7 +1323,8 @@ async function handleCreateServer(e) {
   const environment = {};
   if (egg && egg.variables) {
     for (const v of egg.variables) {
-      environment[v.envVariable] = v.defaultValue || '';
+      const input = document.getElementById(`egg-var-${v.envVariable}`);
+      environment[v.envVariable] = input ? input.value.trim() : (v.defaultValue || '');
     }
   }
 
@@ -1179,15 +1345,12 @@ async function handleCreateServer(e) {
 }
 
 // ===== PYRODACTYL PAGE =====
-let pteroTimeout = null;
-
 function renderPyrodactyl() {
-  if (pteroTimeout) clearTimeout(pteroTimeout);
   const el = $('#page-pyrodactyl');
   el.innerHTML = html`
     <div class="page-header">
       <h1 class="page-title">Pyrodactyl Panel</h1>
-      <p class="page-subtitle">Redirecting to the panel in 5 seconds...</p>
+      <p class="page-subtitle">Access your Pyrodactyl panel</p>
     </div>
     <div class="ptero-grid">
       <div class="card ptero-card">
@@ -1196,32 +1359,16 @@ function renderPyrodactyl() {
         </div>
         <h2 class="ptero-card-title">Opening Pyrodactyl...</h2>
         <p class="ptero-card-desc">
-          You are being redirected to the Pyrodactyl panel. If nothing happens, click the button below.
+          Click the button below to open the Pyrodactyl panel.
         </p>
-        <div class="ptero-info" style="margin-bottom:24px">
-          <div class="ptero-info-item">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-            <span><strong>Login:</strong> use your dashboard email and password</span>
-          </div>
-          <div class="ptero-info-item">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            <span><strong>Same password</strong> as your dashboard account</span>
-          </div>
-        </div>
-        <a href="https://panel.zero-host.org" target="_blank" class="btn btn-primary btn-full" id="ptero-open-btn">
+        <button class="btn btn-primary btn-full" id="ptero-open-btn" onclick="openPyrodactylPanel()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
           Open Panel Now
-        </a>
+        </button>
       </div>
     </div>
   `;
-  pteroTimeout = setTimeout(() => {
-    window.open('https://panel.zero-host.org', '_blank');
-  }, 5000);
-  document.getElementById('ptero-open-btn').addEventListener('click', () => {
-    clearTimeout(pteroTimeout);
-    pteroTimeout = null;
-  });
+  setTimeout(() => openPyrodactylPanel(), 500);
 }
 
 // ===== ACCOUNT PAGE =====
@@ -1272,6 +1419,19 @@ function renderAccount() {
         </div>
       </div>
 
+      <div class="card account-menu-card" id="account-menu-logout" style="cursor:pointer">
+        <div class="account-menu-item">
+          <div class="account-menu-icon" style="color:var(--accent-red)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+          </div>
+          <div class="account-menu-text">
+            <div class="account-menu-title">Sign Out</div>
+            <div class="account-menu-desc">Logout from your account</div>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+      </div>
+
       <div class="card account-menu-card" id="account-menu-dangerous" style="cursor:pointer">
         <div class="account-menu-item">
           <div class="account-menu-icon" style="color:var(--accent-red)">
@@ -1289,8 +1449,16 @@ function renderAccount() {
 
   $('#account-menu-edit').addEventListener('click', () => navigateTo('account/edit'));
   $('#account-menu-links').addEventListener('click', () => navigateTo('account/links'));
-  $('#account-menu-logs').addEventListener('click', () => navigateTo('log'));
+  $('#account-menu-logs').addEventListener('click', () => navigateTo('logs'));
   $('#account-menu-dangerous').addEventListener('click', () => navigateTo('account/dangerous'));
+  $('#account-menu-logout').addEventListener('click', async () => {
+    try { await api('/auth/logout', { method: 'POST' }); } catch {}
+    state.token = null;
+    state.user = null;
+    localStorage.removeItem('zh_token');
+    localStorage.removeItem('zh_user');
+    navigateTo('login');
+  });
 }
 
 function renderAccountEdit() {
@@ -1543,7 +1711,7 @@ function handleDeleteAccountClick() {
       <input type="password" id="delete-acc-pw" placeholder="Your password" required />
     </div>
     <div class="modal-actions">
-      <button class="btn btn-ghost btn-full" id="modal-cancel-btn">Cancel</button>
+      <button class="btn btn-ghost btn-full" class="modal-cancel-btn">Cancel</button>
       <button class="btn btn-danger btn-full" id="confirm-delete-acc-btn">Delete Forever</button>
     </div>
   `;
@@ -1574,7 +1742,7 @@ async function handleConfirmDeleteAccount() {
     state.user = null;
     localStorage.removeItem('zh_token');
     localStorage.removeItem('zh_user');
-    setTimeout(() => renderLoginPage(), 1500);
+    setTimeout(() => navigateTo('login'), 1500);
   } catch (err) {
     showToast(err.message, 'error');
     btn.disabled = false;
@@ -1589,6 +1757,7 @@ async function renderServerDetail(serverId) {
   try {
     const data = await api(`/servers/details/${serverId}`);
     const s = data.server;
+    state.serverIdentifier = s.identifier;
     const meta = s.serverMeta;
     const eggName = s.eggDetails?.name || `Egg #${s.egg}`;
     const alloc = s.allocationDetails;
@@ -1605,7 +1774,7 @@ async function renderServerDetail(serverId) {
 
     el.innerHTML = html`
       <div class="page-header">
-        <a href="/servers" onclick="navigateTo('servers')" class="btn btn-ghost btn-sm" style="margin-bottom:16px;display:inline-flex;width:auto">
+        <a href="/servers" onclick="event.preventDefault();navigateTo('servers')" class="btn btn-ghost btn-sm" style="margin-bottom:16px;display:inline-flex;width:auto">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
           Back to Servers
         </a>
@@ -1618,10 +1787,18 @@ async function renderServerDetail(serverId) {
         </div>
       </div>
 
-      <div class="tabs">
+      ${isSuspended && meta?.suspend_reason ? html`
+        <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:16px;margin-bottom:24px">
+          <div style="font-weight:700;color:var(--accent-red);margin-bottom:4px">Server Suspended</div>
+          <div style="color:var(--text-secondary);font-size:0.88rem">${meta.suspend_reason}</div>
+        </div>
+      ` : ''}
+
+      <div class="tabs" id="server-detail-tabs">
         <button class="tab ${activeTab === 'info' ? 'active' : ''}" data-tab="info">Info</button>
         <button class="tab ${activeTab === 'resources' ? 'active' : ''}" data-tab="resources">Resources</button>
         <button class="tab ${activeTab === 'actions' ? 'active' : ''}" data-tab="actions">Actions</button>
+        <div class="tab-indicator" id="tab-indicator"></div>
       </div>
 
       <div id="server-tab-info" class="tab-content" style="display:${activeTab === 'info' ? 'block' : 'none'}">
@@ -1668,6 +1845,9 @@ async function renderServerDetail(serverId) {
                 <div class="detail-item"><span class="detail-label">Created</span><span class="detail-value">${formatDate(meta.created_at)}</span></div>
                 <div class="detail-item ${expClass}"><span class="detail-label">Expires</span><span class="detail-value">${formatDate(meta.expires_at)} ${days !== null ? '(' + (days > 0 ? days + ' days' : 'Expired') + ')' : ''}</span></div>
                 <div class="detail-item"><span class="detail-label">Status</span><span class="detail-value" style="text-transform:capitalize">${meta.status}</span></div>
+                ${meta.status === 'suspended' && meta.suspend_reason ? html`
+                  <div class="detail-item"><span class="detail-label">Reason</span><span class="detail-value" style="color:var(--accent-red)">${meta.suspend_reason}</span></div>
+                ` : ''}
               </div>
               ${canRenew ? html`
                 <button class="btn btn-primary btn-full btn-renew-server" data-server-id="${s.id}" style="margin-top:16px">Renew Server (90 days)</button>
@@ -1700,13 +1880,30 @@ async function renderServerDetail(serverId) {
       <div id="server-tab-actions" class="tab-content" style="display:${activeTab === 'actions' ? 'block' : 'none'}">
         <div class="action-card">
           <div class="action-card-header">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            <div>
+              <h3 class="action-card-title">Power Controls</h3>
+              <p class="action-card-desc">
+                Current state: <strong>${s.currentState || 'Unknown'}</strong>
+              </p>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-success btn-full" style="flex:1" onclick="sendPowerCommand('${s.identifier}','start',event)" ${s.currentState === 'running' ? 'disabled' : ''}>Start</button>
+            <button class="btn btn-warning btn-full" style="flex:1" onclick="sendPowerCommand('${s.identifier}','stop',event)" ${s.currentState !== 'running' ? 'disabled' : ''}>Stop</button>
+            <button class="btn btn-ghost btn-full" style="flex:1" onclick="sendPowerCommand('${s.identifier}','restart',event)" ${s.currentState !== 'running' ? 'disabled' : ''}>Restart</button>
+          </div>
+        </div>
+
+        <div class="action-card">
+          <div class="action-card-header">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
             <div>
               <h3 class="action-card-title">Open Panel</h3>
               <p class="action-card-desc">Access the full Pyrodactyl control panel to manage files, console, databases, schedules, and more.</p>
             </div>
           </div>
-          <a href="https://panel.zero-host.org/server/${s.identifier}" target="_blank" class="btn btn-primary btn-full">Open Panel</a>
+          <button class="btn btn-primary btn-full" onclick="openPyrodactylPanel('${s.identifier}')">Open Panel</button>
         </div>
 
         <div class="action-card">
@@ -1735,6 +1932,19 @@ async function renderServerDetail(serverId) {
 
     if (activeTab === 'resources') {
       fetchLiveResources(s.identifier);
+    }
+
+    // Disable transition for initial position to prevent sliding from 0
+    const indicator = $('#tab-indicator');
+    const activeTabEl = $('#server-detail-tabs .tab.active');
+    if (indicator && activeTabEl) {
+      const pos = activeTabEl.offsetLeft;
+      const w = activeTabEl.offsetWidth;
+      indicator.style.transition = 'none';
+      indicator.style.left = pos + 'px';
+      indicator.style.width = w + 'px';
+      void indicator.offsetWidth;
+      indicator.style.transition = '';
     }
 
   } catch (err) {
@@ -1832,13 +2042,39 @@ async function fetchLiveResources(identifier) {
   }
 }
 
+// ===== TAB SWITCHING =====
+function switchTab(tabBtn) {
+  if (!$('#tab-indicator')) return;
+  const tabName = tabBtn.dataset.tab;
+  state.serverDetailTab = tabName;
+
+  document.querySelectorAll('#server-detail-tabs .tab').forEach(t => t.classList.remove('active'));
+  tabBtn.classList.add('active');
+
+  document.querySelectorAll('#page-server-detail .tab-content').forEach(c => c.style.display = 'none');
+  const target = $('#server-tab-' + tabName);
+  if (target) target.style.display = 'block';
+
+  const indicator = $('#tab-indicator');
+  if (indicator) {
+    indicator.style.left = tabBtn.offsetLeft + 'px';
+    indicator.style.width = tabBtn.offsetWidth + 'px';
+  }
+
+  if (tabName === 'resources') {
+    const container = $('#live-resources-container');
+    if (container && container.querySelector('.resource-gauge') === null) {
+      fetchLiveResources(state.serverIdentifier);
+    }
+  }
+}
+
 // ===== DELETE SERVER =====
 document.addEventListener('click', function(e) {
   const tabBtn = e.target.closest('.tab');
   if (tabBtn && !tabBtn.classList.contains('active')) {
     e.preventDefault();
-    state.serverDetailTab = tabBtn.dataset.tab;
-    renderServerDetail(state.serverId);
+    switchTab(tabBtn);
     return;
   }
 
@@ -1880,7 +2116,7 @@ document.addEventListener('click', function(e) {
         <input type="text" id="rename-server-input" value="${serverName}" maxlength="255" required />
       </div>
       <div class="modal-actions">
-        <button class="btn btn-ghost btn-full" id="modal-cancel-btn">Cancel</button>
+        <button class="btn btn-ghost btn-full" class="modal-cancel-btn">Cancel</button>
         <button class="btn btn-primary btn-full" id="confirm-rename-btn" data-server-id="${serverId}">Rename</button>
       </div>
     `;
@@ -1910,7 +2146,7 @@ document.addEventListener('click', function(e) {
         </p>
       </div>
       <div class="modal-actions">
-        <button class="btn btn-ghost btn-full" id="modal-cancel-btn">Cancel</button>
+        <button class="btn btn-ghost btn-full" class="modal-cancel-btn">Cancel</button>
         <button class="btn btn-warning btn-full" id="confirm-reinstall-btn" data-server-id="${serverId}">Reinstall</button>
       </div>
     `;
@@ -1932,7 +2168,7 @@ document.addEventListener('click', function(e) {
         This action is irreversible and will permanently remove the server.
       </p>
       <div class="modal-actions">
-        <button class="btn btn-ghost btn-full" id="modal-cancel-btn">Cancel</button>
+        <button class="btn btn-ghost btn-full" class="modal-cancel-btn">Cancel</button>
         <button class="btn btn-danger btn-full" id="confirm-delete-btn" data-server-id="${serverId}">
           Delete Forever
         </button>
@@ -1942,7 +2178,7 @@ document.addEventListener('click', function(e) {
     return;
   }
 
-  if (e.target.closest('#modal-cancel-btn') || e.target.closest('.modal-overlay') && !e.target.closest('.modal')) {
+  if (e.target.closest('.modal-cancel-btn') || e.target.closest('.modal-overlay') && !e.target.closest('.modal')) {
     $('#modal-overlay').classList.remove('open');
     return;
   }
@@ -2046,19 +2282,40 @@ async function handleExportData() {
 
 // ===== INIT =====
 function init() {
+  const path = window.location.pathname;
+
+  // Skip if admin route - handled by admin.js
+  if (path.startsWith('/admin')) return;
+
+  const basePage = path.replace(/^\//, '').split('/')[0] || '';
   const token = localStorage.getItem('zh_token');
+
   if (token) {
     state.token = token;
     try {
       const user = JSON.parse(localStorage.getItem('zh_user'));
       if (user) state.user = user;
     } catch {}
+  }
+
+  if (basePage === 'login' || basePage === 'signup') {
+    if (state.token) {
+      history.replaceState({ page: 'overview' }, '', '/');
+      renderDashboard();
+    } else if (basePage === 'login') {
+      renderLoginPage();
+    } else {
+      renderRegisterPage();
+    }
+  } else if (state.token) {
     api('/servers/overview').then(() => renderDashboard()).catch(() => {
       renderDashboard();
     });
   } else {
     renderLoginPage();
+    history.replaceState({ page: 'login' }, '', '/login');
   }
+
   renderCookieBanner();
 }
 

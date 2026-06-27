@@ -11,7 +11,7 @@ import {
   getEgg,
   getAllEggs,
 } from '../services/pyrodactyl.js';
-import { PTERO_URL } from '../config/pyrodactyl.js';
+import { PTERO_URL, PANEL_DB_NAME } from '../config/pyrodactyl.js';
 import { query } from '../config/db.js';
 import { verifyCap } from '../config/cap.js';
 import { logActivity } from '../services/activity.js';
@@ -81,7 +81,7 @@ router.get('/eggs', authenticateToken, async (req, res) => {
     for (const { nest, egg } of eggs) {
       let variables = [];
       try {
-        const vars = await query('SELECT name, env_variable, default_value, rules, description, user_viewable, user_editable FROM panel.egg_variables WHERE egg_id = ?', [egg.id]);
+        const vars = await query('SELECT name, env_variable, default_value, rules, description, user_viewable, user_editable FROM ${PANEL_DB_NAME}.egg_variables WHERE egg_id = ?', [egg.id]);
         variables = vars;
       } catch {}
       simplified.push({
@@ -136,7 +136,7 @@ router.post('/create', authenticateToken, async (req, res) => {
     const egg = await getEgg(nestId, eggId);
     const dockerImage = Object.values(egg.docker_images)[0] || Object.keys(egg.docker_images)[0];
 
-    const eggVars = await query('SELECT name, env_variable, default_value, rules FROM panel.egg_variables WHERE egg_id = ?', [eggId]);
+    const eggVars = await query('SELECT name, env_variable, default_value, rules FROM ${PANEL_DB_NAME}.egg_variables WHERE egg_id = ?', [eggId]);
 
     const mergedEnv = {};
     for (const v of eggVars) {
@@ -186,6 +186,27 @@ router.get('/details/:id', authenticateToken, async (req, res) => {
     const server = await getServerById(serverId);
     const meta = await query('SELECT * FROM server_meta WHERE ptero_server_id = ?', [serverId]);
     server.serverMeta = meta.length > 0 ? meta[0] : null;
+
+    const users = await query('SELECT ptero_client_api_key FROM users WHERE id = ?', [req.user.userId]);
+    const clientApiKey = users[0]?.ptero_client_api_key;
+    if (clientApiKey) {
+      try {
+        const pteroRes = await fetch(`${PTERO_URL}/api/client/servers/${server.identifier}/resources`, {
+          headers: {
+            'Authorization': `Bearer ${clientApiKey}`,
+            'Accept': 'application/json',
+          },
+          signal: AbortSignal.timeout(8000),
+        });
+        if (pteroRes.ok) {
+          const data = await pteroRes.json();
+          server.currentState = data.attributes.current_state;
+        }
+      } catch {
+        server.currentState = null;
+      }
+    }
+
     res.json({ server });
   } catch (err) {
     console.error('Get server error:', err.message);
@@ -207,6 +228,11 @@ router.post('/renew/:id', authenticateToken, async (req, res) => {
     }
 
     const row = meta[0];
+
+    // Block renewal if suspended by an admin
+    if (row.suspended_by === 'admin') {
+      return res.status(403).json({ error: 'Suspended by an Administrator. Please contact support.' });
+    }
 
     // Verify the server belongs to this user
     const servers = await getServersByUser(pteroId);
@@ -230,7 +256,7 @@ router.post('/renew/:id', authenticateToken, async (req, res) => {
 
     // Extend by 90 days
     await query(
-      'UPDATE server_meta SET expires_at = DATE_ADD(expires_at, INTERVAL 90 DAY), status = ? WHERE id = ?',
+      'UPDATE server_meta SET expires_at = DATE_ADD(expires_at, INTERVAL 90 DAY), status = ?, suspend_reason = NULL WHERE id = ?',
       [row.status === 'suspended' ? 'active' : row.status, row.id]
     );
 
@@ -387,6 +413,40 @@ router.get('/resources/:identifier', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Resources error:', err.message);
     res.status(500).json({ error: 'Failed to fetch server resources' });
+  }
+});
+
+router.post('/power/:identifier', authenticateToken, async (req, res) => {
+  try {
+    const { identifier } = req.params;
+    const { signal } = req.body;
+    const userId = req.user.userId;
+
+    const users = await query('SELECT ptero_client_api_key FROM users WHERE id = ?', [userId]);
+    if (!users[0]?.ptero_client_api_key) {
+      return res.status(400).json({ error: 'No Pyrodactyl API key configured' });
+    }
+
+    const apiKey = users[0].ptero_client_api_key;
+    const pteroRes = await fetch(`${PTERO_URL}/api/client/servers/${identifier}/power`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ signal }),
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!pteroRes.ok) {
+      return res.status(502).json({ error: 'Failed to send power command' });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Power command error:', err.message);
+    res.status(500).json({ error: 'Failed to send power command' });
   }
 });
 

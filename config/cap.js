@@ -19,17 +19,26 @@ async function fetchWithTimeout(url, options = {}, timeout = 10000) {
   }
 }
 
+function normalizeUrl(base) {
+  return base.endsWith('/') ? base : base + '/';
+}
+
 export async function verifyCap(token) {
   if (!token) return false;
+  const url = `${normalizeUrl(CAP_ENDPOINT)}siteverify`;
   try {
-    const res = await fetchWithTimeout(`${CAP_ENDPOINT}siteverify`, {
+    const res = await fetchWithTimeout(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ secret: CAP_SECRET, response: token }),
     });
     const data = await res.json();
+    if (data.success !== true) {
+      console.error('[CAP] Verification failed:', JSON.stringify(data));
+    }
     return data.success === true;
-  } catch {
+  } catch (err) {
+    console.error('[CAP] Service unreachable at', url, ':', err.message);
     return false;
   }
 }

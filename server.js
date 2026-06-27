@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-import { readFileSync } from 'fs';
+import { readFile } from 'fs/promises';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: resolve(__dirname, '.env') });
@@ -16,15 +16,24 @@ import path from 'path';
 
 import authRoutes from './routes/auth.js';
 import serverRoutes from './routes/servers.js';
+import adminRoutes from './routes/admin.js';
 import { startScheduler } from './services/scheduler.js';
 import { migrate } from './config/migrate.js';
 import { query } from './config/db.js';
 import { getRecentActivity } from './services/activity.js';
 
 const app = express();
-let portFromFile = 3000;
-try { portFromFile = parseInt(readFileSync(resolve(__dirname, 'port.txt'), 'utf-8').trim(), 10) || 3000; } catch {}
-const PORT = process.env.PORT || portFromFile;
+
+async function getPort() {
+  try {
+    const content = await readFile(resolve(__dirname, 'port.txt'), 'utf-8');
+    return parseInt(content.trim(), 10) || 3000;
+  } catch {
+    return 3000;
+  }
+}
+
+const PORT = process.env.PORT || await getPort();
 
 const trustProxy = process.env.NODE_ENV === 'production';
 
@@ -34,7 +43,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net"],
       scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"],
@@ -70,7 +79,7 @@ app.use(cookieParser(process.env.COOKIE_SECRET));
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 20,
   message: { error: 'Too many attempts, try again later' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -92,6 +101,7 @@ app.use('/api', apiLimiter);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/servers', serverRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/api/activity', async (req, res) => {
   try {
@@ -133,6 +143,16 @@ app.get('/api/health', async (req, res) => {
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/admin/*', (req, res) => {
+  res.set('X-Robots-Tag', 'noindex, nofollow');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/admin', (req, res) => {
+  res.set('X-Robots-Tag', 'noindex, nofollow');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) {

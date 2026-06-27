@@ -2,6 +2,7 @@ import { PTERO_URL, PTERO_API_KEY, SERVER_LIMITS, FEATURE_LIMITS, DEPLOY_LOCATIO
 
 const FETCH_TIMEOUT = 15000;
 const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_MAX_SIZE = 50;
 const nodeCache = new Map();
 
 async function fetchWithTimeout(url, options = {}, timeout = FETCH_TIMEOUT) {
@@ -23,17 +24,26 @@ const headers = {
 
 async function pteroFetch(path, options = {}) {
   const url = `${PTERO_URL}/api/application${path}`;
-  const res = await fetchWithTimeout(url, {
-    ...options,
-    headers: { ...headers, ...options.headers },
-  });
-  if (res.status === 204) return null;
-  const data = await res.json();
-  if (!res.ok) {
-    const detail = data?.errors?.[0]?.detail || JSON.stringify(data);
-    throw new Error(detail);
+  const maxRetries = 3;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const res = await fetchWithTimeout(url, {
+      ...options,
+      headers: { ...headers, ...options.headers },
+    });
+    if (res.status === 204) return null;
+    if (res.status === 429 && attempt < maxRetries) {
+      const wait = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
+      console.warn(`pteroFetch rate limited (429), retry ${attempt}/${maxRetries} after ${wait}ms`);
+      await new Promise(r => setTimeout(r, wait));
+      continue;
+    }
+    const data = await res.json();
+    if (!res.ok) {
+      const detail = data?.errors?.[0]?.detail || JSON.stringify(data);
+      throw new Error(detail);
+    }
+    return data;
   }
-  return data;
 }
 
 export async function createPteroUser({ email, username, firstName, lastName, password }) {
@@ -52,14 +62,6 @@ export async function createPteroUser({ email, username, firstName, lastName, pa
   return data.attributes;
 }
 
-async function getPteroUserByEmail(email) {
-  const data = await pteroFetch(`/users?filter[email]=${encodeURIComponent(email)}`);
-  if (data.data.length > 0) {
-    return data.data[0].attributes;
-  }
-  return null;
-}
-
 export async function getPteroUserById(id) {
   const data = await pteroFetch(`/users/${id}`);
   return data.attributes;
@@ -72,13 +74,58 @@ async function getNode(nodeId) {
   }
   const data = await pteroFetch(`/nodes/${nodeId}`);
   const node = data.attributes;
+  if (nodeCache.size >= CACHE_MAX_SIZE) {
+    const oldest = nodeCache.keys().next().value;
+    nodeCache.delete(oldest);
+  }
   nodeCache.set(nodeId, { data: node, ts: Date.now() });
+  if (nodeCache.size % 10 === 0) {
+    const cutoff = Date.now() - CACHE_TTL;
+    for (const [id, entry] of nodeCache) {
+      if (entry.ts < cutoff) nodeCache.delete(id);
+    }
+  }
   return node;
 }
 
 export async function getEgg(nestId, eggId) {
   const data = await pteroFetch(`/nests/${nestId}/eggs/${eggId}`);
   return data.attributes;
+}
+
+export async function getAllServers() {
+  let allServers = [];
+  let page = 1;
+  let hasMore = true;
+
+  while (hasMore) {
+    const data = await pteroFetch(`/servers?page=${page}&per_page=50`);
+    const servers = data.data.map(s => s.attributes);
+    allServers = allServers.concat(servers);
+    if (data.meta?.pagination?.total_pages > page) {
+      page++;
+    } else {
+      hasMore = false;
+    }
+  }
+
+  for (const server of allServers) {
+    try {
+      const node = await getNode(server.node);
+      server.nodeFqdn = node.fqdn;
+    } catch { server.nodeFqdn = null; }
+    try {
+      const allocData = await pteroFetch(`/nodes/${server.node}/allocations/${server.allocation}`);
+      server.allocationDetails = allocData.attributes;
+      server.allocationDetails.nodeFqdn = server.nodeFqdn;
+    } catch { server.allocationDetails = null; }
+    try {
+      const eggData = await pteroFetch(`/nests/${server.nest}/eggs/${server.egg}`);
+      server.eggDetails = { name: eggData.attributes.name };
+    } catch { server.eggDetails = null; }
+  }
+
+  return allServers;
 }
 
 export async function getServersByUser(userId) {
