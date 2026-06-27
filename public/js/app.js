@@ -139,7 +139,7 @@ async function api(path, options = {}) {
     state.user = null;
     localStorage.removeItem('zh_token');
     localStorage.removeItem('zh_user');
-    renderLoginPage();
+    navigateTo('login');
     throw new Error('Session expired. Please sign in again.');
   }
   if (!res.ok) throw new Error(data.error || 'Request failed');
@@ -245,7 +245,7 @@ function renderLoginPage() {
 
         </form>
         <div class="auth-footer">
-          Don't have an account? <a href="#" id="go-register">Create one</a>
+          Don't have an account? <a href="/signup" id="go-register">Create one</a>
         </div>
       </div>
     </div>
@@ -254,7 +254,7 @@ function renderLoginPage() {
   $('#login-form').addEventListener('submit', handleLogin);
   $('#go-register').addEventListener('click', (e) => {
     e.preventDefault();
-    renderRegisterPage();
+    navigateTo('signup');
   });
 }
 
@@ -298,7 +298,7 @@ function renderRegisterPage() {
 
         </form>
         <div class="auth-footer">
-          Already have an account? <a href="#" id="go-login">Sign in</a>
+          Already have an account? <a href="/login" id="go-login">Sign in</a>
         </div>
       </div>
     </div>
@@ -307,7 +307,7 @@ function renderRegisterPage() {
   $('#register-form').addEventListener('submit', handleRegister);
   $('#go-login').addEventListener('click', (e) => {
     e.preventDefault();
-    renderLoginPage();
+    navigateTo('login');
   });
 }
 
@@ -332,6 +332,7 @@ async function handleLogin(e) {
     state.user = data.user;
     localStorage.setItem('zh_token', data.token);
     localStorage.setItem('zh_user', JSON.stringify(data.user));
+    history.replaceState({ page: 'overview' }, '', '/');
     renderDashboard();
   } catch (err) {
     showError(e.target, err.message);
@@ -371,6 +372,7 @@ async function handleRegister(e) {
     state.user = data.user;
     localStorage.setItem('zh_token', data.token);
     localStorage.setItem('zh_user', JSON.stringify(data.user));
+    history.replaceState({ page: 'overview' }, '', '/');
     renderDashboard();
   } catch (err) {
     showError(e.target, err.message);
@@ -471,7 +473,7 @@ async function renderDashboard() {
         <nav class="sidebar-nav">
           <div class="nav-indicator" id="nav-indicator"></div>
           <div class="nav-section-label">Main</div>
-          <a class="nav-item active" data-page="overview" href="/overview">
+          <a class="nav-item active" data-page="overview" href="/">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
             Overview
           </a>
@@ -551,7 +553,7 @@ async function renderDashboard() {
     state.user = null;
     localStorage.removeItem('zh_token');
     localStorage.removeItem('zh_user');
-    renderLoginPage();
+    navigateTo('login');
   });
 
   $('#sidebar-user-info').addEventListener('click', (e) => {
@@ -629,17 +631,48 @@ function initSidebarTooltip() {
 }
 
 function navigateTo(page) {
+  const parts = page.split('/');
+  let basePage = parts[0] || 'overview';
+  const param = parts[1];
+
+  // Auth pages - redirect to / if already logged in
+  if ((basePage === 'login' || basePage === 'signup') && state.token) {
+    basePage = 'overview';
+  }
+
+  // Handle auth pages (no dashboard needed)
+  if (basePage === 'login') {
+    renderLoginPage();
+    history.pushState({ page: 'login' }, '', '/login');
+    return;
+  }
+  if (basePage === 'signup') {
+    renderRegisterPage();
+    history.pushState({ page: 'signup' }, '', '/signup');
+    return;
+  }
+
+  // Auth guard: require valid token for all other pages
+  if (!state.token) {
+    renderLoginPage();
+    history.pushState({ page: 'login' }, '', '/login');
+    return;
+  }
+
+  // Ensure dashboard layout exists
+  if (!document.querySelector('.dashboard-layout')) {
+    renderDashboard();
+    return;
+  }
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-
-  const parts = page.split('/');
-  const basePage = parts[0];
-  const param = parts[1];
 
   state.currentPage = basePage;
   state.serverId = param ? parseInt(param) : null;
   state.serverDetailTab = 'info';
-  history.pushState({ page: basePage, serverId: state.serverId }, '', `/${page}`);
+  const url = basePage === 'overview' && !param ? '/' : `/${page}`;
+  history.pushState({ page: basePage, serverId: state.serverId }, '', url);
 
   if (basePage === 'server' && state.serverId) {
     const targetPage = $('#page-server-detail');
@@ -687,8 +720,17 @@ function updateNavIndicator() {
 window.addEventListener('popstate', () => {
   const path = window.location.pathname;
   const parts = path.replace(/^\//, '').split('/');
-  const basePage = parts[0] || 'overview';
+  let basePage = parts[0] || 'overview';
   const param = parts[1];
+
+  // Auth pages - redirect to / if already logged in
+  if ((basePage === 'login' || basePage === 'signup') && state.token) {
+    basePage = 'overview';
+  }
+
+  if (basePage === 'login') { renderLoginPage(); return; }
+  if (basePage === 'signup') { renderRegisterPage(); return; }
+  if (!state.token) { renderLoginPage(); return; }
 
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -1413,7 +1455,7 @@ function renderAccount() {
     state.user = null;
     localStorage.removeItem('zh_token');
     localStorage.removeItem('zh_user');
-    renderLoginPage();
+    navigateTo('login');
   });
 }
 
@@ -1698,7 +1740,7 @@ async function handleConfirmDeleteAccount() {
     state.user = null;
     localStorage.removeItem('zh_token');
     localStorage.removeItem('zh_user');
-    setTimeout(() => renderLoginPage(), 1500);
+    setTimeout(() => navigateTo('login'), 1500);
   } catch (err) {
     showToast(err.message, 'error');
     btn.disabled = false;
@@ -2228,19 +2270,36 @@ async function handleExportData() {
 
 // ===== INIT =====
 function init() {
+  const path = window.location.pathname;
+  const basePage = path.replace(/^\//, '').split('/')[0] || '';
   const token = localStorage.getItem('zh_token');
+
   if (token) {
     state.token = token;
     try {
       const user = JSON.parse(localStorage.getItem('zh_user'));
       if (user) state.user = user;
     } catch {}
+  }
+
+  if (basePage === 'login' || basePage === 'signup') {
+    if (state.token) {
+      history.replaceState({ page: 'overview' }, '', '/');
+      renderDashboard();
+    } else if (basePage === 'login') {
+      renderLoginPage();
+    } else {
+      renderRegisterPage();
+    }
+  } else if (state.token) {
     api('/servers/overview').then(() => renderDashboard()).catch(() => {
       renderDashboard();
     });
   } else {
     renderLoginPage();
+    history.replaceState({ page: 'login' }, '', '/login');
   }
+
   renderCookieBanner();
 }
 
