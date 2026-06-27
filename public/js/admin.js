@@ -379,9 +379,21 @@ window.addEventListener('popstate', () => {
   }
 });
 
+let adminTakingOver = false;
+
 function initAdmin() {
   const path = window.location.pathname;
   if (!path.startsWith('/admin')) return;
+
+  adminTakingOver = true;
+
+  // Clear any dashboard that may have been rendered by an old cached app.js
+  const app = document.getElementById('app');
+  if (app && app.querySelector('.dashboard-layout')) {
+    app.innerHTML = '';
+    localStorage.removeItem('zh_token');
+    localStorage.removeItem('zh_user');
+  }
 
   let meta = document.querySelector('meta[name="robots"]');
   if (!meta) {

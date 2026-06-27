@@ -460,6 +460,7 @@ function toggleSidebarCollapse() {
 
 // ===== DASHBOARD =====
 async function renderDashboard() {
+  if (typeof adminTakingOver !== 'undefined' && adminTakingOver) return;
   const app = $('#app');
   app.innerHTML = html`
     <div class="dashboard-layout">
