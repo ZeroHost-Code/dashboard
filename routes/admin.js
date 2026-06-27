@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { authenticateToken } from '../middleware/auth.js';
 import { query } from '../config/db.js';
 import { getAllServers, getServerById, suspendPteroServer, unsuspendPteroServer, deletePteroServer } from '../services/pyrodactyl.js';
+import { verifyCap } from '../config/cap.js';
 import { logActivity } from '../services/activity.js';
 
 const router = Router();
@@ -19,9 +20,13 @@ function requireAdmin(req, res, next) {
 
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, capToken } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    if (!await verifyCap(capToken)) {
+      return res.status(400).json({ error: 'Please complete the security check' });
     }
 
     const users = await query('SELECT * FROM users WHERE email = ?', [email]);

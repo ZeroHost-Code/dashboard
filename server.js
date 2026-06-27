@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-import { readFileSync } from 'fs';
+import { readFile } from 'fs/promises';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: resolve(__dirname, '.env') });
@@ -23,9 +23,17 @@ import { query } from './config/db.js';
 import { getRecentActivity } from './services/activity.js';
 
 const app = express();
-let portFromFile = 3000;
-try { portFromFile = parseInt(readFileSync(resolve(__dirname, 'port.txt'), 'utf-8').trim(), 10) || 3000; } catch {}
-const PORT = process.env.PORT || portFromFile;
+
+async function getPort() {
+  try {
+    const content = await readFile(resolve(__dirname, 'port.txt'), 'utf-8');
+    return parseInt(content.trim(), 10) || 3000;
+  } catch {
+    return 3000;
+  }
+}
+
+const PORT = process.env.PORT || await getPort();
 
 const trustProxy = process.env.NODE_ENV === 'production';
 

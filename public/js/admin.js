@@ -94,6 +94,9 @@ function renderAdminLogin() {
             <label for="admin-password">Password</label>
             <input type="password" id="admin-password" placeholder="••••••••" required autocomplete="current-password" />
           </div>
+          <div style="width:100%;margin-bottom:16px">
+            <cap-widget data-cap-api-endpoint="https://cap.zero-host.org/f6c8171b08/" theme="dark"></cap-widget>
+          </div>
           <button type="submit" class="btn btn-primary btn-full" id="admin-login-btn">Sign In</button>
         </form>
         <div class="auth-footer">
@@ -119,13 +122,16 @@ async function handleAdminLogin(e) {
   btn.innerHTML = '<span class="spinner"></span> Signing in...';
 
   try {
-    const data = await adminApi('/login', {
-      method: 'POST',
-      body: JSON.stringify({
-        email: $a('#admin-email').value,
-        password: $a('#admin-password').value,
-      }),
-    });
+      const capWidget = $a('#admin-login-form cap-widget');
+      const capToken = capWidget?.token || '';
+      const data = await adminApi('/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: $a('#admin-email').value,
+          password: $a('#admin-password').value,
+          capToken,
+        }),
+      });
     adminState.token = data.token;
     adminState.user = data.user;
     localStorage.setItem(ADMIN_STORAGE_KEY, data.token);
@@ -167,6 +173,10 @@ function renderAdminLayout() {
         </div>
       </nav>
       <main class="admin-content">
+        <div class="admin-notice">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span>Le panel admin a été ajouté très récemment — peu de fonctionnalités et quelques petits bugs pour le moment. Je suis focus sur l'installateur bash, la doc d'installation et le polish UI côté user, mais une fois tout ça fini, le panel admin aura toute mon attention.</span>
+        </div>
         <div class="admin-page active" id="admin-page-servers"></div>
         <div class="admin-page" id="admin-page-server-detail"></div>
       </main>
@@ -180,9 +190,11 @@ function renderAdminLayout() {
     adminNavigateTo('login');
   });
 
-  $a('.admin-nav-link').addEventListener('click', (e) => {
-    e.preventDefault();
-    adminNavigateTo('servers');
+  document.querySelectorAll('.admin-nav-link').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      adminNavigateTo('servers');
+    });
   });
 
   updateAdminNav();

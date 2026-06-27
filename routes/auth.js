@@ -30,7 +30,7 @@ async function isVpnOrProxy(ip) {
     return false;
   }
   try {
-    const res = await fetchWithTimeout(`http://ip-api.com/json/${ip}?fields=proxy,hosting,query`);
+    const res = await fetchWithTimeout(`https://ip-api.com/json/${ip}?fields=proxy,hosting,query`);
     const data = await res.json();
     return data.proxy === true || data.hosting === true;
   } catch {
@@ -368,12 +368,7 @@ router.post('/delete-account', authenticateToken, async (req, res) => {
       return res.status(401).json({ error: 'Password is incorrect' });
     }
 
-    await logActivity(user.id, 'account_deleted', 'Deleted account');
-
-    // Delete from local DB first (cascades to user_ips)
-    await query('DELETE FROM users WHERE id = ?', [user.id]);
-
-    // Then try to clean up Pyrodactyl (best effort)
+    // Clean up Pyrodactyl first (before deleting local user)
     if (pteroId) {
       try {
         const servers = await getServersByUser(pteroId);
@@ -394,6 +389,11 @@ router.post('/delete-account', authenticateToken, async (req, res) => {
         console.error('Failed to delete Pyrodactyl user:', err.message);
       }
     }
+
+    await logActivity(user.id, 'account_deleted', 'Deleted account');
+
+    // Delete from local DB (cascades to user_ips)
+    await query('DELETE FROM users WHERE id = ?', [user.id]);
 
     res.json({ message: 'Account deleted successfully' });
   } catch (err) {
