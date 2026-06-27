@@ -45,7 +45,7 @@ function renderCookieBanner() {
   });
 }
 
-const PTERO_URL = 'https://ptero.zerohost.fr';
+const PTERO_URL = 'https://panel.zero-host.org';
 
 function openPyrodactylPanel(serverIdentifier) {
   const url = `${PTERO_URL}${serverIdentifier ? '/server/' + serverIdentifier : ''}`;
