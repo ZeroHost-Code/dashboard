@@ -115,14 +115,9 @@ router.post('/servers/:id/suspend', authenticateToken, requireAdmin, async (req,
       return res.status(400).json({ error: 'Invalid server ID' });
     }
 
-    const reason = req.body.reason || null;
+    const reason = req.body.reason || 'Suspended by an Administrator. Please contact support.';
     await suspendPteroServer(serverId);
-
-    if (reason) {
-      await query('UPDATE server_meta SET status = ?, suspend_reason = ?, expires_at = ? WHERE ptero_server_id = ?', ['suspended', reason, '2020-01-01 00:00:00', serverId]);
-    } else {
-      await query('UPDATE server_meta SET status = ?, suspend_reason = NULL, expires_at = ? WHERE ptero_server_id = ?', ['suspended', '2020-01-01 00:00:00', serverId]);
-    }
+    await query('UPDATE server_meta SET status = ?, suspend_reason = ?, suspended_by = ? WHERE ptero_server_id = ?', ['suspended', reason, 'admin', serverId]);
 
     await logActivity(req.user.userId, 'admin_suspend', `Admin suspended server #${serverId}${reason ? ': ' + reason : ''}`, serverId);
     res.json({ success: true });
@@ -140,7 +135,7 @@ router.post('/servers/:id/unsuspend', authenticateToken, requireAdmin, async (re
     }
 
     await unsuspendPteroServer(serverId);
-    await query('UPDATE server_meta SET status = ?, suspend_reason = NULL, expires_at = DATE_ADD(NOW(), INTERVAL 90 DAY) WHERE ptero_server_id = ?', ['active', serverId]);
+    await query('UPDATE server_meta SET status = ?, suspend_reason = NULL, suspended_by = NULL WHERE ptero_server_id = ?', ['active', serverId]);
     await logActivity(req.user.userId, 'admin_unsuspend', `Admin unsuspended server #${serverId}`, serverId);
     res.json({ success: true });
   } catch (err) {
@@ -199,7 +194,7 @@ router.post('/servers/:id/renew-now', authenticateToken, requireAdmin, async (re
 
     await suspendPteroServer(serverId);
     await query(
-      'UPDATE server_meta SET expires_at = DATE_SUB(NOW(), INTERVAL 1 DAY), status = ?, suspend_reason = ? WHERE ptero_server_id = ?',
+      'UPDATE server_meta SET expires_at = DATE_SUB(NOW(), INTERVAL 1 DAY), status = ?, suspend_reason = ?, suspended_by = NULL WHERE ptero_server_id = ?',
       ['suspended', 'Expired by admin', serverId]
     );
 

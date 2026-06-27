@@ -229,6 +229,11 @@ router.post('/renew/:id', authenticateToken, async (req, res) => {
 
     const row = meta[0];
 
+    // Block renewal if suspended by an admin
+    if (row.suspended_by === 'admin') {
+      return res.status(403).json({ error: 'Suspended by an Administrator. Please contact support.' });
+    }
+
     // Verify the server belongs to this user
     const servers = await getServersByUser(pteroId);
     const owned = servers.find(s => s.id === serverId);

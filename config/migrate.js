@@ -26,6 +26,7 @@ const tables = {
       { name: 'expires_at', def: 'TIMESTAMP NOT NULL' },
       { name: 'status', def: "ENUM('active', 'suspended', 'expired') DEFAULT 'active'" },
       { name: 'suspend_reason', def: 'TEXT DEFAULT NULL' },
+      { name: 'suspended_by', def: "VARCHAR(20) DEFAULT NULL" },
     ],
   },
   user_ips: {
