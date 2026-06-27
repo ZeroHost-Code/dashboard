@@ -16,6 +16,7 @@ import path from 'path';
 
 import authRoutes from './routes/auth.js';
 import serverRoutes from './routes/servers.js';
+import adminRoutes from './routes/admin.js';
 import { startScheduler } from './services/scheduler.js';
 import { migrate } from './config/migrate.js';
 import { query } from './config/db.js';
@@ -92,6 +93,7 @@ app.use('/api', apiLimiter);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/servers', serverRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/api/activity', async (req, res) => {
   try {
@@ -133,6 +135,16 @@ app.get('/api/health', async (req, res) => {
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/admin/*', (req, res) => {
+  res.set('X-Robots-Tag', 'noindex, nofollow');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/admin', (req, res) => {
+  res.set('X-Robots-Tag', 'noindex, nofollow');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) {

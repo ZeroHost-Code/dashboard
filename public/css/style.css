@@ -1917,4 +1917,152 @@ tbody tr:hover {
   }
 }
 
+/* ===== ADMIN PANEL ===== */
+.admin-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.admin-navbar {
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  height: 60px;
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  gap: 16px;
+}
+
+.admin-navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.admin-navbar-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+
+.admin-navbar-brand {
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-1);
+  border: 1px solid var(--accent-1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.admin-navbar-center {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  justify-content: center;
+}
+
+.admin-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all var(--transition);
+}
+
+.admin-nav-link:hover {
+  color: var(--text-primary);
+  background: rgba(238, 129, 50, 0.08);
+}
+
+.admin-nav-link.active {
+  color: var(--accent-1);
+  background: rgba(238, 129, 50, 0.12);
+}
+
+.admin-navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.admin-navbar-user {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.admin-content {
+  flex: 1;
+  padding: 32px;
+  position: relative;
+  z-index: 1;
+}
+
+.admin-page {
+  display: none;
+}
+
+.admin-page.active {
+  display: block;
+}
+
+.admin-layout::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(238, 129, 50, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(238, 129, 50, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+  mask-image: radial-gradient(ellipse 90% 80% at 50% 30%, black 30%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse 90% 80% at 50% 30%, black 30%, transparent 80%);
+}
+
+.admin-content > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 768px) {
+  .admin-navbar {
+    padding: 0 12px;
+    gap: 8px;
+  }
+  .admin-navbar-brand {
+    font-size: 0.85rem;
+  }
+  .admin-navbar-user {
+    display: none;
+  }
+  .admin-content {
+    padding: 20px;
+  }
+}
+
 

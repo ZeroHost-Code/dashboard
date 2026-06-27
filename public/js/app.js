@@ -719,6 +719,7 @@ function updateNavIndicator() {
 
 window.addEventListener('popstate', () => {
   const path = window.location.pathname;
+  if (path.startsWith('/admin')) return; // Handled by admin.js
   const parts = path.replace(/^\//, '').split('/');
   let basePage = parts[0] || 'overview';
   const param = parts[1];
@@ -2271,6 +2272,10 @@ async function handleExportData() {
 // ===== INIT =====
 function init() {
   const path = window.location.pathname;
+
+  // Skip if admin route - handled by admin.js
+  if (path.startsWith('/admin')) return;
+
   const basePage = path.replace(/^\//, '').split('/')[0] || '';
   const token = localStorage.getItem('zh_token');
 

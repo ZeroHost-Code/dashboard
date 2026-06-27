@@ -12,6 +12,7 @@ const tables = {
       { name: 'first_name', def: 'VARCHAR(255)' },
       { name: 'last_name', def: 'VARCHAR(255)' },
       { name: 'password_set', def: 'TINYINT(1) NOT NULL DEFAULT 0' },
+      { name: 'is_admin', def: 'TINYINT(1) NOT NULL DEFAULT 0' },
       { name: 'ptero_client_api_key', def: 'VARCHAR(255) DEFAULT NULL' },
       { name: 'created_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
     ],

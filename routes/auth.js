@@ -197,6 +197,7 @@ router.post('/login', async (req, res) => {
       email: user.email,
       username: user.username,
       pteroId: user.ptero_user_id,
+      isAdmin: !!user.is_admin,
     });
 
     res.cookie('token', token, {
@@ -215,6 +216,7 @@ router.post('/login', async (req, res) => {
         pteroId: user.ptero_user_id,
         firstName: user.first_name,
         lastName: user.last_name,
+        isAdmin: !!user.is_admin,
       },
     });
   } catch (err) {
@@ -322,6 +324,7 @@ router.post('/change-email', authenticateToken, async (req, res) => {
       email: newEmail,
       username: user.username,
       pteroId: user.ptero_user_id,
+      isAdmin: !!user.is_admin,
     });
 
     res.json({
@@ -333,6 +336,7 @@ router.post('/change-email', authenticateToken, async (req, res) => {
         pteroId: user.ptero_user_id,
         firstName: user.first_name,
         lastName: user.last_name,
+        isAdmin: !!user.is_admin,
       },
       message: 'Email updated successfully',
     });

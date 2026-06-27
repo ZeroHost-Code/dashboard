@@ -93,6 +93,41 @@ export async function getEgg(nestId, eggId) {
   return data.attributes;
 }
 
+export async function getAllServers() {
+  let allServers = [];
+  let page = 1;
+  let hasMore = true;
+
+  while (hasMore) {
+    const data = await pteroFetch(`/servers?page=${page}&per_page=50`);
+    const servers = data.data.map(s => s.attributes);
+    allServers = allServers.concat(servers);
+    if (data.meta?.pagination?.total_pages > page) {
+      page++;
+    } else {
+      hasMore = false;
+    }
+  }
+
+  for (const server of allServers) {
+    try {
+      const node = await getNode(server.node);
+      server.nodeFqdn = node.fqdn;
+    } catch { server.nodeFqdn = null; }
+    try {
+      const allocData = await pteroFetch(`/nodes/${server.node}/allocations/${server.allocation}`);
+      server.allocationDetails = allocData.attributes;
+      server.allocationDetails.nodeFqdn = server.nodeFqdn;
+    } catch { server.allocationDetails = null; }
+    try {
+      const eggData = await pteroFetch(`/nests/${server.nest}/eggs/${server.egg}`);
+      server.eggDetails = { name: eggData.attributes.name };
+    } catch { server.eggDetails = null; }
+  }
+
+  return allServers;
+}
+
 export async function getServersByUser(userId) {
   let allServers = [];
   let page = 1;
