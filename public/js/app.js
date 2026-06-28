@@ -1571,7 +1571,7 @@ function renderApiKeySaved() {
   section.innerHTML = html`
     <div style="padding:8px 0">
       <p style="color:var(--accent-green);font-size:0.9rem;margin-bottom:16px">
-        &#10003; Your Pyrodactyl API key is saved and active.
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg>Your Pyrodactyl API key is saved and active.
       </p>
       <div style="display:flex;gap:8px">
         <button class="btn btn-primary" id="modify-api-key-btn">Modify</button>
