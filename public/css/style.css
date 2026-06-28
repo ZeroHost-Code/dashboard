@@ -1702,33 +1702,6 @@ tbody tr:hover {
   font-size: 0.88rem;
 }
 
-.activity-list-truncated {
-  position: relative;
-}
-
-.activity-list-truncated::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: -24px;
-  right: -24px;
-  height: 200px;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  mask-image: linear-gradient(transparent, #000 calc(100% - 20px));
-  -webkit-mask-image: linear-gradient(transparent, #000 calc(100% - 20px));
-  pointer-events: none;
-}
-
-.activity-more-overlay {
-  position: absolute;
-  bottom: 8px;
-  left: 0;
-  right: 0;
-  text-align: center;
-  z-index: 2;
-}
-
 /* ===== LOG PAGE ===== */
 .log-pagination {
   display: flex;

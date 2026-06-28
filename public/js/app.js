@@ -832,7 +832,6 @@ async function renderOverview() {
       `;
     }
 
-    renderActivity();
   } catch (err) {
     $('#recent-servers-list').innerHTML = html`
       <div style="text-align:center;padding:32px;color:var(--accent-red)">Failed to load: ${err.message}</div>
@@ -941,63 +940,6 @@ async function renderLog(pageNum) {
   } catch (err) {
     const list = $('#log-list');
     if (list) list.innerHTML = '<div class="activity-empty">Could not load activity log.</div>';
-  }
-}
-
-async function renderActivity() {
-  const el = $('#page-overview');
-  let activitySection = $('#activity-section');
-
-  if (!activitySection) {
-    const card = el.querySelector('.card:last-child');
-    const section = document.createElement('div');
-    section.id = 'activity-section';
-    section.className = 'card';
-    section.style.marginTop = '20px';
-    section.innerHTML = html`
-      <div class="card-header">
-        <h2 class="card-title">Recent Activity</h2>
-      </div>
-      <div id="activity-list"><div style="text-align:center;padding:24px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</div></div>
-    `;
-    card.parentNode.insertBefore(section, card.nextSibling);
-    activitySection = section;
-  }
-
-  try {
-    const data = await api('/activity?limit=5');
-    const list = $('#activity-list');
-
-    if (data.activities.length === 0) {
-      list.innerHTML = '<div class="activity-empty">No activity yet. Create a server to get started.</div>';
-      return;
-    }
-
-    const showCount = Math.min(4, data.activities.length);
-    const hasMore = data.total > 4;
-
-    list.innerHTML = html`
-      <div class="activity-list${hasMore ? ' activity-list-truncated' : ''}">
-        ${data.activities.slice(0, showCount).map(a => html`
-          <div class="activity-item">
-            <div class="activity-icon activity-icon-${a.action}">${activityIcons[a.action] || ''}</div>
-            <div class="activity-content">
-              <div class="activity-action">${getActionLabel(a.action)}</div>
-              <div class="activity-details">${a.details || ''}</div>
-            </div>
-            <div class="activity-time">${formatRelativeTime(a.created_at)}</div>
-          </div>
-        `).join('')}
-        ${hasMore ? html`
-          <div class="activity-more-overlay">
-            <a class="btn btn-primary btn-sm" onclick="navigateTo('logs')" style="width:auto">View all logs</a>
-          </div>
-        ` : ''}
-      </div>
-    `;
-  } catch (err) {
-    const list = $('#activity-list');
-    if (list) list.innerHTML = '<div class="activity-empty">Could not load activity.</div>';
   }
 }
 
