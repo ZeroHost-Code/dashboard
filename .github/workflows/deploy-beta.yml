@@ -20,7 +20,7 @@ jobs:
             cp .env /tmp/beta.env 2>/dev/null; cp port.txt /tmp/beta.port.txt 2>/dev/null
             git fetch origin --prune
             git checkout beta
-            git merge --ff-only origin/beta
+            git reset --hard origin/beta
             cp /tmp/beta.env .env 2>/dev/null; cp /tmp/beta.port.txt port.txt 2>/dev/null
             grep 'discord.zero-host.org' public/js/app.js || echo "⚠ DISCORD LINK NOT FOUND IN FILE"
             head -20 port.txt 2>/dev/null || echo "⚠ port.txt missing or empty"

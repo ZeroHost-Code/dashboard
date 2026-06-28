@@ -450,6 +450,18 @@ router.post('/power/:identifier', authenticateToken, async (req, res) => {
   }
 });
 
+router.get('/client-api-key', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const rows = await query('SELECT ptero_client_api_key FROM users WHERE id = ?', [userId]);
+    const hasKey = rows.length > 0 && rows[0].ptero_client_api_key !== null;
+    res.json({ hasKey });
+  } catch (err) {
+    console.error('API key check error:', err.message);
+    res.status(500).json({ error: 'Failed to check API key status' });
+  }
+});
+
 router.put('/client-api-key', authenticateToken, async (req, res) => {
   try {
     const { apiKey } = req.body;
@@ -466,6 +478,18 @@ router.put('/client-api-key', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('API key update error:', err.message);
     res.status(500).json({ error: 'Failed to update API key' });
+  }
+});
+
+router.delete('/client-api-key', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    await query('UPDATE users SET ptero_client_api_key = NULL WHERE id = ?', [userId]);
+    await logActivity(req.user.userId, 'api_key_deleted', 'Deleted Pyrodactyl API key');
+    res.json({ success: true });
+  } catch (err) {
+    console.error('API key delete error:', err.message);
+    res.status(500).json({ error: 'Failed to delete API key' });
   }
 });
 
