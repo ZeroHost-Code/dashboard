@@ -538,7 +538,7 @@ cap-widget {
 
 .sidebar.collapsed .sidebar-footer {
   border-top: none;
-  padding: 10px 0;
+  padding: 10px 0 4px;
   text-align: center;
 }
 
