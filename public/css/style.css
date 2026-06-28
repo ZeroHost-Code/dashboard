@@ -538,11 +538,10 @@ cap-widget {
 
 .sidebar.collapsed .sidebar-footer {
   border-top: none;
-  padding: 0;
+  padding: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 52px;
 }
 
 .sidebar.collapsed #logout-btn {
@@ -551,8 +550,10 @@ cap-widget {
 
 .sidebar.collapsed .user-info {
   justify-content: center !important;
-  padding: 0 14px !important;
+  padding: 0 !important;
   gap: 0 !important;
+  display: flex !important;
+  align-items: center !important;
 }
 
 .sidebar.collapsed #sidebar-user-info > div:first-child {
