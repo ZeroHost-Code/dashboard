@@ -64,6 +64,7 @@ function adminNavigateTo(page) {
   adminState.currentPage = basePage;
   adminState.serverId = param ? parseInt(param, 10) : null;
   adminState.userId = param ? parseInt(param, 10) : null;
+  updateAdminNav();
 
   if (basePage === 'server' && adminState.serverId) {
     renderAdminServerDetail(adminState.serverId);
@@ -228,14 +229,13 @@ function renderAdminLayout() {
     });
   });
 
-  updateAdminNav();
-
   const path = window.location.pathname.replace('/admin/', '').split('/');
   const basePage = path[0] || 'dashboard';
   const param = path[1] || null;
   if (basePage === 'server' && param) {
     const pid = parseInt(param, 10);
     adminState.currentPage = 'server';
+    updateAdminNav();
     adminState.serverId = pid;
     $a('#admin-page-server-detail').classList.add('active');
     $a('#admin-page-servers').classList.remove('active');
@@ -243,20 +243,25 @@ function renderAdminLayout() {
   } else if (basePage === 'user' && param) {
     const uid = parseInt(param, 10);
     adminState.currentPage = 'user';
+    updateAdminNav();
     adminState.userId = uid;
     $a('#admin-page-user-detail').classList.add('active');
     renderAdminUserDetail(uid);
   } else if (basePage === 'users') {
     adminState.currentPage = 'users';
+    updateAdminNav();
     renderAdminUsers();
   } else if (basePage === 'dashboard' || !basePage) {
     adminState.currentPage = 'dashboard';
+    updateAdminNav();
     renderAdminDashboard();
   } else if (basePage === 'activity') {
     adminState.currentPage = 'activity';
+    updateAdminNav();
     renderAdminActivity();
   } else {
     adminState.currentPage = 'servers';
+    updateAdminNav();
     renderAdminServers();
   }
 }
