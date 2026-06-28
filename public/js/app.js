@@ -1073,9 +1073,15 @@ async function renderServers() {
     state.servers = data.servers;
 
     if (data.servers.length === 0) {
-      $('#servers-table-body').innerHTML = html`
-        <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary)">No servers yet. <a href="/create" onclick="navigateTo('create')">Create one</a></td></tr>
+      el.innerHTML = html`
+        <div class="empty-state" style="margin-top:48px">
+          <div class="empty-state-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg></div>
+          <div class="empty-state-title">No servers yet</div>
+          <div class="empty-state-desc">Create your first server to get started</div>
+          <button class="btn btn-primary" id="servers-empty-create-btn">Create Server</button>
+        </div>
       `;
+      $('#servers-empty-create-btn').addEventListener('click', () => navigateTo('create'));
       return;
     }
 
