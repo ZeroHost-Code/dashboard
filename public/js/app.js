@@ -692,7 +692,6 @@ function navigateTo(page) {
     else if (basePage === 'pyrodactyl') renderPyrodactyl();
     else if (basePage === 'account') {
       if (param === 'edit') renderAccountEdit();
-      else if (param === 'links') renderAccountLinks();
       else if (param === 'dangerous') renderDangerous();
       else renderAccount();
     } else if (basePage === 'logs') {
@@ -759,7 +758,6 @@ window.addEventListener('popstate', () => {
     else if (basePage === 'pyrodactyl') renderPyrodactyl();
     else if (basePage === 'account') {
       if (param === 'edit') renderAccountEdit();
-      else if (param === 'links') renderAccountLinks();
       else if (param === 'dangerous') renderDangerous();
       else renderAccount();
     } else if (basePage === 'logs') {
@@ -1395,19 +1393,6 @@ function renderAccount() {
         </div>
       </div>
 
-      <div class="card account-menu-card" id="account-menu-links" style="cursor:pointer">
-        <div class="account-menu-item">
-          <div class="account-menu-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
-          </div>
-          <div class="account-menu-text">
-            <div class="account-menu-title">Linked Accounts</div>
-            <div class="account-menu-desc">Manage your linked accounts</div>
-          </div>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
-        </div>
-      </div>
-
       <div class="card account-menu-card" id="account-menu-logs" style="cursor:pointer">
         <div class="account-menu-item">
           <div class="account-menu-icon">
@@ -1450,7 +1435,6 @@ function renderAccount() {
   `;
 
   $('#account-menu-edit').addEventListener('click', () => navigateTo('account/edit'));
-  $('#account-menu-links').addEventListener('click', () => navigateTo('account/links'));
   $('#account-menu-logs').addEventListener('click', () => navigateTo('logs'));
   $('#account-menu-dangerous').addEventListener('click', () => navigateTo('account/dangerous'));
   $('#account-menu-logout').addEventListener('click', async () => {
@@ -1699,29 +1683,6 @@ async function handleConfirmDeleteApiKey() {
     btn.disabled = false;
     btn.innerHTML = 'Delete';
   }
-}
-
-function renderAccountLinks() {
-  const el = $('#page-account');
-  el.innerHTML = html`
-    <div class="page-header" style="display:flex;align-items:center;gap:12px">
-      <a href="/account" onclick="event.preventDefault();navigateTo('account')" style="color:var(--text-muted);display:flex;padding:4px;border-radius:var(--radius-sm);cursor:pointer">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-      </a>
-      <div>
-        <h1 class="page-title" style="margin:0">Linked Accounts</h1>
-        <p class="page-subtitle" style="margin:0">Manage your linked accounts</p>
-      </div>
-    </div>
-    <div class="card" style="margin-bottom:20px">
-      <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin:0">
-        No account linking system is currently active due to the complexity
-        of maintaining it both on the dashboard and the Pyrodactyl panel. This is why
-        we have removed account creation and login via Discord. Perhaps this will
-        return later.
-      </p>
-    </div>
-  `;
 }
 
 async function handleChangeEmail(e) {

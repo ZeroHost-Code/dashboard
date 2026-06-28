@@ -225,7 +225,6 @@ flowchart TD
     T["/pyrodactyl\nPanel Redirect"] --> U["5-second auto-redirect\nto panel.zero-host.org"]
 
     V["/account\nAccount Hub"] --> W["/account/edit\n(Email, Password, API Key)"]
-    V --> X["/account/links\n(Linked Accounts)"]
     V --> Y["/account/dangerous\n(Delete Account, RGPD Export)"]
 
     Z["/log\nActivity Log"] --> AA["Paginated list\n(50 per page)"]
