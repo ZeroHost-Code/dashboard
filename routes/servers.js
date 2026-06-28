@@ -81,7 +81,7 @@ router.get('/eggs', authenticateToken, async (req, res) => {
     for (const { nest, egg } of eggs) {
       let variables = [];
       try {
-        const vars = await query('SELECT name, env_variable, default_value, rules, description, user_viewable, user_editable FROM ${PANEL_DB_NAME}.egg_variables WHERE egg_id = ?', [egg.id]);
+        const vars = await query(`SELECT name, env_variable, default_value, rules, description, user_viewable, user_editable FROM ${PANEL_DB_NAME}.egg_variables WHERE egg_id = ?`, [egg.id]);
         variables = vars;
       } catch {}
       simplified.push({
@@ -136,7 +136,7 @@ router.post('/create', authenticateToken, async (req, res) => {
     const egg = await getEgg(nestId, eggId);
     const dockerImage = Object.values(egg.docker_images)[0] || Object.keys(egg.docker_images)[0];
 
-    const eggVars = await query('SELECT name, env_variable, default_value, rules FROM ${PANEL_DB_NAME}.egg_variables WHERE egg_id = ?', [eggId]);
+    const eggVars = await query(`SELECT name, env_variable, default_value, rules FROM ${PANEL_DB_NAME}.egg_variables WHERE egg_id = ?`, [eggId]);
 
     const mergedEnv = {};
     for (const v of eggVars) {
