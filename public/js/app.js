@@ -1410,7 +1410,7 @@ function renderAccountEdit() {
     <div class="account-grid">
       <div class="card">
         <h2 class="card-title" style="margin-bottom:20px">Change Email</h2>
-        <form id="change-email-form" style="max-width:480px">
+        <form id="change-email-form" style="width:100%">
           <div class="form-group">
             <label for="acc-new-email">New Email</label>
             <input type="email" id="acc-new-email" placeholder="${state.user?.email || 'Enter new email'}" required />
@@ -1425,7 +1425,7 @@ function renderAccountEdit() {
 
       <div class="card">
         <h2 class="card-title" style="margin-bottom:20px">Change Password</h2>
-        <form id="change-password-form" style="max-width:480px">
+        <form id="change-password-form" style="width:100%">
           <div class="form-group">
             <label for="acc-current-pw">Current Password</label>
             <input type="password" id="acc-current-pw" placeholder="Enter current password" required autocomplete="current-password" />
@@ -1449,7 +1449,7 @@ function renderAccountEdit() {
           Generate one at <a href="https://panel.zero-host.org/account/api" target="_blank">panel.zero-host.org/account/api</a>.
         </p>
         <div id="api-key-section-content">
-          <form id="api-key-form" style="max-width:480px">
+          <form id="api-key-form" style="width:100%">
             <div class="form-group">
               <label for="ptero-api-key-input">API Key</label>
               <input type="password" id="ptero-api-key-input" placeholder="ptla_..." autocomplete="off" />
@@ -1534,7 +1534,7 @@ function renderApiKeySaved() {
 function renderApiKeyForm() {
   const section = $('#api-key-section-content');
   section.innerHTML = html`
-    <form id="api-key-form" style="max-width:480px">
+    <form id="api-key-form" style="width:100%">
       <div class="form-group">
         <label for="ptero-api-key-input">API Key</label>
         <input type="password" id="ptero-api-key-input" placeholder="ptla_..." autocomplete="off" />
