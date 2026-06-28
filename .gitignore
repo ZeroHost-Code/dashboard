@@ -27,6 +27,9 @@ logs/
 port.txt
 reboot.sh
 
+# Uploads
+uploads/
+
 # Secrets (if any local dump)
 *.pem
 *.key
