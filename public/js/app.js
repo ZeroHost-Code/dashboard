@@ -1514,14 +1514,16 @@ function renderAccountEdit() {
           Add your Pyrodactyl Client API key to enable live resource monitoring and server power state detection directly in the dashboard.
           Generate one at <a href="https://panel.zero-host.org/account/api" target="_blank">panel.zero-host.org/account/api</a>.
         </p>
-        <form id="api-key-form" style="max-width:480px">
-          <div class="form-group">
-            <label for="ptero-api-key-input">API Key</label>
-            <input type="password" id="ptero-api-key-input" placeholder="ptla_..." autocomplete="off" />
-          </div>
-          <button type="submit" class="btn btn-primary btn-full" id="save-api-key-btn">Save</button>
-        </form>
-        <div id="api-key-status" style="margin-top:8px;font-size:0.82rem;color:var(--text-muted)"></div>
+        <div id="api-key-section-content">
+          <form id="api-key-form" style="max-width:480px">
+            <div class="form-group">
+              <label for="ptero-api-key-input">API Key</label>
+              <input type="password" id="ptero-api-key-input" placeholder="ptla_..." autocomplete="off" />
+            </div>
+            <button type="submit" class="btn btn-primary btn-full" id="save-api-key-btn">Save</button>
+          </form>
+          <div id="api-key-status" style="margin-top:8px;font-size:0.82rem;color:var(--text-muted)"></div>
+        </div>
       </div>
     </div>
   `;
@@ -1529,6 +1531,8 @@ function renderAccountEdit() {
   $('#change-email-form').addEventListener('submit', handleChangeEmail);
   $('#change-password-form').addEventListener('submit', handleChangePassword);
   $('#api-key-form').addEventListener('submit', handleSaveApiKey);
+
+  checkApiKeyStatus();
 }
 
 async function handleSaveApiKey(e) {
@@ -1553,16 +1557,145 @@ async function handleSaveApiKey(e) {
       method: 'PUT',
       body: JSON.stringify({ apiKey: key }),
     });
-    status.textContent = 'API key saved successfully!';
-    status.style.color = 'var(--accent-green)';
-    input.value = '';
     showToast('Pyrodactyl API key saved', 'success');
+    renderApiKeySaved();
+    return;
   } catch (err) {
     status.textContent = err.message;
     status.style.color = 'var(--accent-red)';
   } finally {
     btn.disabled = false;
     btn.innerHTML = 'Save';
+  }
+}
+
+async function checkApiKeyStatus() {
+  try {
+    const data = await api('/servers/client-api-key');
+    if (data.hasKey) {
+      renderApiKeySaved();
+    }
+  } catch (err) {
+    // Keep default form if check fails
+  }
+}
+
+function renderApiKeySaved() {
+  const section = $('#api-key-section-content');
+  section.innerHTML = html`
+    <div style="padding:8px 0">
+      <p style="color:var(--accent-green);font-size:0.9rem;margin-bottom:16px">
+        &#10003; Your Pyrodactyl API key is saved and active.
+      </p>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" id="modify-api-key-btn">Modify</button>
+        <button class="btn btn-danger" id="delete-api-key-btn">Delete</button>
+      </div>
+    </div>
+  `;
+  $('#modify-api-key-btn').addEventListener('click', handleModifyApiKey);
+  $('#delete-api-key-btn').addEventListener('click', handleDeleteApiKey);
+}
+
+function renderApiKeyForm() {
+  const section = $('#api-key-section-content');
+  section.innerHTML = html`
+    <form id="api-key-form" style="max-width:480px">
+      <div class="form-group">
+        <label for="ptero-api-key-input">API Key</label>
+        <input type="password" id="ptero-api-key-input" placeholder="ptla_..." autocomplete="off" />
+      </div>
+      <button type="submit" class="btn btn-primary btn-full" id="save-api-key-btn">Save</button>
+    </form>
+    <div id="api-key-status" style="margin-top:8px;font-size:0.82rem;color:var(--text-muted)"></div>
+  `;
+  $('#api-key-form').addEventListener('submit', handleSaveApiKey);
+}
+
+function handleModifyApiKey() {
+  const overlay = $('#modal-overlay');
+  const content = $('#modal-content');
+  content.innerHTML = html`
+    <div class="modal-title">Modify API Key</div>
+    <p style="color:var(--text-secondary);line-height:1.6;margin-bottom:16px">
+      Enter your new Pyrodactyl API key. The old key will be replaced.
+    </p>
+    <div class="form-group">
+      <label for="modal-api-key-input">New API Key</label>
+      <input type="password" id="modal-api-key-input" placeholder="ptla_..." autocomplete="off" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-full modal-cancel-btn">Cancel</button>
+      <button class="btn btn-primary btn-full" id="confirm-modify-api-key-btn">Save</button>
+    </div>
+  `;
+  overlay.classList.add('open');
+  $('#confirm-modify-api-key-btn').addEventListener('click', handleConfirmModifyApiKey);
+}
+
+function handleDeleteApiKey() {
+  const overlay = $('#modal-overlay');
+  const content = $('#modal-content');
+  content.innerHTML = html`
+    <div class="modal-title">Delete API Key</div>
+    <p style="color:var(--text-secondary);line-height:1.6;margin-bottom:16px">
+      Are you sure you want to delete your Pyrodactyl API key? Live resource monitoring and power state detection will stop working.
+    </p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-full modal-cancel-btn">Cancel</button>
+      <button class="btn btn-danger btn-full" id="confirm-delete-api-key-btn">Delete</button>
+    </div>
+  `;
+  overlay.classList.add('open');
+  $('#confirm-delete-api-key-btn').addEventListener('click', handleConfirmDeleteApiKey);
+}
+
+async function handleConfirmModifyApiKey() {
+  const btn = $('#confirm-modify-api-key-btn');
+  const input = $('#modal-api-key-input');
+  const key = input.value.trim();
+
+  if (!key) {
+    showToast('Please enter an API key', 'error');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  try {
+    await api('/servers/client-api-key', {
+      method: 'PUT',
+      body: JSON.stringify({ apiKey: key }),
+    });
+    $('#modal-overlay').classList.remove('open');
+    showToast('Pyrodactyl API key updated', 'success');
+    renderApiKeySaved();
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Save';
+  }
+}
+
+async function handleConfirmDeleteApiKey() {
+  const btn = $('#confirm-delete-api-key-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  try {
+    await api('/servers/client-api-key', {
+      method: 'DELETE',
+    });
+    $('#modal-overlay').classList.remove('open');
+    showToast('Pyrodactyl API key deleted', 'success');
+    renderApiKeyForm();
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Delete';
   }
 }
 
