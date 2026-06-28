@@ -1644,20 +1644,6 @@ tbody tr:hover {
   border-bottom: none;
 }
 
-.activity-item::before {
-  content: '';
-  position: absolute;
-  left: 15px;
-  top: 42px;
-  bottom: 0;
-  width: 1px;
-  background: rgba(255,255,255,0.06);
-}
-
-.activity-item:last-child::before {
-  display: none;
-}
-
 .activity-icon {
   width: 32px;
   height: 32px;
