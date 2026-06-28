@@ -619,7 +619,7 @@ function initSidebarTooltip() {
         tooltipTimer = setTimeout(() => {
           showTooltipForItem(item);
           tooltipQuickMode = true;
-        }, 3000);
+        }, 700);
       }
     }
   });
