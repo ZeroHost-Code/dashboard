@@ -635,6 +635,7 @@ function navigateTo(page) {
   const parts = page.split('/');
   let basePage = parts[0] || 'overview';
   const param = parts[1];
+  const tab = parts[2];
 
   // Auth pages - redirect to / if already logged in
   if ((basePage === 'login' || basePage === 'signup') && state.token) {
@@ -671,7 +672,7 @@ function navigateTo(page) {
 
   state.currentPage = basePage;
   state.serverId = param ? parseInt(param) : null;
-  state.serverDetailTab = 'info';
+  state.serverDetailTab = tab || 'info';
   const url = basePage === 'overview' && !param ? '/' : `/${page}`;
   history.pushState({ page: basePage, serverId: state.serverId }, '', url);
 
@@ -724,6 +725,7 @@ window.addEventListener('popstate', () => {
   const parts = path.replace(/^\//, '').split('/');
   let basePage = parts[0] || 'overview';
   const param = parts[1];
+  const tab = parts[2];
 
   // Auth pages - redirect to / if already logged in
   if ((basePage === 'login' || basePage === 'signup') && state.token) {
@@ -739,7 +741,7 @@ window.addEventListener('popstate', () => {
 
   state.currentPage = basePage;
   state.serverId = param ? parseInt(param) : null;
-  state.serverDetailTab = 'info';
+  state.serverDetailTab = tab || 'info';
 
   if (basePage === 'server' && state.serverId) {
     const targetPage = $('#page-server-detail');
@@ -2200,6 +2202,9 @@ function switchTab(tabBtn) {
       fetchLiveResources(state.serverIdentifier);
     }
   }
+
+  const newUrl = `/server/${state.serverId}/${tabName}`;
+  history.pushState({ page: 'server', serverId: state.serverId, tab: tabName }, '', newUrl);
 }
 
 // ===== DELETE SERVER =====
