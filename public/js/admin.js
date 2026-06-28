@@ -274,11 +274,10 @@ function updateAdminNav() {
 }
 
 async function renderAdminServers() {
+  document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
   const el = $a('#admin-page-servers');
   if (!el) return;
   el.classList.add('active');
-  const detailPage = $a('#admin-page-server-detail');
-  if (detailPage) detailPage.classList.remove('active');
   el.innerHTML = ahtml`
     <div class="page-header">
       <h1 class="page-title">All Servers</h1>
@@ -343,10 +342,9 @@ async function renderAdminServers() {
 }
 
 async function renderAdminServerDetail(serverId) {
+  document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
   const detailPage = $a('#admin-page-server-detail');
-  const listPage = $a('#admin-page-servers');
   if (!detailPage) return;
-  if (listPage) listPage.classList.remove('active');
   detailPage.classList.add('active');
 
   detailPage.innerHTML = ahtml`

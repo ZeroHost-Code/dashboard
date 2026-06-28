@@ -231,12 +231,14 @@ router.delete('/servers/:id', authenticateToken, requireAdmin, async (req, res) 
 // ─── Users ──────────────────────────────────────────────
 router.get('/users', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const rows = await query(`
+    let rows = await query(`
       SELECT u.id, u.email, u.username, u.is_admin, u.created_at,
-        (SELECT COUNT(*) FROM server_meta WHERE user_id = u.id) as server_count
+        CAST((SELECT COUNT(*) FROM server_meta WHERE user_id = u.id) AS SIGNED) as server_count
       FROM users u
       ORDER BY u.created_at DESC
     `);
+    // Convert any BigInt values to Number for JSON serialization
+    rows = rows.map(r => ({ ...r, id: Number(r.id), server_count: Number(r.server_count) }));
     res.json({ users: rows });
   } catch (err) {
     console.error('Admin users list error:', err.message);
@@ -259,11 +261,20 @@ router.get('/users/:id', authenticateToken, requireAdmin, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const user = users[0];
-    const servers = await query(
+    let user = users[0];
+    for (const k of Object.keys(user)) {
+      if (typeof user[k] === 'bigint') user[k] = Number(user[k]);
+    }
+
+    let servers = await query(
       'SELECT * FROM server_meta WHERE user_id = ? ORDER BY created_at DESC',
       [userId]
     );
+    for (const s of servers) {
+      for (const k of Object.keys(s)) {
+        if (typeof s[k] === 'bigint') s[k] = Number(s[k]);
+      }
+    }
 
     const ips = await query(
       'SELECT ip_address, created_at FROM user_ips WHERE user_id = ? ORDER BY created_at DESC',
