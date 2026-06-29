@@ -543,3 +543,6 @@ Two deployment workflows are configured:
 
 Both use SSH credentials configured as GitHub repository secrets (`SSH_HOST`, `SSH_USER`, `SSH_PASSWORD`, `SSH_PORT`).
 
+---
+
+![Logo](https://img.drayko.xyz/assets/picto.png)
