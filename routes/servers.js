@@ -79,11 +79,6 @@ router.get('/eggs', authenticateToken, async (req, res) => {
     const simplified = [];
 
     for (const { nest, egg } of eggs) {
-      let variables = [];
-      try {
-        const vars = await query(`SELECT name, env_variable, default_value, rules, description, user_viewable, user_editable FROM ${PANEL_DB_NAME}.egg_variables WHERE egg_id = ?`, [egg.id]);
-        variables = vars;
-      } catch {}
       simplified.push({
         nestId: nest,
         eggId: egg.id,
@@ -93,15 +88,7 @@ router.get('/eggs', authenticateToken, async (req, res) => {
         dockerImages: egg.docker_images,
         configStop: egg.config?.stop || '^^C',
         configStartup: egg.config?.startup || null,
-        variables: variables.map(v => ({
-          name: v.name,
-          envVariable: v.env_variable,
-          defaultValue: v.default_value,
-          rules: v.rules,
-          description: v.description,
-          userViewable: v.user_viewable,
-          userEditable: v.user_editable,
-        })),
+        variables: [],
       });
     }
     res.json({ eggs: simplified });
@@ -141,15 +128,11 @@ router.post('/create', authenticateToken, async (req, res) => {
     const egg = await getEgg(nestId, eggId);
     const dockerImage = Object.values(egg.docker_images)[0] || Object.keys(egg.docker_images)[0];
 
-    const eggVars = await query(`SELECT name, env_variable, default_value, rules FROM ${PANEL_DB_NAME}.egg_variables WHERE egg_id = ?`, [eggId]);
+    const eggVars = await query(`SELECT env_variable, default_value FROM ${PANEL_DB_NAME}.egg_variables WHERE egg_id = ?`, [eggId]);
 
     const mergedEnv = {};
     for (const v of eggVars) {
-      const val = environment?.[v.env_variable] ?? v.default_value ?? '';
-      if (v.rules && v.rules.includes('required') && !val) {
-        return res.status(400).json({ error: `The ${v.name} variable is required.` });
-      }
-      mergedEnv[v.env_variable] = val;
+      mergedEnv[v.env_variable] = v.default_value ?? '';
     }
 
     const server = await createPteroServer({
