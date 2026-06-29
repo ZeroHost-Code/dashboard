@@ -275,7 +275,7 @@ router.get('/users/:id', authenticateToken, requireAdmin, async (req, res) => {
     }
 
     let servers = await query(
-      "SELECT * FROM server_meta WHERE user_id = ? AND status IN ('active', 'suspended') ORDER BY created_at DESC",
+      'SELECT * FROM server_meta WHERE user_id = ? ORDER BY created_at DESC',
       [userId]
     );
     for (const s of servers) {
