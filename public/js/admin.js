@@ -1,5 +1,4 @@
 const ADMIN_STORAGE_KEY = 'zh_admin_token';
-const PTERO_URL = 'https://panel.zero-host.org';
 
 const adminState = {
   token: localStorage.getItem(ADMIN_STORAGE_KEY),
