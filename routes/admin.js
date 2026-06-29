@@ -36,6 +36,9 @@ router.post('/login', async (req, res) => {
     }
 
     const user = users[0];
+    if (user.restricted) {
+      return res.status(403).json({ error: 'Your account has been restricted. Contact support for assistance.' });
+    }
     if (!user.is_admin) {
       return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
     }
