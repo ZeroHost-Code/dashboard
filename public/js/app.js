@@ -546,11 +546,9 @@ async function renderDashboard() {
       </button>
 
       <main class="main-content">
-        ${state.user?.restricted ? html`
-        <div style="background:rgba(239,68,68,0.12);color:var(--accent-red);padding:10px 16px;font-size:0.85rem;text-align:center;border-bottom:1px solid rgba(239,68,68,0.2)">
+        <div id="restricted-banner" style="display:${state.user?.restricted ? 'block' : 'none'};background:rgba(239,68,68,0.12);color:var(--accent-red);padding:10px 16px;font-size:0.85rem;text-align:center;border-bottom:1px solid rgba(239,68,68,0.2)">
           <strong>Account Restricted</strong> &mdash; Your account has been restricted. You cannot create or renew servers.
         </div>
-        ` : ''}
         <div class="page active" id="page-overview"></div>
         <div class="page" id="page-servers"></div>
         <div class="page" id="page-create"></div>
@@ -819,6 +817,12 @@ async function renderOverview() {
 
   try {
     const data = await api('/servers/overview');
+
+    if (data.restricted !== undefined) {
+      state.user = { ...state.user, restricted: data.restricted };
+      const banner = $('#restricted-banner');
+      if (banner) banner.style.display = data.restricted ? 'block' : 'none';
+    }
 
     if (data.pteroError) {
       $('#page-overview .card').insertAdjacentHTML('afterbegin', html`

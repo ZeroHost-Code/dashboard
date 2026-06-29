@@ -369,12 +369,16 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 router.get('/overview', authenticateToken, async (req, res) => {
   try {
     const pteroId = req.user.pteroId;
+    const userRow = await query('SELECT restricted FROM users WHERE id = ?', [req.user.userId]);
+    const restricted = userRow.length > 0 && !!userRow[0].restricted;
+
     let servers = [];
     try {
       servers = await getServersByUser(pteroId);
     } catch (err) {
       console.error('Overview Pyrodactyl error:', err.message);
       return res.json({
+        restricted,
         totalServers: 0,
         activeServers: 0,
         servers: [],
@@ -392,6 +396,7 @@ router.get('/overview', authenticateToken, async (req, res) => {
     }
 
     res.json({
+      restricted,
       totalServers: servers.length,
       activeServers: servers.filter(s => s.status !== 'suspended').length,
       serverLimit: 3,
