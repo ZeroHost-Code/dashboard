@@ -542,7 +542,3 @@ Two deployment workflows are configured:
 - **deploy-main.yml**: Triggered on push to `main` branch.
 
 Both use SSH credentials configured as GitHub repository secrets (`SSH_HOST`, `SSH_USER`, `SSH_PASSWORD`, `SSH_PORT`).
-
----
-
-![Logo](https://img.drayko.xyz/assets/picto.png)
