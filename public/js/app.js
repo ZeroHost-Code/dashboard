@@ -61,7 +61,20 @@ async function sendPowerCommand(identifier, signal, event) {
   try {
     await api(`/servers/power/${identifier}`, { method: 'POST', body: JSON.stringify({ signal }) });
   } catch (err) {
-    alert('Failed to send ' + signal + ' command: ' + err.message);
+    const overlay = $('#modal-overlay');
+    const content = $('#modal-content');
+    content.innerHTML = html`
+      <div class="modal-title">Command Failed</div>
+      <div style="text-align:center;padding:8px 0 16px">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent-red)" stroke-width="1.5" style="margin-bottom:12px"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <p style="color:var(--text-secondary);line-height:1.6;margin:0">Failed to send ${signal} command:</p>
+        <p style="color:var(--text-primary);font-weight:600;margin:4px 0 0 0">${err.message}</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary btn-full modal-cancel-btn">OK</button>
+      </div>
+    `;
+    overlay.classList.add('open');
   } finally {
     if (btn) {
       btn.disabled = false;
