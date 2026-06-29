@@ -218,6 +218,7 @@ function renderAdminLayout() {
         <div class="admin-page" id="admin-page-activity"></div>
         <div class="admin-page" id="admin-page-settings"></div>
       </main>
+      <div id="admin-date-tooltip"></div>
     </div>
   `;
 
@@ -235,6 +236,8 @@ function renderAdminLayout() {
       adminNavigateTo(page);
     });
   });
+
+  initAdminDateTooltip();
 
   const path = window.location.pathname.replace('/admin/', '').split('/');
   const basePage = path[0] || 'dashboard';
@@ -275,6 +278,33 @@ function renderAdminLayout() {
     updateAdminNav();
     renderAdminServers();
   }
+}
+
+function initAdminDateTooltip() {
+  const tooltip = document.getElementById('admin-date-tooltip');
+  if (!tooltip) return;
+  let timer = null;
+  document.addEventListener('mouseover', (e) => {
+    const target = e.target.closest('.date-tooltip');
+    if (!target) return;
+    const full = target.getAttribute('data-full');
+    if (!full) return;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const rect = target.getBoundingClientRect();
+      tooltip.textContent = full;
+      tooltip.style.top = (rect.top - 8) + 'px';
+      tooltip.style.left = (rect.left + rect.width / 2) + 'px';
+      tooltip.style.transform = 'translate(-50%, -100%)';
+      tooltip.classList.add('visible');
+    }, 1000);
+  });
+  document.addEventListener('mouseout', (e) => {
+    const target = e.target.closest('.date-tooltip');
+    if (!target) return;
+    clearTimeout(timer);
+    tooltip.classList.remove('visible');
+  });
 }
 
 function updateAdminNav() {
@@ -412,8 +442,8 @@ async function renderAdminServerDetail(serverId) {
             <div class="card">
               <h2 class="card-title" style="margin-bottom:16px">Lifetime</h2>
               <div class="detail-list">
-                <div class="detail-item"><span class="detail-label">Created</span><span class="detail-value">${formatDate(meta.created_at)}</span></div>
-                <div class="detail-item"><span class="detail-label">Expires</span><span class="detail-value">${formatDate(meta.expires_at)}</span></div>
+                <div class="detail-item"><span class="detail-label">Created</span><span class="detail-value">${formatDateWithTooltip(meta.created_at)}</span></div>
+                <div class="detail-item"><span class="detail-label">Expires</span><span class="detail-value">${formatDateWithTooltip(meta.expires_at)}</span></div>
                 <div class="detail-item"><span class="detail-label">Status</span><span class="detail-value" style="text-transform:capitalize">${meta.status}</span></div>
                 ${meta.status === 'suspended' && meta.suspend_reason ? ahtml`
                   <div class="detail-item"><span class="detail-label">Reason</span><span class="detail-value" style="color:var(--accent-red)">${meta.suspend_reason}</span></div>
@@ -747,7 +777,7 @@ async function renderAdminUsers() {
         <td>${u.email}</td>
         <td>${u.is_admin ? '<span class="server-card-status status-active" style="font-size:0.75rem">Admin</span>' : '<span class="server-card-status status-installing" style="font-size:0.75rem">User</span>'}</td>
         <td>${u.server_count}</td>
-        <td>${formatDate(u.created_at)}</td>
+        <td>${formatDateWithTooltip(u.created_at)}</td>
         <td>
           <a class="btn btn-ghost btn-sm" href="/admin/user/${u.id}" onclick="event.preventDefault();adminNavigateTo('user/${u.id}')">Details</a>
         </td>
@@ -794,7 +824,7 @@ async function renderAdminUserDetail(userId) {
             <div class="detail-item"><span class="detail-label">Status</span><span class="detail-value">${u.restricted ? '<span class="server-card-status status-suspended" style="font-size:0.75rem">Restricted</span>' : '<span class="server-card-status status-active" style="font-size:0.75rem">Active</span>'}</span></div>
             <div class="detail-item"><span class="detail-label">Ptero ID</span><span class="detail-value" style="font-family:monospace">${u.ptero_user_id || 'N/A'}</span></div>
             <div class="detail-item"><span class="detail-label">API Key Set</span><span class="detail-value">${u.ptero_client_api_key ? 'Yes' : 'No'}</span></div>
-            <div class="detail-item"><span class="detail-label">Created</span><span class="detail-value">${formatDate(u.created_at)}</span></div>
+            <div class="detail-item"><span class="detail-label">Created</span><span class="detail-value">${formatDateWithTooltip(u.created_at)}</span></div>
           </div>
         </div>
       </div>
@@ -827,8 +857,8 @@ async function renderAdminUserDetail(userId) {
                   <tr>
                     <td><strong>${s.server_name || 'Unknown'}</strong></td>
                     <td><span class="server-card-status ${s.status === 'active' ? 'status-active' : s.status === 'suspended' ? 'status-suspended' : 'status-installing'}" style="font-size:0.75rem;text-transform:capitalize">${s.status}</span></td>
-                    <td>${formatDate(s.created_at)}</td>
-                    <td>${formatDate(s.expires_at)}</td>
+                    <td>${formatDateWithTooltip(s.created_at)}</td>
+                    <td>${formatDateWithTooltip(s.expires_at)}</td>
                     <td style="display:flex;gap:6px">
                       <a class="btn btn-ghost btn-sm" href="/admin/server/${s.ptero_server_id}" onclick="event.preventDefault();adminNavigateTo('server/${s.ptero_server_id}')">Manage</a>
                       <button class="btn btn-ghost btn-sm" onclick="window.open('${PTERO_URL}/server/${s.server_uuid}', '_blank')">Open Pyrodactyl</button>
@@ -972,7 +1002,7 @@ async function renderAdminActivity() {
 
     tbody.innerHTML = data.activities.map(a => ahtml`
       <tr>
-        <td style="white-space:nowrap;font-size:0.82rem;color:var(--text-secondary)">${formatDate(a.created_at)}</td>
+        <td style="white-space:nowrap;font-size:0.82rem;color:var(--text-secondary)">${formatDateWithTooltip(a.created_at)}</td>
         <td>${a.username || 'Unknown'}</td>
         <td><span class="server-detail-tag">${a.action}</span></td>
         <td style="color:var(--text-secondary);font-size:0.85rem">${a.details || ''}</td>
@@ -1003,10 +1033,15 @@ async function renderAdminSettings() {
 }
 
 // ─── Common ─────────────────────────────────────────────
-function formatDate(d) {
+function formatDateWithTooltip(d) {
   if (!d) return 'N/A';
   const date = new Date(d);
-  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const short = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const full = date.toLocaleString('en-GB', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+  return `<span class="date-tooltip" data-full="${full}">${short}</span>`;
 }
 
 window.addEventListener('popstate', () => {
