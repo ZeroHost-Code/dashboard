@@ -207,7 +207,7 @@ function renderAdminLayout() {
         </div>
       </nav>
       <main class="admin-content">
-        <div class="admin-modal-overlay" id="admin-modal-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center" onclick="if(event.target===this)closeAdminModal()">
+        <div class="admin-modal-overlay" id="admin-modal-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center" onclick="if(event.target===this)closeAdminModal()">
           <div class="admin-modal" style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.4)" onclick="event.stopPropagation()" id="admin-modal-content"></div>
         </div>
         <div class="admin-page" id="admin-page-dashboard"></div>
