@@ -1006,7 +1006,7 @@ function renderServerCard(s) {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
           Open Panel
         </button>
-        ${canRenew ? html`
+        ${canRenew && !isAdminSuspended ? html`
           <button class="btn btn-primary btn-sm btn-renew-server" data-server-id="${s.id}">Renew</button>
         ` : ''}
       </div>
@@ -1040,7 +1040,7 @@ function renderServerRow(s) {
         <div style="display:flex;gap:6px">
           <a class="btn btn-ghost btn-sm" href="/server/${s.id}" onclick="event.preventDefault();navigateTo('server/${s.id}')">Settings</a>
           <button class="btn btn-ghost btn-sm" onclick="openPyrodactylPanel('${s.identifier}')">Manage Pyrodactyl</button>
-          ${canRenew ? html`
+          ${canRenew && !isAdminSuspended ? html`
             <button class="btn btn-primary btn-sm btn-renew-server" data-server-id="${s.id}">Renew</button>
           ` : ''}
         </div>
@@ -2020,7 +2020,7 @@ async function renderServerDetail(serverId) {
                   <div class="detail-item"><span class="detail-label">Reason</span><span class="detail-value" style="color:var(--accent-red)">${meta.suspend_reason}</span></div>
                 ` : ''}
               </div>
-              ${canRenew ? html`
+              ${canRenew && !isAdminSuspended ? html`
                 <button class="btn btn-primary btn-full btn-renew-server" data-server-id="${s.id}" style="margin-top:16px">Renew Server (90 days)</button>
               ` : html`
                 ${days < -7 ? html`<p style="color:var(--accent-red);margin-top:12px;font-size:0.88rem">This server has expired. Contact support to renew.</p>` : ''}
