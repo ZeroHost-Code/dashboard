@@ -722,7 +722,44 @@ async function renderAdminDashboard() {
           </div>
         `).join('')}
       </div>
+      <div class="card" id="admin-server-status-card" style="display:none">
+        <div class="card-header">
+          <h2 class="card-title">Server Status Distribution</h2>
+        </div>
+        <div class="chart-container">
+          <canvas id="admin-server-status-chart"></canvas>
+        </div>
+      </div>
     `;
+
+    if (typeof Chart !== 'undefined') {
+      if (adminState._chart) adminState._chart.destroy();
+      const card = document.getElementById('admin-server-status-card');
+      card.style.display = 'block';
+      const ctx = document.getElementById('admin-server-status-chart').getContext('2d');
+      adminState._chart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: ['Active', 'Suspended', 'Expired'],
+          datasets: [{
+            data: [stats.active_servers, stats.suspended_servers, stats.expired_servers],
+            backgroundColor: ['#059669', '#ef4444', '#f59e0b'],
+            borderColor: '#1c1917',
+            borderWidth: 2,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: '#a8a29e', padding: 16, usePointStyle: true }
+            }
+          }
+        }
+      });
+    }
   } catch (err) {
     el.innerHTML = `<div class="empty-state"><div class="empty-state-title">Error</div><div class="empty-state-desc">${err.message}</div></div>`;
   }
