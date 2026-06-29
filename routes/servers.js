@@ -378,10 +378,16 @@ router.get('/overview', authenticateToken, async (req, res) => {
       }
     }
 
+    const suspendedServers = servers.filter(s => s.serverMeta && s.serverMeta.status === 'suspended').length;
+    const expiredServers = servers.filter(s => s.serverMeta && s.serverMeta.status === 'expired').length;
+    const activeServers = servers.filter(s => s.status !== 'suspended').length;
+
     res.json({
       restricted,
       totalServers: servers.length,
-      activeServers: servers.filter(s => s.status !== 'suspended').length,
+      activeServers,
+      suspendedServers,
+      expiredServers,
       serverLimit: 3,
       servers,
     });

@@ -819,6 +819,14 @@ async function renderOverview() {
       <div class="stat-card"><div class="stat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="4"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div><div class="stat-value" id="stat-slots">—</div><div class="stat-label">Server Slots</div></div>
       <div class="stat-card"><div class="stat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div><div class="stat-value" id="stat-renew">—</div><div class="stat-label">To Renew</div></div>
     </div>
+    <div class="card" id="server-status-card" style="display:none">
+      <div class="card-header">
+        <h2 class="card-title">Server Status</h2>
+      </div>
+      <div class="chart-container">
+        <canvas id="server-status-chart"></canvas>
+      </div>
+    </div>
     <div class="card">
       <div class="card-header">
         <h2 class="card-title">Your Servers</h2>
@@ -857,6 +865,44 @@ async function renderOverview() {
     }).length;
     $('#stat-renew').textContent = toRenew;
     state.servers = data.servers;
+
+    const statusCard = $('#server-status-card');
+    if (data.servers.length > 0 && typeof Chart !== 'undefined') {
+      if (state._chart) state._chart.destroy();
+      statusCard.style.display = 'block';
+      const counts = { active: 0, suspended: 0, expired: 0 };
+      data.servers.forEach(s => {
+        const st = s.serverMeta?.status || 'active';
+        if (st === 'expired') counts.expired++;
+        else if (st === 'suspended') counts.suspended++;
+        else counts.active++;
+      });
+      const ctx = document.getElementById('server-status-chart').getContext('2d');
+      state._chart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: ['Active', 'Suspended', 'Expired'],
+          datasets: [{
+            data: [counts.active, counts.suspended, counts.expired],
+            backgroundColor: ['#059669', '#f59e0b', '#ef4444'],
+            borderColor: '#1c1917',
+            borderWidth: 2,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: '#a8a29e', padding: 16, usePointStyle: true }
+            }
+          }
+        }
+      });
+    } else {
+      statusCard.style.display = 'none';
+    }
 
     if (data.servers.length === 0 && !data.pteroError) {
       $('#recent-servers-list').innerHTML = html`
