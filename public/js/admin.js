@@ -864,15 +864,35 @@ async function renderAdminUserDetail(userId) {
             <div class="detail-item"><span class="detail-label">Created</span><span class="detail-value">${formatDateWithTooltip(u.created_at)}</span></div>
           </div>
         </div>
-      </div>
-
-      <div class="card" style="margin-bottom:24px">
-        <h2 class="card-title" style="margin-bottom:16px">IP Addresses</h2>
-        ${data.ips && data.ips.length > 0 ? ahtml`
-          <div style="display:flex;flex-wrap:wrap;gap:8px">
-            ${data.ips.map(ip => ahtml`<span class="server-detail-tag" style="font-family:monospace">${ip.ip_address}</span>`).join('')}
+        <div class="card">
+          <h2 class="card-title" style="margin-bottom:16px">IP Addresses</h2>
+          ${data.ips && data.ips.length > 0 ? ahtml`
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              ${data.ips.map(ip => ahtml`<span class="server-detail-tag" style="font-family:monospace">${ip.ip_address}</span>`).join('')}
+            </div>
+          ` : '<p style="color:var(--text-secondary)">No IPs recorded.</p>'}
+        </div>
+        <div class="card">
+          <h2 class="card-title" style="margin-bottom:16px;color:var(--accent-orange)">Restrictions</h2>
+          <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:12px">
+            Restrict user features or authentication access.
+          </p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn ${u.restricted ? 'btn-primary' : 'btn-warning'}" id="admin-btn-toggle-restriction" style="width:auto">${u.restricted ? 'Unrestrict User' : 'Restrict User'}</button>
+            <button class="btn ${u.auth_restricted ? 'btn-primary' : 'btn-warning'}" id="admin-btn-toggle-auth-restriction" style="width:auto">${u.auth_restricted ? 'Unrestrict Auth' : 'Restrict Auth'}</button>
           </div>
-        ` : '<p style="color:var(--text-secondary)">No IPs recorded.</p>'}
+        </div>
+        <div class="card">
+          <h2 class="card-title" style="margin-bottom:16px;color:var(--accent-red)">Danger Zone</h2>
+          <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:12px">
+            Toggle admin privileges or delete this user.
+          </p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn ${u.is_admin ? 'btn-warning' : 'btn-primary'}" id="admin-btn-toggle-admin" style="width:auto">${u.is_admin ? 'Remove Admin' : 'Make Admin'}</button>
+            <button class="btn btn-danger" id="admin-btn-delete-user" style="width:auto">Delete User</button>
+          </div>
+          <div id="admin-user-action-msg" style="margin-top:12px;display:none"></div>
+        </div>
       </div>
 
       <div class="card" style="margin-bottom:24px">
@@ -906,29 +926,6 @@ async function renderAdminUserDetail(userId) {
             </table>
           </div>
         ` : '<p style="color:var(--text-secondary)">No servers.</p>'}
-      </div>
-
-      <div class="card" style="margin-bottom:24px">
-        <h2 class="card-title" style="margin-bottom:16px;color:var(--accent-orange)">Restrictions</h2>
-        <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:12px">
-          Restrict user features or authentication access.
-        </p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn ${u.restricted ? 'btn-primary' : 'btn-warning'}" id="admin-btn-toggle-restriction" style="width:auto">${u.restricted ? 'Unrestrict User' : 'Restrict User'}</button>
-          <button class="btn ${u.auth_restricted ? 'btn-primary' : 'btn-warning'}" id="admin-btn-toggle-auth-restriction" style="width:auto">${u.auth_restricted ? 'Unrestrict Auth' : 'Restrict Auth'}</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2 class="card-title" style="margin-bottom:16px;color:var(--accent-red)">Danger Zone</h2>
-        <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:12px">
-          Toggle admin privileges or delete this user.
-        </p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn ${u.is_admin ? 'btn-warning' : 'btn-primary'}" id="admin-btn-toggle-admin" style="width:auto">${u.is_admin ? 'Remove Admin' : 'Make Admin'}</button>
-          <button class="btn btn-danger" id="admin-btn-delete-user" style="width:auto">Delete User</button>
-        </div>
-        <div id="admin-user-action-msg" style="margin-top:12px;display:none"></div>
       </div>
     `;
 
