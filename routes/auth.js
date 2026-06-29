@@ -151,6 +151,8 @@ router.post('/register', async (req, res) => {
         username,
         firstName: username,
         lastName: 'User',
+        isAdmin: false,
+        restricted: false,
       },
     });
   } catch (err) {
@@ -227,6 +229,7 @@ router.post('/login', async (req, res) => {
         firstName: user.first_name,
         lastName: user.last_name,
         isAdmin: !!user.is_admin,
+        restricted: !!user.restricted,
       },
     });
   } catch (err) {
