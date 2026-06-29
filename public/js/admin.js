@@ -425,7 +425,8 @@ async function renderAdminServerDetail(serverId) {
       </div>
 
       <div id="admin-server-tab-admin" class="tab-content" style="display:none">
-        <div class="card" style="margin-bottom:16px">
+        <div class="server-detail-grid">
+        <div class="card">
           <h2 class="card-title" style="margin-bottom:16px">Suspend</h2>
           <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:12px">
             Suspend or expire this server.
@@ -446,6 +447,7 @@ async function renderAdminServerDetail(serverId) {
           <button class="btn btn-danger" id="admin-btn-delete" style="width:auto">Delete Server</button>
         </div>
         ` : ''}
+        </div>
       </div>
     `;
 
