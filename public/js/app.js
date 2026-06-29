@@ -546,8 +546,9 @@ async function renderDashboard() {
       </button>
 
       <main class="main-content">
-        <div id="restricted-banner" style="display:${state.user?.restricted ? 'block' : 'none'};background:rgba(239,68,68,0.12);color:var(--accent-red);padding:10px 16px;font-size:0.85rem;text-align:center;border-bottom:1px solid rgba(239,68,68,0.2)">
-          <strong>Account Restricted</strong> &mdash; Your account has been restricted. You cannot create or renew servers.
+        <div id="restricted-banner" style="display:${state.user?.restricted ? 'flex' : 'none'};align-items:center;justify-content:center;gap:8px;background:rgba(239,68,68,0.12);color:var(--accent-red);padding:12px 20px;font-size:0.875rem;text-align:center;border:2px solid rgba(239,68,68,0.25);border-radius:10px;margin:8px 16px 0">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span><strong>Account Restricted</strong> &mdash; Your account has been restricted. You cannot create or renew servers.</span>
         </div>
         <div class="page active" id="page-overview"></div>
         <div class="page" id="page-servers"></div>
