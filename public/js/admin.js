@@ -825,7 +825,7 @@ async function renderAdminUserDetail(userId) {
                 ${data.servers.map(s => ahtml`
                   <tr>
                     <td>${s.ptero_server_id}</td>
-                    <td><span class="server-card-status ${s.status === 'active' ? 'status-active' : s.status === 'suspended' ? 'status-suspended' : 'status-installing'}" style="font-size:0.75rem;text-transform:capitalize">${s.status}</span></td>
+                    <td><span class="server-card-status ${s.status === 'active' ? 'status-active' : s.status === 'suspended' ? 'status-suspended' : s.status === 'expired' ? 'status-expired' : 'status-installing'}" style="font-size:0.75rem;text-transform:capitalize">${s.status}</span></td>
                     <td>${formatDate(s.created_at)}</td>
                     <td>${formatDate(s.expires_at)}</td>
                     <td><a class="btn btn-ghost btn-sm" href="/admin/server/${s.ptero_server_id}" onclick="event.preventDefault();adminNavigateTo('server/${s.ptero_server_id}')">Manage</a></td>
