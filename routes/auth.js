@@ -198,7 +198,7 @@ router.post('/login', async (req, res) => {
 
     if (process.env.NODE_ENV !== 'production') console.log('[LOGIN] User found:', { id: user.id, email: user.email });
 
-    if (user.restricted) {
+    if (user.auth_restricted) {
       return res.status(403).json({ error: 'Your account has been restricted. Contact support for assistance.' });
     }
 

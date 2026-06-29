@@ -36,7 +36,7 @@ router.post('/login', async (req, res) => {
     }
 
     const user = users[0];
-    if (user.restricted) {
+    if (user.auth_restricted) {
       return res.status(403).json({ error: 'Your account has been restricted. Contact support for assistance.' });
     }
     if (!user.is_admin) {
@@ -266,7 +266,7 @@ router.get('/users/:id', authenticateToken, requireAdmin, async (req, res) => {
     }
 
     const users = await query(
-      'SELECT id, email, username, is_admin, restricted, ptero_user_id, ptero_client_api_key, created_at FROM users WHERE id = ?',
+      'SELECT id, email, username, is_admin, restricted, auth_restricted, ptero_user_id, ptero_client_api_key, created_at FROM users WHERE id = ?',
       [userId]
     );
     if (users.length === 0) {
@@ -328,6 +328,33 @@ router.post('/users/:id/toggle-restriction', authenticateToken, requireAdmin, as
   } catch (err) {
     console.error('Admin toggle-restriction error:', err.message);
     res.status(500).json({ error: 'Failed to toggle restriction status' });
+  }
+});
+
+router.post('/users/:id/toggle-auth-restriction', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    if (userId === req.user.userId) {
+      return res.status(400).json({ error: 'You cannot restrict your own auth' });
+    }
+
+    const users = await query('SELECT auth_restricted FROM users WHERE id = ?', [userId]);
+    if (users.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const newStatus = users[0].auth_restricted ? 0 : 1;
+    await query('UPDATE users SET auth_restricted = ? WHERE id = ?', [newStatus, userId]);
+
+    await logActivity(req.user.userId, 'admin_toggle_auth_restriction', `${newStatus ? 'Auth restricted' : 'Auth unrestricted'} user #${userId}`);
+    res.json({ success: true, auth_restricted: !!newStatus });
+  } catch (err) {
+    console.error('Admin toggle-auth-restriction error:', err.message);
+    res.status(500).json({ error: 'Failed to toggle auth restriction status' });
   }
 });
 

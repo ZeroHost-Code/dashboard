@@ -858,7 +858,7 @@ async function renderAdminUserDetail(userId) {
             <div class="detail-item"><span class="detail-label">Username</span><span class="detail-value">${u.username}</span></div>
             <div class="detail-item"><span class="detail-label">Email</span><span class="detail-value">${u.email}</span></div>
             <div class="detail-item"><span class="detail-label">Role</span><span class="detail-value">${u.is_admin ? '<span class="server-card-status status-active" style="font-size:0.75rem">Admin</span>' : '<span class="server-card-status status-installing" style="font-size:0.75rem">User</span>'}</span></div>
-            <div class="detail-item"><span class="detail-label">Status</span><span class="detail-value">${u.restricted ? '<span class="server-card-status status-suspended" style="font-size:0.75rem">Restricted</span>' : '<span class="server-card-status status-active" style="font-size:0.75rem">Active</span>'}</span></div>
+            <div class="detail-item"><span class="detail-label">Status</span><span class="detail-value">${u.restricted ? '<span class="server-card-status status-suspended" style="font-size:0.75rem">Restricted</span>' : '<span class="server-card-status status-active" style="font-size:0.75rem">Active</span>'} ${u.auth_restricted ? '<span class="server-card-status status-suspended" style="font-size:0.75rem">Auth Restricted</span>' : ''}</span></div>
             <div class="detail-item"><span class="detail-label">Ptero ID</span><span class="detail-value" style="font-family:monospace">${u.ptero_user_id || 'N/A'}</span></div>
             <div class="detail-item"><span class="detail-label">API Key Set</span><span class="detail-value">${u.ptero_client_api_key ? 'Yes' : 'No'}</span></div>
             <div class="detail-item"><span class="detail-label">Created</span><span class="detail-value">${formatDateWithTooltip(u.created_at)}</span></div>
@@ -916,6 +916,7 @@ async function renderAdminUserDetail(userId) {
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn ${u.is_admin ? 'btn-warning' : 'btn-primary'}" id="admin-btn-toggle-admin" style="width:auto">${u.is_admin ? 'Remove Admin' : 'Make Admin'}</button>
           <button class="btn ${u.restricted ? 'btn-primary' : 'btn-warning'}" id="admin-btn-toggle-restriction" style="width:auto">${u.restricted ? 'Unrestrict User' : 'Restrict User'}</button>
+          <button class="btn ${u.auth_restricted ? 'btn-primary' : 'btn-warning'}" id="admin-btn-toggle-auth-restriction" style="width:auto">${u.auth_restricted ? 'Unrestrict Auth' : 'Restrict Auth'}</button>
           <button class="btn btn-danger" id="admin-btn-delete-user" style="width:auto">Delete User</button>
         </div>
         <div id="admin-user-action-msg" style="margin-top:12px;display:none"></div>
@@ -977,6 +978,22 @@ function initUserActions(userId) {
       showMsg(err.message, 'error');
       btn.disabled = false;
       btn.innerHTML = 'Toggle Restriction';
+    }
+  });
+
+  $a('#admin-btn-toggle-auth-restriction')?.addEventListener('click', async () => {
+    const btn = $a('#admin-btn-toggle-auth-restriction');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Updating...';
+    clearMsg();
+    try {
+      const data = await adminApi(`/users/${userId}/toggle-auth-restriction`, { method: 'POST' });
+      showMsg(data.auth_restricted ? 'Auth restricted' : 'Auth unrestricted');
+      setTimeout(() => renderAdminUserDetail(userId), 1500);
+    } catch (err) {
+      showMsg(err.message, 'error');
+      btn.disabled = false;
+      btn.innerHTML = 'Toggle Auth Restriction';
     }
   });
 
