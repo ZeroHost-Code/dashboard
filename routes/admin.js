@@ -218,7 +218,15 @@ router.delete('/servers/:id', authenticateToken, requireAdmin, async (req, res) 
       return res.status(400).json({ error: 'Invalid server ID' });
     }
 
-    await deletePteroServer(serverId);
+    const meta = await query('SELECT status FROM server_meta WHERE ptero_server_id = ?', [serverId]);
+    if (meta.length > 0 && meta[0].status === 'suspended') {
+      return res.status(403).json({ error: 'Cannot delete a suspended server' });
+    }
+    try {
+      await deletePteroServer(serverId);
+    } catch (err) {
+      console.warn('Pterodactyl delete failed (proceeding with local cleanup):', err.message);
+    }
     await query('DELETE FROM server_meta WHERE ptero_server_id = ?', [serverId]);
     await logActivity(req.user.userId, 'admin_delete', `Admin deleted server #${serverId}`, serverId);
     res.json({ success: true });

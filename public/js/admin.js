@@ -443,6 +443,7 @@ async function renderAdminServerDetail(serverId) {
           <div id="admin-action-msg" style="margin-top:12px;display:none"></div>
         </div>
 
+        ${!isSuspended ? ahtml`
         <div class="card">
           <h2 class="card-title" style="margin-bottom:16px">Danger Zone</h2>
           <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:12px">
@@ -450,6 +451,7 @@ async function renderAdminServerDetail(serverId) {
           </p>
           <button class="btn btn-danger" id="admin-btn-delete" style="width:auto">Delete Server</button>
         </div>
+        ` : ''}
       </div>
     `;
 
