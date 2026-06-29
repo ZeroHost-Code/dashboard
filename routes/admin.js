@@ -263,7 +263,7 @@ router.get('/users/:id', authenticateToken, requireAdmin, async (req, res) => {
     }
 
     const users = await query(
-      'SELECT id, email, username, is_admin, ptero_user_id, ptero_client_api_key, created_at FROM users WHERE id = ?',
+      'SELECT id, email, username, is_admin, restricted, ptero_user_id, ptero_client_api_key, created_at FROM users WHERE id = ?',
       [userId]
     );
     if (users.length === 0) {
@@ -298,6 +298,33 @@ router.get('/users/:id', authenticateToken, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Admin user detail error:', err.message);
     res.status(500).json({ error: 'Failed to fetch user details' });
+  }
+});
+
+router.post('/users/:id/toggle-restriction', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    if (userId === req.user.userId) {
+      return res.status(400).json({ error: 'You cannot restrict yourself' });
+    }
+
+    const users = await query('SELECT restricted FROM users WHERE id = ?', [userId]);
+    if (users.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const newStatus = users[0].restricted ? 0 : 1;
+    await query('UPDATE users SET restricted = ? WHERE id = ?', [newStatus, userId]);
+
+    await logActivity(req.user.userId, 'admin_toggle_restriction', `${newStatus ? 'Restricted' : 'Unrestricted'} user #${userId}`);
+    res.json({ success: true, restricted: !!newStatus });
+  } catch (err) {
+    console.error('Admin toggle-restriction error:', err.message);
+    res.status(500).json({ error: 'Failed to toggle restriction status' });
   }
 });
 

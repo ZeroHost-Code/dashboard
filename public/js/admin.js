@@ -792,6 +792,7 @@ async function renderAdminUserDetail(userId) {
             <div class="detail-item"><span class="detail-label">Username</span><span class="detail-value">${u.username}</span></div>
             <div class="detail-item"><span class="detail-label">Email</span><span class="detail-value">${u.email}</span></div>
             <div class="detail-item"><span class="detail-label">Role</span><span class="detail-value">${u.is_admin ? '<span class="server-card-status status-active" style="font-size:0.75rem">Admin</span>' : '<span class="server-card-status status-installing" style="font-size:0.75rem">User</span>'}</span></div>
+            <div class="detail-item"><span class="detail-label">Status</span><span class="detail-value">${u.restricted ? '<span class="server-card-status status-suspended" style="font-size:0.75rem">Restricted</span>' : '<span class="server-card-status status-active" style="font-size:0.75rem">Active</span>'}</span></div>
             <div class="detail-item"><span class="detail-label">Ptero ID</span><span class="detail-value" style="font-family:monospace">${u.ptero_user_id || 'N/A'}</span></div>
             <div class="detail-item"><span class="detail-label">API Key Set</span><span class="detail-value">${u.ptero_client_api_key ? 'Yes' : 'No'}</span></div>
             <div class="detail-item"><span class="detail-label">Created</span><span class="detail-value">${formatDate(u.created_at)}</span></div>
@@ -844,10 +845,11 @@ async function renderAdminUserDetail(userId) {
       <div class="card">
         <h2 class="card-title" style="margin-bottom:16px;color:var(--accent-red)">Danger Zone</h2>
         <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:12px">
-          Toggle admin privileges or delete this user.
+          Toggle admin privileges, restrict account, or delete this user.
         </p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn ${u.is_admin ? 'btn-warning' : 'btn-primary'}" id="admin-btn-toggle-admin" style="width:auto">${u.is_admin ? 'Remove Admin' : 'Make Admin'}</button>
+          <button class="btn ${u.restricted ? 'btn-primary' : 'btn-warning'}" id="admin-btn-toggle-restriction" style="width:auto">${u.restricted ? 'Unrestrict User' : 'Restrict User'}</button>
           <button class="btn btn-danger" id="admin-btn-delete-user" style="width:auto">Delete User</button>
         </div>
         <div id="admin-user-action-msg" style="margin-top:12px;display:none"></div>
@@ -893,6 +895,22 @@ function initUserActions(userId) {
       showMsg(err.message, 'error');
       btn.disabled = false;
       btn.innerHTML = 'Toggle Admin';
+    }
+  });
+
+  $a('#admin-btn-toggle-restriction')?.addEventListener('click', async () => {
+    const btn = $a('#admin-btn-toggle-restriction');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Updating...';
+    clearMsg();
+    try {
+      const data = await adminApi(`/users/${userId}/toggle-restriction`, { method: 'POST' });
+      showMsg(data.restricted ? 'Account restricted' : 'Account unrestricted');
+      setTimeout(() => renderAdminUserDetail(userId), 1500);
+    } catch (err) {
+      showMsg(err.message, 'error');
+      btn.disabled = false;
+      btn.innerHTML = 'Toggle Restriction';
     }
   });
 

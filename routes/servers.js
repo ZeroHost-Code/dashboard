@@ -116,9 +116,12 @@ router.post('/create', authenticateToken, async (req, res) => {
     const { name, nestId, eggId, environment, capToken } = req.body;
     const pteroId = req.user.pteroId;
 
-    if (!name || !nestId || !eggId) {
-      return res.status(400).json({ error: 'Name, nest ID and egg ID are required' });
+    const userCheck = await query('SELECT restricted FROM users WHERE id = ?', [req.user.userId]);
+    if (userCheck.length > 0 && userCheck[0].restricted) {
+      return res.status(403).json({ error: 'Your account is restricted. Server creation is disabled.' });
     }
+
+    if (!name || !nestId || !eggId) {
 
     if (name.length < 1 || name.length > 255) {
       return res.status(400).json({ error: 'Server name must be between 1 and 255 characters' });
@@ -221,6 +224,11 @@ router.post('/renew/:id', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Invalid server ID' });
     }
     const pteroId = req.user.pteroId;
+
+    const userCheck = await query('SELECT restricted FROM users WHERE id = ?', [req.user.userId]);
+    if (userCheck.length > 0 && userCheck[0].restricted) {
+      return res.status(403).json({ error: 'Your account is restricted. Renewal is disabled.' });
+    }
 
     const meta = await query('SELECT * FROM server_meta WHERE ptero_server_id = ?', [serverId]);
     if (meta.length === 0) {
