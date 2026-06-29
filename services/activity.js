@@ -13,7 +13,7 @@ export async function logActivity(userId, action, details = '', serverId = null)
 
 export async function getRecentActivity(userId, limit = 20, offset = 0) {
   const rows = await query(
-    'SELECT *, (SELECT COUNT(*) FROM activity_log WHERE user_id = ?) as _total FROM activity_log WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
+    `SELECT *, (SELECT COUNT(*) FROM activity_log WHERE user_id = ? AND action NOT LIKE 'admin_%') as _total FROM activity_log WHERE user_id = ? AND action NOT LIKE 'admin_%' ORDER BY created_at DESC LIMIT ? OFFSET ?`,
     [userId, userId, parseInt(limit, 10), parseInt(offset, 10)]
   );
   const total = rows.length > 0 ? Number(rows[0]._total) : 0;
