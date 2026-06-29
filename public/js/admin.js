@@ -1,4 +1,5 @@
 const ADMIN_STORAGE_KEY = 'zh_admin_token';
+const PTERO_URL = 'https://panel.zero-host.org';
 
 const adminState = {
   token: localStorage.getItem(ADMIN_STORAGE_KEY),
@@ -814,7 +815,7 @@ async function renderAdminUserDetail(userId) {
             <table>
               <thead>
                 <tr>
-                  <th>Server ID</th>
+                  <th>Name</th>
                   <th>Status</th>
                   <th>Created</th>
                   <th>Expires</th>
@@ -824,11 +825,14 @@ async function renderAdminUserDetail(userId) {
               <tbody>
                 ${data.servers.map(s => ahtml`
                   <tr>
-                    <td>${s.ptero_server_id}</td>
+                    <td><strong>${s.server_name || 'Unknown'}</strong></td>
                     <td><span class="server-card-status ${s.status === 'active' ? 'status-active' : s.status === 'suspended' ? 'status-suspended' : 'status-installing'}" style="font-size:0.75rem;text-transform:capitalize">${s.status}</span></td>
                     <td>${formatDate(s.created_at)}</td>
                     <td>${formatDate(s.expires_at)}</td>
-                    <td><a class="btn btn-ghost btn-sm" href="/admin/server/${s.ptero_server_id}" onclick="event.preventDefault();adminNavigateTo('server/${s.ptero_server_id}')">Manage</a></td>
+                    <td style="display:flex;gap:6px">
+                      <a class="btn btn-ghost btn-sm" href="/admin/server/${s.ptero_server_id}" onclick="event.preventDefault();adminNavigateTo('server/${s.ptero_server_id}')">Manage</a>
+                      <button class="btn btn-ghost btn-sm" onclick="window.open('${PTERO_URL}/server/${s.server_uuid}', '_blank')">Open Pyrodactyl</button>
+                    </td>
                   </tr>
                 `).join('')}
               </tbody>

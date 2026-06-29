@@ -10,6 +10,7 @@ import { logActivity } from '../services/activity.js';
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET;
 const PTERO_URL = process.env.PTERO_URL;
+const PANEL_DB_NAME = process.env.PANEL_DB_NAME || 'panel';
 
 function requireAdmin(req, res, next) {
   if (!req.user?.isAdmin) {
@@ -275,7 +276,11 @@ router.get('/users/:id', authenticateToken, requireAdmin, async (req, res) => {
     }
 
     let servers = await query(
-      'SELECT * FROM server_meta WHERE user_id = ? ORDER BY created_at DESC',
+      `SELECT m.*, p.name AS server_name, p.uuid AS server_uuid
+       FROM server_meta m
+       LEFT JOIN ${PANEL_DB_NAME}.servers p ON m.ptero_server_id = p.id
+       WHERE m.user_id = ?
+       ORDER BY m.created_at DESC`,
       [userId]
     );
     for (const s of servers) {
