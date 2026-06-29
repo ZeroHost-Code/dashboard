@@ -199,8 +199,8 @@ router.post('/servers/:id/renew-now', authenticateToken, requireAdmin, async (re
 
     await suspendPteroServer(serverId);
     await query(
-      'UPDATE server_meta SET expires_at = DATE_SUB(NOW(), INTERVAL 1 DAY), status = ?, suspend_reason = ?, suspended_by = NULL WHERE ptero_server_id = ?',
-      ['suspended', 'Expired by admin', serverId]
+      'UPDATE server_meta SET expires_at = DATE_SUB(NOW(), INTERVAL 1 DAY), status = ?, suspend_reason = NULL, suspended_by = NULL WHERE ptero_server_id = ?',
+      ['suspended', serverId]
     );
 
     await logActivity(req.user.userId, 'admin_renew_now', `Admin force-expired server #${serverId}`, serverId);

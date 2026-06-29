@@ -930,6 +930,11 @@ cap-widget {
   color: var(--accent-red);
 }
 
+.status-expired {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--accent-orange);
+}
+
 .status-installing {
   background: rgba(245, 158, 11, 0.12);
   color: var(--accent-orange);

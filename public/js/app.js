@@ -975,12 +975,14 @@ function renderServerCard(s) {
   const alloc = s.allocationDetails;
   const isInstalling = s.status === 'installing' || s.installed === 0 || s.installed === '0' || s.installed === false;
   const isSuspended = s.status === 'suspended';
-  const statusClass = isSuspended ? 'status-suspended' : (isInstalling ? 'status-installing' : 'status-active');
-  const statusLabel = isSuspended ? 'Suspended' : (isInstalling ? 'Installing' : 'Active');
-  const allocStr = alloc ? `${alloc.alias || alloc.nodeFqdn || alloc.ip}:${alloc.port}` : (s.nodeFqdn || `Node #${s.node}`);
   const meta = s.serverMeta;
   const days = meta ? daysRemaining(meta.expires_at) : null;
   const canRenew = days !== null && days <= 7 && days >= -7;
+  const isAdminSuspended = isSuspended && meta?.suspended_by === 'admin';
+  const isExpiredRenewable = isSuspended && canRenew && !isAdminSuspended;
+  const statusClass = isAdminSuspended ? 'status-suspended' : (isExpiredRenewable ? 'status-expired' : (isInstalling ? 'status-installing' : 'status-active'));
+  const statusLabel = isAdminSuspended ? 'Suspended' : (isExpiredRenewable ? 'Expired' : (isInstalling ? 'Installing' : 'Active'));
+  const allocStr = alloc ? `${alloc.alias || alloc.nodeFqdn || alloc.ip}:${alloc.port}` : (s.nodeFqdn || `Node #${s.node}`);
   const expClass = days !== null && days <= 0 ? 'expired' : (days !== null && days <= 7 ? 'expiring' : '');
   return html`
     <div class="server-card">
@@ -1017,13 +1019,15 @@ function renderServerRow(s) {
   const alloc = s.allocationDetails;
   const isInstalling = s.status === 'installing' || s.installed === 0 || s.installed === '0' || s.installed === false;
   const isSuspended = s.status === 'suspended';
-  const powerState = s.currentState ? s.currentState.charAt(0).toUpperCase() + s.currentState.slice(1) : null;
-  const statusClass = isSuspended ? 'status-suspended' : (isInstalling ? 'status-installing' : (powerState === 'Offline' ? 'status-offline' : 'status-active'));
-  const statusLabel = isSuspended ? 'Suspended' : (isInstalling ? 'Installing' : (powerState || 'Active'));
-  const allocStr = alloc ? `${alloc.alias || alloc.nodeFqdn || alloc.ip}:${alloc.port}` : (s.nodeFqdn || `Node #${s.node}`);
   const meta = s.serverMeta;
   const days = meta ? daysRemaining(meta.expires_at) : null;
   const canRenew = days !== null && days <= 7 && days >= -7;
+  const isAdminSuspended = isSuspended && meta?.suspended_by === 'admin';
+  const isExpiredRenewable = isSuspended && canRenew && !isAdminSuspended;
+  const powerState = s.currentState ? s.currentState.charAt(0).toUpperCase() + s.currentState.slice(1) : null;
+  const statusClass = isAdminSuspended ? 'status-suspended' : (isExpiredRenewable ? 'status-expired' : (isInstalling ? 'status-installing' : (powerState === 'Offline' ? 'status-offline' : 'status-active')));
+  const statusLabel = isAdminSuspended ? 'Suspended' : (isExpiredRenewable ? 'Expired' : (isInstalling ? 'Installing' : (powerState || 'Active')));
+  const allocStr = alloc ? `${alloc.alias || alloc.nodeFqdn || alloc.ip}:${alloc.port}` : (s.nodeFqdn || `Node #${s.node}`);
   return html`
     <tr>
       <td><strong><a href="/server/${s.id}" onclick="event.preventDefault();navigateTo('server/${s.id}')" style="color:inherit;text-decoration:none">${s.name}</a></strong></td>
@@ -1923,10 +1927,12 @@ async function renderServerDetail(serverId) {
   const allocStr = alloc ? `${alloc.alias || alloc.nodeFqdn || alloc.ip}:${alloc.port}` : (s.nodeFqdn || `Node #${s.node}`);
     const isInstalling = s.status === 'installing' || s.installed === 0 || s.installed === '0' || s.installed === false;
     const isSuspended = s.status === 'suspended';
-    const statusClass = isSuspended ? 'status-suspended' : (isInstalling ? 'status-installing' : 'status-active');
-    const statusLabel = isSuspended ? 'Suspended' : (isInstalling ? 'Installing' : 'Active');
     const days = meta ? daysRemaining(meta.expires_at) : null;
     const canRenew = days !== null && days <= 7 && days >= -7;
+    const isAdminSuspended = isSuspended && meta?.suspended_by === 'admin';
+    const isExpiredRenewable = isSuspended && canRenew && !isAdminSuspended;
+    const statusClass = isAdminSuspended ? 'status-suspended' : (isExpiredRenewable ? 'status-expired' : (isInstalling ? 'status-installing' : 'status-active'));
+    const statusLabel = isAdminSuspended ? 'Suspended' : (isExpiredRenewable ? 'Expired' : (isInstalling ? 'Installing' : 'Active'));
     const expClass = days !== null && days <= 0 ? 'expired' : (days !== null && days <= 7 ? 'expiring' : '');
 
     const activeTab = state.serverDetailTab || 'info';
@@ -1946,10 +1952,16 @@ async function renderServerDetail(serverId) {
         </div>
       </div>
 
-      ${isSuspended && meta?.suspend_reason ? html`
+      ${isAdminSuspended && meta?.suspend_reason ? html`
         <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:16px;margin-bottom:24px">
           <div style="font-weight:700;color:var(--accent-red);margin-bottom:4px">Server Suspended</div>
           <div style="color:var(--text-secondary);font-size:0.88rem">${meta.suspend_reason}</div>
+        </div>
+      ` : ''}
+      ${isExpiredRenewable ? html`
+        <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:16px;margin-bottom:24px">
+          <div style="font-weight:700;color:var(--accent-orange);margin-bottom:4px">Server Expired</div>
+          <div style="color:var(--text-secondary);font-size:0.88rem">This server has expired. Renew it to reactivate it instantly.</div>
         </div>
       ` : ''}
 
@@ -2003,8 +2015,8 @@ async function renderServerDetail(serverId) {
               <div class="detail-list">
                 <div class="detail-item"><span class="detail-label">Created</span><span class="detail-value">${formatDate(meta.created_at)}</span></div>
                 <div class="detail-item ${expClass}"><span class="detail-label">Expires</span><span class="detail-value">${formatDate(meta.expires_at)} ${days !== null ? '(' + (days > 0 ? days + ' days' : 'Expired') + ')' : ''}</span></div>
-                <div class="detail-item"><span class="detail-label">Status</span><span class="detail-value" style="text-transform:capitalize">${meta.status}</span></div>
-                ${meta.status === 'suspended' && meta.suspend_reason ? html`
+                <div class="detail-item"><span class="detail-label">Status</span><span class="detail-value" style="text-transform:capitalize">${isExpiredRenewable ? 'expired' : meta.status}</span></div>
+                ${isAdminSuspended && meta.suspend_reason ? html`
                   <div class="detail-item"><span class="detail-label">Reason</span><span class="detail-value" style="color:var(--accent-red)">${meta.suspend_reason}</span></div>
                 ` : ''}
               </div>
@@ -2037,12 +2049,26 @@ async function renderServerDetail(serverId) {
       </div>
 
       <div id="server-tab-actions" class="tab-content" style="display:${activeTab === 'actions' ? 'block' : 'none'}">
-        ${isSuspended ? html`
+        ${isAdminSuspended ? html`
         <div style="text-align:center;padding:48px 24px">
           <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--accent-red)" stroke-width="1.5" style="margin-bottom:16px"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
           <h2 style="margin:0 0 8px 0;color:var(--text-primary)">Server Suspended</h2>
-          <p style="color:var(--text-secondary);font-size:0.95rem;margin:0 0 4px 0">This server has been suspended. No actions are available.</p>
+          <p style="color:var(--text-secondary);font-size:0.95rem;margin:0 0 4px 0">This server has been suspended by an administrator. No actions are available.</p>
           <p style="color:var(--text-secondary);font-size:0.95rem;margin:0">Please contact support via <a href="https://discord.zero-host.org" target="_blank" style="color:var(--accent-1);text-decoration:underline">Discord</a> for assistance.</p>
+        </div>
+        ` : isExpiredRenewable ? html`
+        <div style="text-align:center;padding:48px 24px">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--accent-orange)" stroke-width="1.5" style="margin-bottom:16px"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          <h2 style="margin:0 0 8px 0;color:var(--text-primary)">Server Expired</h2>
+          <p style="color:var(--text-secondary);font-size:0.95rem;margin:0 0 4px 0">This server has expired. Renew it to reactivate it instantly and get 90 more days.</p>
+          <button class="btn btn-primary btn-renew-server" data-server-id="${s.id}" style="margin-top:16px">Renew Server (90 days)</button>
+        </div>
+        ` : isSuspended ? html`
+        <div style="text-align:center;padding:48px 24px">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--accent-red)" stroke-width="1.5" style="margin-bottom:16px"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          <h2 style="margin:0 0 8px 0;color:var(--text-primary)">Server Expired</h2>
+          <p style="color:var(--text-secondary);font-size:0.95rem;margin:0 0 4px 0">This server has been expired for too long. Please contact support to renew.</p>
+          <p style="color:var(--text-secondary);font-size:0.95rem;margin:0">Reach out via <a href="https://discord.zero-host.org" target="_blank" style="color:var(--accent-1);text-decoration:underline">Discord</a> for assistance.</p>
         </div>
         ` : html`
         <div class="action-card">
