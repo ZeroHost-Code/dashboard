@@ -122,6 +122,8 @@ router.post('/create', authenticateToken, async (req, res) => {
     }
 
     if (!name || !nestId || !eggId) {
+      return res.status(400).json({ error: 'Name, nest ID and egg ID are required' });
+    }
 
     if (name.length < 1 || name.length > 255) {
       return res.status(400).json({ error: 'Server name must be between 1 and 255 characters' });
