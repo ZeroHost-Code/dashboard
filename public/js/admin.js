@@ -207,9 +207,8 @@ function renderAdminLayout() {
         </div>
       </nav>
       <main class="admin-content">
-        <div class="admin-notice">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          <span>Le panel admin a été ajouté très récemment — peu de fonctionnalités et quelques petits bugs pour le moment. Je suis focus sur l'installateur bash, la doc d'installation et le polish UI côté user, mais une fois tout ça fini, le panel admin aura toute mon attention.</span>
+        <div class="admin-modal-overlay" id="admin-modal-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center" onclick="if(event.target===this)closeAdminModal()">
+          <div class="admin-modal" style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.4)" onclick="event.stopPropagation()" id="admin-modal-content"></div>
         </div>
         <div class="admin-page" id="admin-page-dashboard"></div>
         <div class="admin-page active" id="admin-page-servers"></div>
@@ -429,16 +428,11 @@ async function renderAdminServerDetail(serverId) {
         <div class="card" style="margin-bottom:16px">
           <h2 class="card-title" style="margin-bottom:16px">Suspend</h2>
           <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:12px">
-            Suspend this server. The user will see the reason on their dashboard and cannot renew until unsuspended.
+            Suspend or expire this server.
           </p>
-          <div class="form-group">
-            <label for="admin-suspend-reason">Reason (optional)</label>
-            <textarea id="admin-suspend-reason" rows="2" placeholder="Enter reason for suspension..." style="resize:vertical;width:100%;padding:10px 14px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:inherit;font-size:0.88rem"></textarea>
-          </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             ${isSuspended ? ahtml`<button class="btn btn-primary" id="admin-btn-unsuspend" style="width:auto">Unsuspend</button>` : ahtml`<button class="btn btn-danger" id="admin-btn-suspend" style="width:auto">Suspend</button>`}
             <button class="btn btn-warning" id="admin-btn-stop" style="width:auto">Stop</button>
-            ${!isSuspended ? ahtml`<button class="btn btn-ghost" id="admin-btn-renew-now" style="width:auto">Renew Now</button>` : ''}
           </div>
           <div id="admin-action-msg" style="margin-top:12px;display:none"></div>
         </div>
@@ -520,24 +514,8 @@ function initAdminActions(serverId) {
     if (msgEl) msgEl.style.display = 'none';
   }
 
-  $a('#admin-btn-suspend')?.addEventListener('click', async () => {
-    const btn = $a('#admin-btn-suspend');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Suspending...';
-    clearMsg();
-    try {
-      const reason = $a('#admin-suspend-reason')?.value?.trim() || '';
-      await adminApi(`/servers/${serverId}/suspend`, {
-        method: 'POST',
-        body: JSON.stringify({ reason: reason || undefined }),
-      });
-      showMsg('Server suspended successfully');
-      setTimeout(() => renderAdminServerDetail(serverId), 1500);
-    } catch (err) {
-      showMsg(err.message, 'error');
-      btn.disabled = false;
-      btn.innerHTML = 'Suspend';
-    }
+  $a('#admin-btn-suspend')?.addEventListener('click', () => {
+    showSuspendModal(serverId);
   });
 
   $a('#admin-btn-unsuspend')?.addEventListener('click', async () => {
@@ -577,24 +555,6 @@ function initAdminActions(serverId) {
     }
   });
 
-  $a('#admin-btn-renew-now')?.addEventListener('click', async () => {
-    const btn = $a('#admin-btn-renew-now');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Expiring...';
-    clearMsg();
-    try {
-      await adminApi(`/servers/${serverId}/renew-now`, {
-        method: 'POST',
-      });
-      showMsg('Server has been expired. The user can renew to reactivate it.');
-      setTimeout(() => renderAdminServerDetail(serverId), 1500);
-    } catch (err) {
-      showMsg(err.message, 'error');
-      btn.disabled = false;
-      btn.innerHTML = 'Renew Now';
-    }
-  });
-
   $a('#admin-btn-delete')?.addEventListener('click', async () => {
     if (!confirm('Are you sure you want to permanently delete this server? This action cannot be undone.')) return;
     const btn = $a('#admin-btn-delete');
@@ -612,6 +572,80 @@ function initAdminActions(serverId) {
       btn.disabled = false;
       btn.innerHTML = 'Delete Server';
     }
+  });
+}
+
+// ─── Suspend Modal ─────────────────────────────────────
+function closeAdminModal() {
+  $a('#admin-modal-overlay').style.display = 'none';
+}
+
+function showSuspendModal(serverId) {
+  const content = $a('#admin-modal-content');
+  content.innerHTML = ahtml`
+    <div style="text-align:center">
+      <h3 style="margin:0 0 20px 0;color:var(--text-primary)">Suspend Server</h3>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <button class="btn btn-danger btn-full" id="admin-modal-expire-now" style="justify-content:center">Expire Now</button>
+        <button class="btn btn-ghost btn-full" id="admin-modal-suspend-admin" style="justify-content:center">Suspend Admin</button>
+        <button class="btn btn-ghost btn-full" onclick="closeAdminModal()" style="justify-content:center;color:var(--text-secondary)">Cancel</button>
+      </div>
+    </div>
+  `;
+  $a('#admin-modal-overlay').style.display = 'flex';
+
+  $a('#admin-modal-expire-now').addEventListener('click', async () => {
+    const btn = $a('#admin-modal-expire-now');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>';
+    try {
+      await adminApi(`/servers/${serverId}/renew-now`, { method: 'POST' });
+      closeAdminModal();
+      renderAdminServerDetail(serverId);
+    } catch (err) {
+      btn.disabled = false;
+      btn.innerHTML = 'Expire Now';
+      closeAdminModal();
+      const msgEl = $a('#admin-action-msg');
+      if (msgEl) { msgEl.textContent = err.message; msgEl.style.display = 'block'; msgEl.style.color = 'var(--accent-red)'; }
+    }
+  });
+
+  $a('#admin-modal-suspend-admin').addEventListener('click', () => {
+    content.innerHTML = ahtml`
+      <div>
+        <h3 style="margin:0 0 16px 0;color:var(--text-primary)">Suspend Admin</h3>
+        <div class="form-group" style="margin-bottom:16px">
+          <label for="admin-modal-reason">Reason (optional)</label>
+          <textarea id="admin-modal-reason" rows="2" placeholder="Enter reason for suspension..." style="resize:vertical;width:100%;padding:10px 14px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:inherit;font-size:0.88rem;margin-top:6px;box-sizing:border-box"></textarea>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary btn-full" id="admin-modal-confirm-suspend" style="justify-content:center">Confirm Suspend</button>
+          <button class="btn btn-ghost btn-full" onclick="showSuspendModal(${serverId})" style="justify-content:center">Back</button>
+        </div>
+      </div>
+    `;
+
+    $a('#admin-modal-confirm-suspend').addEventListener('click', async () => {
+      const btn = $a('#admin-modal-confirm-suspend');
+      const reason = $a('#admin-modal-reason')?.value?.trim() || '';
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>';
+      try {
+        await adminApi(`/servers/${serverId}/suspend`, {
+          method: 'POST',
+          body: JSON.stringify({ reason: reason || undefined }),
+        });
+        closeAdminModal();
+        renderAdminServerDetail(serverId);
+      } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = 'Confirm Suspend';
+        closeAdminModal();
+        const msgEl = $a('#admin-action-msg');
+        if (msgEl) { msgEl.textContent = err.message; msgEl.style.display = 'block'; msgEl.style.color = 'var(--accent-red)'; }
+      }
+    });
   });
 }
 
