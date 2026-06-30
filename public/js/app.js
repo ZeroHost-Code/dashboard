@@ -268,6 +268,7 @@ function renderNotifications() {
       markAsRead(id);
     });
   });
+  initIcons();
 }
 
 async function markAsRead(id) {
