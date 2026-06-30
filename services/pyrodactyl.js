@@ -256,9 +256,13 @@ export async function reinstallPteroServer(serverId) {
 }
 
 export async function updatePteroServerBuild(serverId, limits) {
+  // Fetch current server to get existing limits for fields we don't override
+  const server = await getServerById(serverId);
+  const currentLimits = server.limits || {};
+  const mergedLimits = { ...currentLimits, ...limits };
   await pteroFetch(`/servers/${serverId}/build`, {
     method: 'PATCH',
-    body: JSON.stringify({ limits }),
+    body: JSON.stringify({ limits: mergedLimits }),
   });
 }
 
