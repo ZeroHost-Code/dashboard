@@ -1412,8 +1412,8 @@ tbody tr:hover {
 
 .notif-badge {
   position: absolute;
-  top: 6px;
-  right: 8px;
+  top: -6px;
+  right: -6px;
   min-width: 18px;
   height: 18px;
   border-radius: 99px;
