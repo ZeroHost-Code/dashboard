@@ -313,6 +313,11 @@ function openNotifPanel() {
   $('#notif-panel').classList.add('open');
   $('#notif-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
+
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  $('#nav-notifications').classList.add('active');
+  updateNavIndicator();
+
   fetchNotifications();
   if (state.unreadCount > 0) {
     fetchUnreadCount();
@@ -324,6 +329,11 @@ function closeNotifPanel() {
   $('#notif-panel').classList.remove('open');
   $('#notif-backdrop').classList.remove('open');
   document.body.style.overflow = '';
+
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const targetNav = document.querySelector(`.nav-item[data-page="${state.currentPage}"]`);
+  if (targetNav) targetNav.classList.add('active');
+  updateNavIndicator();
 }
 
 function showCapModal() {

@@ -1251,6 +1251,10 @@ tbody tr:hover {
   transform: translateX(0);
 }
 
+.sidebar.collapsed ~ .notif-panel {
+  left: 60px;
+}
+
 .notif-backdrop {
   position: fixed;
   inset: 0;
