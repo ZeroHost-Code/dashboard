@@ -398,6 +398,39 @@ router.post('/users/:id/toggle-admin', authenticateToken, requireAdmin, async (r
   }
 });
 
+router.post('/users/:id/notify', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    const { title, message, type } = req.body;
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: 'Title is required' });
+    }
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    const users = await query('SELECT id FROM users WHERE id = ?', [userId]);
+    if (users.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const validTypes = ['info', 'success', 'warning', 'error'];
+    const notifType = validTypes.includes(type) ? type : 'info';
+
+    await createNotification(userId, title.trim(), message.trim(), notifType);
+    await logActivity(req.user.userId, 'admin_notify', `Sent notification to user #${userId}: ${title.trim()}`, null);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Admin notify error:', err.message);
+    res.status(500).json({ error: 'Failed to send notification: ' + err.message });
+  }
+});
+
 router.delete('/users/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const userId = parseInt(req.params.id, 10);

@@ -911,6 +911,33 @@ async function renderAdminUserDetail(userId) {
               <button class="btn ${u.auth_restricted ? 'btn-primary' : 'btn-warning'}" id="admin-btn-toggle-auth-restriction" style="width:auto">${u.auth_restricted ? 'Unrestrict Auth' : 'Restrict Auth'}</button>
             </div>
           </div>
+          <div class="card">
+            <h2 class="card-title" style="margin-bottom:16px;color:var(--accent-1)">Send Notification</h2>
+            <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:12px">
+              Send a message to this user's notification inbox.
+            </p>
+            <form id="admin-notify-form">
+              <div class="form-group" style="margin-bottom:12px">
+                <label for="admin-notify-title">Title</label>
+                <input type="text" id="admin-notify-title" placeholder="e.g. Account Update" style="width:100%" required />
+              </div>
+              <div class="form-group" style="margin-bottom:12px">
+                <label for="admin-notify-message">Message</label>
+                <textarea id="admin-notify-message" rows="3" placeholder="Write your message..." style="resize:vertical;width:100%;padding:10px 14px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:inherit;font-size:0.88rem;margin-top:6px;box-sizing:border-box" required></textarea>
+              </div>
+              <div class="form-group" style="margin-bottom:12px">
+                <label for="admin-notify-type">Type</label>
+                <select id="admin-notify-type" style="width:100%">
+                  <option value="info">Info</option>
+                  <option value="success">Success</option>
+                  <option value="warning">Warning</option>
+                  <option value="error">Error</option>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-primary" id="admin-btn-send-notification" style="width:auto">Send</button>
+              <div id="admin-notify-msg" style="margin-top:8px;display:none"></div>
+            </form>
+          </div>
         </div>
       </div>
 
@@ -1031,6 +1058,38 @@ function initUserActions(userId) {
       showMsg(err.message, 'error');
       btn.disabled = false;
       btn.innerHTML = 'Toggle Auth Restriction';
+    }
+  });
+
+  $a('#admin-notify-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = $a('#admin-btn-send-notification');
+    const msgEl = $a('#admin-notify-msg');
+    const titleEl = $a('#admin-notify-title');
+    const messageEl = $a('#admin-notify-message');
+    const typeEl = $a('#admin-notify-type');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Sending...';
+    if (msgEl) msgEl.style.display = 'none';
+    try {
+      await adminApi(`/users/${userId}/notify`, {
+        method: 'POST',
+        body: JSON.stringify({
+          title: titleEl.value.trim(),
+          message: messageEl.value.trim(),
+          type: typeEl.value,
+        }),
+      });
+      if (msgEl) { msgEl.textContent = 'Notification sent successfully'; msgEl.style.display = 'block'; msgEl.style.color = 'var(--accent-green)'; }
+      titleEl.value = '';
+      messageEl.value = '';
+      typeEl.value = 'info';
+      btn.disabled = false;
+      btn.innerHTML = 'Send';
+    } catch (err) {
+      if (msgEl) { msgEl.textContent = err.message; msgEl.style.display = 'block'; msgEl.style.color = 'var(--accent-red)'; }
+      btn.disabled = false;
+      btn.innerHTML = 'Send';
     }
   });
 
