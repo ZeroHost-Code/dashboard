@@ -1,5 +1,6 @@
 import { query } from '../config/db.js';
 import { suspendPteroServer } from './pyrodactyl.js';
+import { createNotification } from './notification.js';
 
 async function suspendExpiredServers() {
   try {
@@ -10,6 +11,7 @@ async function suspendExpiredServers() {
       try {
         await suspendPteroServer(row.ptero_server_id);
         await query("UPDATE server_meta SET status = 'suspended' WHERE id = ?", [row.id]);
+        await createNotification(row.user_id, 'Server Expired', `Your server #${row.ptero_server_id} has been suspended due to expiry. Renew it to reactivate.`, 'warning', `/servers`);
         console.log(`Suspended server ${row.ptero_server_id} (expired)`);
       } catch (err) {
         console.error(`Failed to suspend server ${row.ptero_server_id}:`, err.message);

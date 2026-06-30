@@ -15,6 +15,7 @@ import { PTERO_URL, PANEL_DB_NAME } from '../config/pyrodactyl.js';
 import { query } from '../config/db.js';
 import { verifyCap } from '../config/cap.js';
 import { logActivity } from '../services/activity.js';
+import { createNotification } from '../services/notification.js';
 
 const router = Router();
 
@@ -170,6 +171,7 @@ router.post('/create', authenticateToken, async (req, res) => {
     ).catch(err => console.error('Failed to log server meta:', err.message));
 
     await logActivity(req.user.userId, 'server_created', `Created server "${name}"`, server.id);
+    await createNotification(req.user.userId, 'Server Created', `Your server "${name}" has been created and is now being set up.`, 'success', `/servers`);
     res.status(201).json({ server });
   } catch (err) {
     console.error('Create server error:', err.message);
@@ -281,6 +283,7 @@ router.post('/renew/:id', authenticateToken, async (req, res) => {
     }
 
     await logActivity(req.user.userId, 'server_renewed', `Renewed server #${serverId}`, serverId);
+    await createNotification(req.user.userId, 'Server Renewed', `Your server #${serverId} has been renewed for another 90 days.`, 'success', `/server/${serverId}`);
     const updated = await query('SELECT * FROM server_meta WHERE id = ?', [row.id]);
     res.json({ serverMeta: updated[0] });
   } catch (err) {
@@ -313,6 +316,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
 
     await renamePteroServer(serverId, name.trim());
     await logActivity(req.user.userId, 'server_renamed', `Renamed server #${serverId} to "${name.trim()}"`, serverId);
+    await createNotification(req.user.userId, 'Server Renamed', `Your server #${serverId} has been renamed to "${name.trim()}".`, 'info', `/server/${serverId}`);
     res.json({ success: true });
   } catch (err) {
     console.error('Rename server error:', err.message);
@@ -336,6 +340,7 @@ router.post('/:id/reinstall', authenticateToken, async (req, res) => {
 
     await reinstallPteroServer(serverId);
     await logActivity(req.user.userId, 'server_reinstalled', `Reinstalled server #${serverId}`, serverId);
+    await createNotification(req.user.userId, 'Server Reinstalled', `Your server #${serverId} is being reinstalled.`, 'warning', `/server/${serverId}`);
     res.json({ success: true });
   } catch (err) {
     console.error('Reinstall server error:', err.message);
@@ -360,6 +365,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     }
     await query('DELETE FROM server_meta WHERE ptero_server_id = ?', [serverId]);
     await logActivity(req.user.userId, 'server_deleted', `Deleted server #${serverId}`);
+    await createNotification(req.user.userId, 'Server Deleted', `Your server #${serverId} has been permanently deleted.`, 'error');
     res.json({ success: true });
   } catch (err) {
     console.error('Delete server error:', err.message);

@@ -7,6 +7,9 @@ const state = {
   servers: [],
   rgpdConsent: JSON.parse(localStorage.getItem('zh_rgpd_consent') || 'null'),
   serverDetailTab: 'info',
+  notifications: [],
+  unreadCount: 0,
+  notifPanelOpen: false,
 };
 
 function setRgpdConsent(preferences) {
@@ -174,13 +177,6 @@ async function api(path, options = {}) {
   return data;
 }
 
-const TOAST_ICONS = {
-  success: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
-  error: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>',
-  info: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>',
-  warning: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
-};
-
 function showToast(message, type = 'success') {
   const container = $('#toast-container') || (() => {
     const el = document.createElement('div');
@@ -192,10 +188,9 @@ function showToast(message, type = 'success') {
 
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
-  toast.innerHTML = (TOAST_ICONS[type] || TOAST_ICONS.success) + `<span>${message}</span>`;
-  toast.addEventListener('click', () => toast.remove());
+  toast.textContent = message;
   container.appendChild(toast);
-  setTimeout(() => { if (toast.parentNode) toast.remove(); }, 4000);
+  setTimeout(() => toast.remove(), 4000);
 }
 
 function showError(form, message) {
@@ -211,7 +206,125 @@ function hideError(form) {
   if (errorEl) errorEl.classList.remove('show');
 }
 
+const NOTIF_ICONS = {
+  success: '<svg class="notif-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+  error: '<svg class="notif-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>',
+  warning: '<svg class="notif-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+  info: '<svg class="notif-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>',
+};
 
+function timeAgo(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return minutes + 'm ago';
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours + 'h ago';
+  const days = Math.floor(hours / 24);
+  if (days < 7) return days + 'd ago';
+  return new Date(dateStr).toLocaleDateString();
+}
+
+async function fetchUnreadCount() {
+  try {
+    const data = await api('/notifications/unread-count');
+    state.unreadCount = data.count;
+    updateNotifBadge();
+  } catch {}
+}
+
+async function fetchNotifications() {
+  try {
+    const data = await api('/notifications');
+    state.notifications = data.notifications;
+    renderNotifications();
+  } catch {}
+}
+
+function renderNotifications() {
+  const list = $('#notif-panel-list');
+  if (!list) return;
+  if (state.notifications.length === 0) {
+    list.innerHTML = '<div class="notif-empty">No notifications yet</div>';
+    return;
+  }
+  list.innerHTML = state.notifications.map(n => html`
+    <div class="notif-item ${n.is_read ? '' : 'notif-unread'}" data-id="${n.id}">
+      <div class="notif-item-icon notif-${n.type}">${NOTIF_ICONS[n.type] || NOTIF_ICONS.info}</div>
+      <div class="notif-item-body">
+        <div class="notif-item-title">${n.title}</div>
+        <div class="notif-item-msg">${n.message}</div>
+        <div class="notif-item-time">${timeAgo(n.created_at)}</div>
+      </div>
+      ${n.is_read ? '' : '<div class="notif-dot"></div>'}
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.notif-item.notif-unread').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = parseInt(el.dataset.id, 10);
+      markAsRead(id);
+    });
+  });
+}
+
+async function markAsRead(id) {
+  try {
+    await api('/notifications/' + id + '/read', { method: 'PATCH' });
+    const notif = state.notifications.find(n => n.id === id);
+    if (notif) notif.is_read = 1;
+    state.unreadCount = Math.max(0, state.unreadCount - 1);
+    updateNotifBadge();
+    renderNotifications();
+  } catch {}
+}
+
+async function markAllAsRead() {
+  try {
+    await api('/notifications/read-all', { method: 'PATCH' });
+    state.notifications.forEach(n => n.is_read = 1);
+    state.unreadCount = 0;
+    updateNotifBadge();
+    renderNotifications();
+  } catch {}
+}
+
+function updateNotifBadge() {
+  const badge = $('#notif-badge');
+  if (!badge) return;
+  if (state.unreadCount > 0) {
+    badge.textContent = state.unreadCount > 99 ? '99+' : state.unreadCount;
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function toggleNotifPanel() {
+  if (state.notifPanelOpen) {
+    closeNotifPanel();
+  } else {
+    openNotifPanel();
+  }
+}
+
+function openNotifPanel() {
+  state.notifPanelOpen = true;
+  $('#notif-panel').classList.add('open');
+  $('#notif-backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  fetchNotifications();
+  if (state.unreadCount > 0) {
+    fetchUnreadCount();
+  }
+}
+
+function closeNotifPanel() {
+  state.notifPanelOpen = false;
+  $('#notif-panel').classList.remove('open');
+  $('#notif-backdrop').classList.remove('open');
+  document.body.style.overflow = '';
+}
 
 function showCapModal() {
   return new Promise((resolve) => {
@@ -523,6 +636,12 @@ async function renderDashboard() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
             Create Server
           </a>
+          <div class="nav-section-label">General</div>
+          <a class="nav-item" id="nav-notifications" href="#" style="position:relative">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            Notifications
+            <span class="notif-badge" id="notif-badge"></span>
+          </a>
           <div class="nav-section-label">Links</div>
           <a class="nav-item" href="https://hub.zero-host.org" target="_blank">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -561,6 +680,17 @@ async function renderDashboard() {
         </div>
         <div class="sidebar-resizer" id="sidebar-resizer"></div>
       </aside>
+
+      <div class="notif-panel" id="notif-panel">
+        <div class="notif-panel-header">
+          <h3>Notifications</h3>
+          <button class="notif-mark-all" id="notif-mark-all">Mark all read</button>
+        </div>
+        <div class="notif-panel-list" id="notif-panel-list">
+          <div class="notif-empty">No notifications yet</div>
+        </div>
+      </div>
+      <div class="notif-backdrop" id="notif-backdrop"></div>
 
       <button class="hamburger-toggle" id="hamburger-toggle" aria-label="Toggle menu">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
@@ -607,6 +737,15 @@ async function renderDashboard() {
     if (e.target.closest('#logout-btn')) return;
     navigateTo('account');
   });
+
+  $('#nav-notifications').addEventListener('click', (e) => {
+    e.preventDefault();
+    toggleNotifPanel();
+  });
+
+  $('#notif-backdrop').addEventListener('click', closeNotifPanel);
+
+  $('#notif-mark-all').addEventListener('click', markAllAsRead);
 
   $('#sidebar-logo-link').addEventListener('click', (e) => {
     e.preventDefault();
@@ -2514,7 +2653,11 @@ function init() {
       renderRegisterPage();
     }
   } else if (state.token) {
-    api('/servers/overview').then(() => renderDashboard()).catch(() => {
+    api('/servers/overview').then(() => {
+      renderDashboard();
+      fetchUnreadCount();
+      setInterval(fetchUnreadCount, 30000);
+    }).catch(() => {
       renderDashboard();
     });
   } else {

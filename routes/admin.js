@@ -6,6 +6,7 @@ import { query } from '../config/db.js';
 import { getAllServers, getServerById, getEgg, getPteroNests, getPteroNestEggs, suspendPteroServer, unsuspendPteroServer, deletePteroServer, deletePteroUser, updatePteroServerBuild, getPergoServerIdsByEgg } from '../services/pyrodactyl.js';
 import { verifyCap } from '../config/cap.js';
 import { logActivity } from '../services/activity.js';
+import { createNotification } from '../services/notification.js';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -129,6 +130,10 @@ router.post('/servers/:id/suspend', authenticateToken, requireAdmin, async (req,
     await query('UPDATE server_meta SET status = ?, suspend_reason = ?, suspended_by = ? WHERE ptero_server_id = ?', ['suspended', reason, 'admin', serverId]);
 
     await logActivity(req.user.userId, 'admin_suspend', `Admin suspended server #${serverId}${reason ? ': ' + reason : ''}`, serverId);
+    const sMeta = await query('SELECT user_id FROM server_meta WHERE ptero_server_id = ?', [serverId]);
+    if (sMeta.length > 0) {
+      await createNotification(sMeta[0].user_id, 'Server Suspended', `Your server #${serverId} has been suspended by an administrator.`, 'error', `/server/${serverId}`);
+    }
     res.json({ success: true });
   } catch (err) {
     console.error('Admin suspend error:', err.message);
@@ -146,6 +151,10 @@ router.post('/servers/:id/unsuspend', authenticateToken, requireAdmin, async (re
     await unsuspendPteroServer(serverId);
     await query('UPDATE server_meta SET status = ?, suspend_reason = NULL, suspended_by = NULL WHERE ptero_server_id = ?', ['active', serverId]);
     await logActivity(req.user.userId, 'admin_unsuspend', `Admin unsuspended server #${serverId}`, serverId);
+    const usMeta = await query('SELECT user_id FROM server_meta WHERE ptero_server_id = ?', [serverId]);
+    if (usMeta.length > 0) {
+      await createNotification(usMeta[0].user_id, 'Server Unsuspended', `Your server #${serverId} has been unsuspended by an administrator.`, 'success', `/server/${serverId}`);
+    }
     res.json({ success: true });
   } catch (err) {
     console.error('Admin unsuspend error:', err.message);

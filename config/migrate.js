@@ -71,6 +71,18 @@ const tables = {
       { name: 'updated_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP' },
     ],
   },
+  notifications: {
+    columns: [
+      { name: 'id', def: 'INT AUTO_INCREMENT PRIMARY KEY' },
+      { name: 'user_id', def: 'INT NOT NULL' },
+      { name: 'title', def: 'VARCHAR(255) NOT NULL' },
+      { name: 'message', def: 'TEXT NOT NULL' },
+      { name: 'type', def: "VARCHAR(20) NOT NULL DEFAULT 'info'" },
+      { name: 'link', def: 'VARCHAR(255) DEFAULT NULL' },
+      { name: 'is_read', def: 'TINYINT(1) NOT NULL DEFAULT 0' },
+      { name: 'created_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
+    ],
+  },
 
 };
 
@@ -92,6 +104,9 @@ const constraints = [
   { table: 'activity_log', sql: 'ALTER TABLE activity_log ADD INDEX idx_activity_user (user_id)', name: 'idx_activity_user' },
   { table: 'activity_log', sql: 'ALTER TABLE activity_log ADD INDEX idx_activity_created (created_at)', name: 'idx_activity_created' },
   { table: 'egg_resources', sql: 'ALTER TABLE egg_resources ADD UNIQUE INDEX idx_egg_resources_nest_egg (ptero_nest_id, ptero_egg_id)', name: 'idx_egg_resources_nest_egg' },
+  { table: 'notifications', sql: 'ALTER TABLE notifications ADD INDEX idx_notif_user (user_id)', name: 'idx_notif_user' },
+  { table: 'notifications', sql: 'ALTER TABLE notifications ADD INDEX idx_notif_user_read (user_id, is_read)', name: 'idx_notif_user_read' },
+  { table: 'notifications', sql: 'ALTER TABLE notifications ADD CONSTRAINT fk_notif_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE', name: 'fk_notif_user' },
 ];
 
 export async function migrate() {
