@@ -1750,6 +1750,11 @@ function initAdmin() {
     document.head.appendChild(meta);
   }
 
+  // Render a loading state immediately so the user never sees a blank screen
+  if (app) {
+    app.innerHTML = '<div class="auth-page"><div class="auth-card" style="text-align:center;padding:48px"><span class="spinner" style="width:32px;height:32px;border-width:3px;margin:0 auto 16px"></span><p style="color:var(--text-secondary)">Loading admin panel...</p></div></div>';
+  }
+
   const token = localStorage.getItem(ADMIN_STORAGE_KEY);
   if (token) {
     adminState.token = token;
