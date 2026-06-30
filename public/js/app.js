@@ -1150,6 +1150,7 @@ async function renderLog(pageNum) {
       </div>
       ${pageInfo}
     `;
+    initIcons();
   } catch (err) {
     const list = $('#log-list');
     if (list) list.innerHTML = '<div class="activity-empty">Could not load activity log.</div>';
