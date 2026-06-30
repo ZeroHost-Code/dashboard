@@ -255,6 +255,34 @@ export async function reinstallPteroServer(serverId) {
   });
 }
 
+export async function updatePteroServerBuild(serverId, limits) {
+  await pteroFetch(`/servers/${serverId}/build`, {
+    method: 'PATCH',
+    body: JSON.stringify({ limits }),
+  });
+}
+
+export async function getPergoServerIdsByEgg(nestId, eggId) {
+  const ids = [];
+  let page = 1;
+  let hasMore = true;
+  while (hasMore) {
+    const data = await pteroFetch(`/servers?page=${page}&per_page=100`);
+    const servers = data.data.map(s => s.attributes);
+    for (const s of servers) {
+      if (s.nest === nestId && s.egg === eggId) {
+        ids.push(s.id);
+      }
+    }
+    if (data.meta?.pagination?.total_pages > page) {
+      page++;
+    } else {
+      hasMore = false;
+    }
+  }
+  return ids;
+}
+
 export async function renamePteroServer(serverId, name) {
   const server = await getServerById(serverId);
   await pteroFetch(`/servers/${serverId}/details`, {

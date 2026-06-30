@@ -3,7 +3,7 @@ import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 import { authenticateToken } from '../middleware/auth.js';
 import { query } from '../config/db.js';
-import { getAllServers, getServerById, getEgg, getPteroNests, getPteroNestEggs, suspendPteroServer, unsuspendPteroServer, deletePteroServer, deletePteroUser } from '../services/pyrodactyl.js';
+import { getAllServers, getServerById, getEgg, getPteroNests, getPteroNestEggs, suspendPteroServer, unsuspendPteroServer, deletePteroServer, deletePteroUser, updatePteroServerBuild, getPergoServerIdsByEgg } from '../services/pyrodactyl.js';
 import { verifyCap } from '../config/cap.js';
 import { logActivity } from '../services/activity.js';
 
@@ -600,6 +600,49 @@ router.put('/settings/eggs/:nestId/:eggId', authenticateToken, requireAdmin, asy
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to save egg settings' });
+  }
+});
+
+router.post('/settings/eggs/:nestId/:eggId/apply-all', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { nestId, eggId } = req.params;
+    const { cpu_limit, memory_limit, disk_limit } = req.body;
+
+    // Save to egg_resources first
+    const [existing] = await query('SELECT id FROM egg_resources WHERE ptero_nest_id = ? AND ptero_egg_id = ?', [nestId, eggId]);
+    if (existing) {
+      await query('UPDATE egg_resources SET cpu_limit = ?, memory_limit = ?, disk_limit = ? WHERE id = ?',
+        [cpu_limit ?? null, memory_limit ?? null, disk_limit ?? null, existing.id]);
+    } else {
+      await query('INSERT INTO egg_resources (ptero_nest_id, ptero_egg_id, cpu_limit, memory_limit, disk_limit) VALUES (?, ?, ?, ?, ?)',
+        [nestId, eggId, cpu_limit ?? null, memory_limit ?? null, disk_limit ?? null]);
+    }
+
+    // Find all panel servers using this egg
+    const pteroIds = await getPergoServerIdsByEgg(parseInt(nestId, 10), parseInt(eggId, 10));
+
+    if (pteroIds.length === 0) {
+      return res.json({ success: true, updated: 0, total: 0 });
+    }
+
+    const limits = {};
+    if (cpu_limit != null) limits.cpu = cpu_limit;
+    if (memory_limit != null) limits.memory = memory_limit;
+    if (disk_limit != null) limits.disk = disk_limit;
+
+    let updated = 0;
+    for (const id of pteroIds) {
+      try {
+        await updatePteroServerBuild(id, limits);
+        updated++;
+      } catch (err) {
+        console.error(`Failed to update server #${id} build:`, err.message);
+      }
+    }
+
+    res.json({ success: true, updated, total: pteroIds.length });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to apply resources to all servers: ' + err.message });
   }
 });
 

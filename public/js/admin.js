@@ -1303,10 +1303,12 @@ async function renderAdminEggSettings(nestId, eggId) {
           <label for="egg-disk">Disk Limit (MB)</label>
           <input type="number" id="egg-disk" min="0" placeholder="e.g. 3072" style="width:100%" />
         </div>
-        <div style="display:flex;gap:8px;margin-top:20px">
+        <div style="display:flex;gap:8px;margin-top:20px;flex-wrap:wrap">
           <button type="submit" class="btn btn-primary" id="btn-save-egg-resources" style="width:auto">Save</button>
+          <button type="button" class="btn btn-warning" id="btn-save-egg-resources-all" style="width:auto">Save for All</button>
           <button type="button" class="btn btn-ghost" id="btn-clear-egg-resources" style="width:auto">Clear Overrides</button>
         </div>
+        <div id="admin-egg-apply-all-msg" style="margin-top:12px;display:none"></div>
       </form>
     </div>
   `;
@@ -1373,6 +1375,43 @@ async function renderAdminEggSettings(nestId, eggId) {
       setTimeout(() => { btn.textContent = 'Clear Overrides'; }, 1500);
     } catch (err) {
       if (errEl) { errEl.textContent = err.message; errEl.classList.add('show'); }
+    }
+  });
+
+  $a('#btn-save-egg-resources-all')?.addEventListener('click', async () => {
+    if (!confirm('Apply these resources to ALL existing servers using this egg? This will update their limits on the panel.')) return;
+    const btn = $a('#btn-save-egg-resources-all');
+    const msgEl = $a('#admin-egg-apply-all-msg');
+    const errEl = $a('#admin-egg-resources-error');
+    if (errEl) errEl.classList.remove('show');
+    if (msgEl) { msgEl.style.display = 'none'; }
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Applying...';
+
+    const cpu = $a('#egg-cpu').value;
+    const memory = $a('#egg-memory').value;
+    const disk = $a('#egg-disk').value;
+
+    try {
+      const data = await adminApi(`/settings/eggs/${nestId}/${eggId}/apply-all`, {
+        method: 'POST',
+        body: JSON.stringify({
+          cpu_limit: cpu !== '' ? parseInt(cpu, 10) : null,
+          memory_limit: memory !== '' ? parseInt(memory, 10) : null,
+          disk_limit: disk !== '' ? parseInt(disk, 10) : null,
+        }),
+      });
+      if (msgEl) {
+        msgEl.textContent = `Updated ${data.updated} / ${data.total} server(s) successfully.`;
+        msgEl.style.display = 'block';
+        msgEl.style.color = 'var(--accent-green)';
+      }
+      btn.innerHTML = 'Done!';
+      setTimeout(() => { btn.disabled = false; btn.innerHTML = 'Save for All'; }, 2000);
+    } catch (err) {
+      if (errEl) { errEl.textContent = err.message; errEl.classList.add('show'); }
+      btn.disabled = false;
+      btn.innerHTML = 'Save for All';
     }
   });
 }
