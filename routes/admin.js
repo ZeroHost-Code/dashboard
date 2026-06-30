@@ -431,6 +431,37 @@ router.post('/users/:id/notify', authenticateToken, requireAdmin, async (req, re
   }
 });
 
+router.post('/notify-all', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { title, message, type } = req.body;
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: 'Title is required' });
+    }
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    const validTypes = ['info', 'success', 'warning', 'error'];
+    const notifType = validTypes.includes(type) ? type : 'info';
+
+    const users = await query('SELECT id FROM users');
+    if (users.length === 0) {
+      return res.status(404).json({ error: 'No users found' });
+    }
+
+    for (const user of users) {
+      await createNotification(user.id, title.trim(), message.trim(), notifType);
+    }
+
+    await logActivity(req.user.userId, 'admin_notify_all', `Sent notification to all ${users.length} user(s): ${title.trim()}`, null);
+
+    res.json({ success: true, count: users.length });
+  } catch (err) {
+    console.error('Admin notify-all error:', err.message);
+    res.status(500).json({ error: 'Failed to send notifications: ' + err.message });
+  }
+});
+
 router.delete('/users/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const userId = parseInt(req.params.id, 10);

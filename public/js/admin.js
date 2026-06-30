@@ -780,6 +780,72 @@ function showNotifyModal(userId) {
   });
 }
 
+// ─── Send Notification to All Users Modal ───────────────
+function showNotifyAllModal() {
+  const content = $a('#admin-modal-content');
+  const overlay = $a('#admin-modal-overlay');
+  if (!content || !overlay) return;
+
+  content.innerHTML = ahtml`
+    <div>
+      <h3 style="margin:0 0 16px 0;color:var(--text-primary)">Notify All Users</h3>
+      <form id="admin-notify-all-form">
+        <div class="form-group" style="margin-bottom:12px">
+          <label for="admin-notify-all-title">Title</label>
+          <input type="text" id="admin-notify-all-title" placeholder="e.g. Platform Update" style="width:100%" required />
+        </div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label for="admin-notify-all-message">Message</label>
+          <textarea id="admin-notify-all-message" rows="3" placeholder="Write your message to all users..." style="resize:vertical;width:100%;padding:10px 14px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:inherit;font-size:0.88rem;margin-top:6px;box-sizing:border-box" required></textarea>
+        </div>
+        <div class="form-group" style="margin-bottom:16px">
+          <label for="admin-notify-all-type">Type</label>
+          <select id="admin-notify-all-type" style="width:100%">
+            <option value="info">Info</option>
+            <option value="success">Success</option>
+            <option value="warning">Warning</option>
+            <option value="error">Error</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button type="submit" class="btn btn-primary btn-full" id="admin-btn-send-notify-all" style="justify-content:center">Send to All Users</button>
+          <button type="button" class="btn btn-ghost btn-full" onclick="closeAdminModal()" style="justify-content:center">Cancel</button>
+        </div>
+        <div id="admin-notify-all-msg" style="margin-top:12px;display:none"></div>
+      </form>
+    </div>
+  `;
+  overlay.style.display = 'flex';
+
+  $a('#admin-notify-all-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = $a('#admin-btn-send-notify-all');
+    const msgEl = $a('#admin-notify-all-msg');
+    const titleEl = $a('#admin-notify-all-title');
+    const messageEl = $a('#admin-notify-all-message');
+    const typeEl = $a('#admin-notify-all-type');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Sending...';
+    if (msgEl) msgEl.style.display = 'none';
+    try {
+      const data = await adminApi('/notify-all', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: titleEl.value.trim(),
+          message: messageEl.value.trim(),
+          type: typeEl.value,
+        }),
+      });
+      if (msgEl) { msgEl.textContent = `Notification sent to ${data.count} user(s) successfully`; msgEl.style.display = 'block'; msgEl.style.color = 'var(--accent-green)'; }
+      setTimeout(() => { closeAdminModal(); }, 1500);
+    } catch (err) {
+      if (msgEl) { msgEl.textContent = err.message; msgEl.style.display = 'block'; msgEl.style.color = 'var(--accent-red)'; }
+      btn.disabled = false;
+      btn.innerHTML = 'Send to All Users';
+    }
+  });
+}
+
 // ─── Dashboard ──────────────────────────────────────────
 async function renderAdminDashboard() {
   document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
@@ -1262,9 +1328,17 @@ async function renderAdminSettings() {
         <h2 class="card-title" style="margin-bottom:4px">Eggs Settings</h2>
         <p style="color:var(--text-secondary);font-size:0.85rem;margin:0">Manage nests, eggs, and per-egg resource overrides</p>
       </div>
+      <div class="card settings-card" style="cursor:pointer;padding:24px;transition:var(--transition);border:1px solid var(--border);border-radius:var(--radius-md)" id="settings-notify-all-entry" onmouseover="this.style.borderColor='var(--accent-1)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-size:1.5rem;margin-bottom:8px">
+          <i data-lucide="megaphone" style="width:32px;height:32px;color:var(--accent-1)"></i>
+        </div>
+        <h2 class="card-title" style="margin-bottom:4px">Send Notification to All Users</h2>
+        <p style="color:var(--text-secondary);font-size:0.85rem;margin:0">Send a message to every user's notification inbox</p>
+      </div>
     </div>
   `;
   $a('#settings-eggs-entry')?.addEventListener('click', () => adminNavigateTo('settings/eggs'));
+  $a('#settings-notify-all-entry')?.addEventListener('click', () => showNotifyAllModal());
   initIcons();
 }
 
