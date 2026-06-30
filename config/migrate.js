@@ -15,6 +15,7 @@ const tables = {
       { name: 'is_admin', def: 'TINYINT(1) NOT NULL DEFAULT 0' },
       { name: 'restricted', def: 'TINYINT(1) NOT NULL DEFAULT 0' },
       { name: 'auth_restricted', def: 'TINYINT(1) NOT NULL DEFAULT 0' },
+      { name: 'token_version', def: 'INT NOT NULL DEFAULT 0' },
       { name: 'avatar', def: 'VARCHAR(255) DEFAULT NULL' },
       { name: 'ptero_client_api_key', def: 'VARCHAR(255) DEFAULT NULL' },
       { name: 'created_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },

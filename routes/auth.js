@@ -214,6 +214,7 @@ router.post('/login', async (req, res) => {
       username: user.username,
       pteroId: user.ptero_user_id,
       isAdmin: !!user.is_admin,
+      tokenVersion: user.token_version,
     });
 
     res.cookie('token', token, {

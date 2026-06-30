@@ -49,7 +49,7 @@ router.post('/login', async (req, res) => {
     }
 
     const token = jwt.sign(
-      { userId: user.id, email: user.email, username: user.username, pteroId: user.ptero_user_id, isAdmin: true },
+      { userId: user.id, email: user.email, username: user.username, pteroId: user.ptero_user_id, isAdmin: true, tokenVersion: user.token_version },
       JWT_SECRET,
       { expiresIn: '2h', algorithm: 'HS256' }
     );
@@ -348,7 +348,11 @@ router.post('/users/:id/toggle-auth-restriction', authenticateToken, requireAdmi
     }
 
     const newStatus = users[0].auth_restricted ? 0 : 1;
-    await query('UPDATE users SET auth_restricted = ? WHERE id = ?', [newStatus, userId]);
+    if (newStatus) {
+      await query('UPDATE users SET auth_restricted = 1, token_version = token_version + 1 WHERE id = ?', [userId]);
+    } else {
+      await query('UPDATE users SET auth_restricted = 0 WHERE id = ?', [userId]);
+    }
 
     await logActivity(req.user.userId, 'admin_toggle_auth_restriction', `${newStatus ? 'Auth restricted' : 'Auth unrestricted'} user #${userId}`);
     res.json({ success: true, auth_restricted: !!newStatus });
