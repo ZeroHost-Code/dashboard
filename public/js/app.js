@@ -826,6 +826,7 @@ function initSidebarTooltip() {
 }
 
 function navigateTo(page) {
+  if (state.notifPanelOpen) closeNotifPanel();
   const parts = page.split('/');
   let basePage = parts[0] || 'overview';
   const param = parts[1];
