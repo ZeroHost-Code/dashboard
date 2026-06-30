@@ -1,3 +1,5 @@
+function initIcons() { if (window.lucide) lucide.createIcons(); }
+
 const API_BASE = window.location.origin;
 
 const state = {
@@ -7,6 +9,9 @@ const state = {
   servers: [],
   rgpdConsent: JSON.parse(localStorage.getItem('zh_rgpd_consent') || 'null'),
   serverDetailTab: 'info',
+  notifications: [],
+  unreadCount: 0,
+  notifPanelOpen: false,
 };
 
 function setRgpdConsent(preferences) {
@@ -61,7 +66,20 @@ async function sendPowerCommand(identifier, signal, event) {
   try {
     await api(`/servers/power/${identifier}`, { method: 'POST', body: JSON.stringify({ signal }) });
   } catch (err) {
-    alert('Failed to send ' + signal + ' command: ' + err.message);
+    const overlay = $('#modal-overlay');
+    const content = $('#modal-content');
+    content.innerHTML = html`
+      <div class="modal-title">Command Failed</div>
+      <div style="text-align:center;padding:8px 0 16px">
+        <i data-lucide="circle-alert" style="width:48px;height:48px;color:var(--accent-red);margin-bottom:12px"></i>
+        <p style="color:var(--text-secondary);line-height:1.6;margin:0">Failed to send ${signal} command:</p>
+        <p style="color:var(--text-primary);font-weight:600;margin:4px 0 0 0">${err.message}</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary btn-full modal-cancel-btn">OK</button>
+      </div>
+    `;
+    overlay.classList.add('open');
   } finally {
     if (btn) {
       btn.disabled = false;
@@ -111,6 +129,21 @@ function gravatarUrl(email, size = 32) {
   const hash = md5(email.trim().toLowerCase());
   return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=identicon`;
 }
+
+function avatarUrl(userId) {
+  return `${API_BASE}/api/auth/avatar/${userId}`;
+}
+
+window.handleAvatarError = function(img) {
+  if (!img.dataset.fallbackTried) {
+    img.dataset.fallbackTried = 'gravatar';
+    img.src = gravatarUrl(state.user?.email, 32);
+  } else {
+    img.style.display = 'none';
+    const fallback = document.getElementById('avatar-fallback');
+    if (fallback) fallback.style.display = 'flex';
+  }
+};
 
 function html(strings, ...values) {
   return strings.reduce((acc, str, i) => acc + str + (values[i] ?? ''), '');
@@ -175,7 +208,136 @@ function hideError(form) {
   if (errorEl) errorEl.classList.remove('show');
 }
 
+const NOTIF_ICONS = {
+  success: '<i data-lucide="check-circle" class="notif-icon"></i>',
+  error: '<i data-lucide="x-circle" class="notif-icon"></i>',
+  warning: '<i data-lucide="triangle-alert" class="notif-icon"></i>',
+  info: '<i data-lucide="info" class="notif-icon"></i>',
+};
 
+function timeAgo(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return minutes + 'm ago';
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours + 'h ago';
+  const days = Math.floor(hours / 24);
+  if (days < 7) return days + 'd ago';
+  return new Date(dateStr).toLocaleDateString();
+}
+
+async function fetchUnreadCount() {
+  try {
+    const data = await api('/notifications/unread-count');
+    state.unreadCount = data.count;
+    updateNotifBadge();
+  } catch {}
+}
+
+async function fetchNotifications() {
+  try {
+    const data = await api('/notifications');
+    state.notifications = data.notifications;
+    renderNotifications();
+  } catch {}
+}
+
+function renderNotifications() {
+  const list = $('#notif-panel-list');
+  if (!list) return;
+  if (state.notifications.length === 0) {
+    list.innerHTML = '<div class="notif-empty">No notifications yet</div>';
+    return;
+  }
+  list.innerHTML = state.notifications.map(n => html`
+    <div class="notif-item ${n.is_read ? '' : 'notif-unread'}" data-id="${n.id}">
+      <div class="notif-item-icon notif-${n.type}">${NOTIF_ICONS[n.type] || NOTIF_ICONS.info}</div>
+      <div class="notif-item-body">
+        <div class="notif-item-title">${n.title}</div>
+        <div class="notif-item-msg">${n.message}</div>
+        <div class="notif-item-time">${timeAgo(n.created_at)}</div>
+      </div>
+      ${n.is_read ? '' : '<div class="notif-dot"></div>'}
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.notif-item.notif-unread').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = parseInt(el.dataset.id, 10);
+      markAsRead(id);
+    });
+  });
+  initIcons();
+}
+
+async function markAsRead(id) {
+  try {
+    await api('/notifications/' + id + '/read', { method: 'PATCH' });
+    const notif = state.notifications.find(n => n.id === id);
+    if (notif) notif.is_read = 1;
+    state.unreadCount = Math.max(0, state.unreadCount - 1);
+    updateNotifBadge();
+    renderNotifications();
+  } catch {}
+}
+
+async function markAllAsRead() {
+  try {
+    await api('/notifications/read-all', { method: 'PATCH' });
+    state.notifications.forEach(n => n.is_read = 1);
+    state.unreadCount = 0;
+    updateNotifBadge();
+    renderNotifications();
+  } catch {}
+}
+
+function updateNotifBadge() {
+  const badge = $('#notif-badge');
+  if (!badge) return;
+  if (state.unreadCount > 0) {
+    badge.textContent = state.unreadCount > 99 ? '99+' : state.unreadCount;
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function toggleNotifPanel() {
+  if (state.notifPanelOpen) {
+    closeNotifPanel();
+  } else {
+    openNotifPanel();
+  }
+}
+
+function openNotifPanel() {
+  state.notifPanelOpen = true;
+  $('#notif-panel').classList.add('open');
+  $('#notif-backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  $('#nav-notifications').classList.add('active');
+  updateNavIndicator();
+
+  fetchNotifications();
+  if (state.unreadCount > 0) {
+    fetchUnreadCount();
+  }
+}
+
+function closeNotifPanel() {
+  state.notifPanelOpen = false;
+  $('#notif-panel').classList.remove('open');
+  $('#notif-backdrop').classList.remove('open');
+  document.body.style.overflow = '';
+
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const targetNav = document.querySelector(`.nav-item[data-page="${state.currentPage}"]`);
+  if (targetNav) targetNav.classList.add('active');
+  updateNavIndicator();
+}
 
 function showCapModal() {
   return new Promise((resolve) => {
@@ -475,56 +637,84 @@ async function renderDashboard() {
           <div class="nav-indicator" id="nav-indicator"></div>
           <div class="nav-section-label">Main</div>
           <a class="nav-item active" data-page="overview" href="/">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            <i data-lucide="grid-3x3"></i>
             Overview
           </a>
           <a class="nav-item" data-page="servers" href="/servers">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1" fill="currentColor"/><circle cx="6" cy="18" r="1" fill="currentColor"/></svg>
+            <i data-lucide="server"></i>
             My Servers
+          </a>
+          <a class="nav-item" id="nav-notifications" href="#">
+            <span style="position:relative;display:inline-flex">
+              <i data-lucide="bell"></i>
+              <span class="notif-badge" id="notif-badge"></span>
+            </span>
+            Notifications
           </a>
           <div class="nav-section-label">Actions</div>
           <a class="nav-item" data-page="create" href="/create">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            <i data-lucide="plus"></i>
             Create Server
           </a>
           <div class="nav-section-label">Links</div>
           <a class="nav-item" href="https://hub.zero-host.org" target="_blank">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <i data-lucide="globe"></i>
             Links Hub
           </a>
           <a class="nav-item" href="${window.location.hostname === 'beta.zero-host.org' ? 'https://dashboard.zero-host.org' : 'https://beta.zero-host.org'}" target="_blank">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+            <i data-lucide="globe"></i>
             ${window.location.hostname === 'beta.zero-host.org' ? 'Switch to Stable' : 'Switch to Beta'}
           </a>
+          ${state.user?.isAdmin ? html`
+          <a class="nav-item" href="/admin">
+            <i data-lucide="shield"></i>
+            Switch Admin
+          </a>
+          ` : ''}
         </nav>
         <div class="sidebar-tooltip" id="sidebar-tooltip"></div>
         <div class="sidebar-footer">
           <div class="user-info" id="sidebar-user-info" style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer">
             <div style="display:flex;align-items:center;gap:10px">
-              <div class="user-avatar" id="avatar-container"><img src="${gravatarUrl(state.user?.email, 32)}" alt="" width="32" height="32" style="border-radius:50%;width:32px;height:32px;object-fit:cover" onerror="this.style.display='none';document.getElementById('avatar-fallback').style.display='flex'"/><span id="avatar-fallback" style="display:none">${state.user?.username?.[0]?.toUpperCase() || 'U'}</span></div>
+              <div class="user-avatar" id="avatar-container"><img src="${avatarUrl(state.user?.id)}" alt="" width="32" height="32" style="border-radius:50%;width:32px;height:32px;object-fit:cover" onerror="handleAvatarError(this)"/><span id="avatar-fallback" style="display:none">${state.user?.username?.[0]?.toUpperCase() || 'U'}</span></div>
               <div>
                 <div class="user-name">${state.user?.username || 'User'}</div>
                 <div class="user-email">${state.user?.email || ''}</div>
               </div>
             </div>
             <div id="logout-btn" style="cursor:pointer;color:var(--text-muted);display:flex;align-items:center;padding:6px;border-radius:var(--radius-sm);transition:all var(--transition)" title="Sign Out">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+              <i data-lucide="log-out" style="width:18px;height:18px"></i>
             </div>
           </div>
           <div style="border-top:1px solid var(--border);margin:6px -12px 0"></div>
           <div style="padding:8px 12px 0;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
 
           </div>
-          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v1.0.1</div>
+          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v1.0.2</div>
         </div>
         <div class="sidebar-resizer" id="sidebar-resizer"></div>
       </aside>
 
+      <div class="notif-panel" id="notif-panel">
+        <div class="notif-panel-header">
+          <h3>Notifications</h3>
+          <button class="notif-mark-all" id="notif-mark-all">Mark all read</button>
+        </div>
+        <div class="notif-panel-list" id="notif-panel-list">
+          <div class="notif-empty">No notifications yet</div>
+        </div>
+      </div>
+      <div class="notif-backdrop" id="notif-backdrop"></div>
+
       <button class="hamburger-toggle" id="hamburger-toggle" aria-label="Toggle menu">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+        <i data-lucide="menu" style="width:20px;height:20px"></i>
       </button>
 
       <main class="main-content">
+        <div id="restricted-banner" style="display:${state.user?.restricted ? 'flex' : 'none'};align-items:center;justify-content:center;gap:8px;background:rgba(239,68,68,0.12);color:var(--accent-red);padding:12px 20px;font-size:0.875rem;text-align:center;border:2px solid rgba(239,68,68,0.25);border-radius:10px;margin:8px 16px 0">
+          <i data-lucide="triangle-alert" style="width:18px;height:18px;flex-shrink:0"></i>
+          <span><strong>Account Restricted</strong> &mdash; Your account has been restricted. You cannot create or renew servers.</span>
+        </div>
         <div class="page active" id="page-overview"></div>
         <div class="page" id="page-servers"></div>
         <div class="page" id="page-create"></div>
@@ -562,6 +752,15 @@ async function renderDashboard() {
     navigateTo('account');
   });
 
+  $('#nav-notifications').addEventListener('click', (e) => {
+    e.preventDefault();
+    toggleNotifPanel();
+  });
+
+  $('#notif-backdrop').addEventListener('click', closeNotifPanel);
+
+  $('#notif-mark-all').addEventListener('click', markAllAsRead);
+
   $('#sidebar-logo-link').addEventListener('click', (e) => {
     e.preventDefault();
     toggleSidebarCollapse();
@@ -574,6 +773,8 @@ async function renderDashboard() {
   initSidebarResize();
 
   initSidebarTooltip();
+
+  initIcons();
 
   const page = window.location.pathname.replace('/', '') || 'overview';
   navigateTo(page);
@@ -619,7 +820,7 @@ function initSidebarTooltip() {
         tooltipTimer = setTimeout(() => {
           showTooltipForItem(item);
           tooltipQuickMode = true;
-        }, 3000);
+        }, 700);
       }
     }
   });
@@ -632,9 +833,11 @@ function initSidebarTooltip() {
 }
 
 function navigateTo(page) {
+  if (state.notifPanelOpen) closeNotifPanel();
   const parts = page.split('/');
   let basePage = parts[0] || 'overview';
   const param = parts[1];
+  const tab = parts[2];
 
   // Auth pages - redirect to / if already logged in
   if ((basePage === 'login' || basePage === 'signup') && state.token) {
@@ -671,7 +874,7 @@ function navigateTo(page) {
 
   state.currentPage = basePage;
   state.serverId = param ? parseInt(param) : null;
-  state.serverDetailTab = 'info';
+  state.serverDetailTab = tab || 'info';
   const url = basePage === 'overview' && !param ? '/' : `/${page}`;
   history.pushState({ page: basePage, serverId: state.serverId }, '', url);
 
@@ -691,7 +894,6 @@ function navigateTo(page) {
     else if (basePage === 'pyrodactyl') renderPyrodactyl();
     else if (basePage === 'account') {
       if (param === 'edit') renderAccountEdit();
-      else if (param === 'links') renderAccountLinks();
       else if (param === 'dangerous') renderDangerous();
       else renderAccount();
     } else if (basePage === 'logs') {
@@ -704,6 +906,8 @@ function navigateTo(page) {
   if (window.innerWidth <= 768) {
     $('#sidebar').classList.remove('open');
   }
+
+  initIcons();
 }
 
 function updateNavIndicator() {
@@ -724,6 +928,7 @@ window.addEventListener('popstate', () => {
   const parts = path.replace(/^\//, '').split('/');
   let basePage = parts[0] || 'overview';
   const param = parts[1];
+  const tab = parts[2];
 
   // Auth pages - redirect to / if already logged in
   if ((basePage === 'login' || basePage === 'signup') && state.token) {
@@ -739,7 +944,7 @@ window.addEventListener('popstate', () => {
 
   state.currentPage = basePage;
   state.serverId = param ? parseInt(param) : null;
-  state.serverDetailTab = 'info';
+  state.serverDetailTab = tab || 'info';
 
   if (basePage === 'server' && state.serverId) {
     const targetPage = $('#page-server-detail');
@@ -757,7 +962,6 @@ window.addEventListener('popstate', () => {
     else if (basePage === 'pyrodactyl') renderPyrodactyl();
     else if (basePage === 'account') {
       if (param === 'edit') renderAccountEdit();
-      else if (param === 'links') renderAccountLinks();
       else if (param === 'dangerous') renderDangerous();
       else renderAccount();
     } else if (basePage === 'logs') {
@@ -776,10 +980,10 @@ async function renderOverview() {
       <p class="page-subtitle">Welcome back, ${state.user?.username || 'user'}</p>
     </div>
     <div class="stat-grid" id="stats-grid">
-      <div class="stat-card"><div class="stat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg></div><div class="stat-value" id="stat-total">—</div><div class="stat-label">Total Servers</div></div>
-      <div class="stat-card"><div class="stat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><div class="stat-value" id="stat-active">—</div><div class="stat-label">Active Servers</div></div>
-      <div class="stat-card"><div class="stat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="4"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div><div class="stat-value" id="stat-slots">—</div><div class="stat-label">Server Slots</div></div>
-      <div class="stat-card"><div class="stat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div><div class="stat-value" id="stat-renew">—</div><div class="stat-label">To Renew</div></div>
+      <div class="stat-card"><div class="stat-icon"><i data-lucide="server" style="width:20px;height:20px"></i></div><div class="stat-value" id="stat-total">—</div><div class="stat-label">Total Servers</div></div>
+      <div class="stat-card"><div class="stat-icon"><i data-lucide="activity" style="width:20px;height:20px"></i></div><div class="stat-value" id="stat-active">—</div><div class="stat-label">Active Servers</div></div>
+      <div class="stat-card"><div class="stat-icon"><i data-lucide="target" style="width:20px;height:20px"></i></div><div class="stat-value" id="stat-slots">—</div><div class="stat-label">Server Slots</div></div>
+      <div class="stat-card"><div class="stat-icon"><i data-lucide="eye" style="width:20px;height:20px"></i></div><div class="stat-value" id="stat-renew">—</div><div class="stat-label">To Renew</div></div>
     </div>
     <div class="card">
       <div class="card-header">
@@ -793,6 +997,12 @@ async function renderOverview() {
 
   try {
     const data = await api('/servers/overview');
+
+    if (data.restricted !== undefined) {
+      state.user = { ...state.user, restricted: data.restricted };
+      const banner = $('#restricted-banner');
+      if (banner) banner.style.display = data.restricted ? 'block' : 'none';
+    }
 
     if (data.pteroError) {
       $('#page-overview .card').insertAdjacentHTML('afterbegin', html`
@@ -817,7 +1027,7 @@ async function renderOverview() {
     if (data.servers.length === 0 && !data.pteroError) {
       $('#recent-servers-list').innerHTML = html`
         <div class="empty-state">
-          <div class="empty-state-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg></div>
+          <div class="empty-state-icon"><i data-lucide="server" style="width:24px;height:24px"></i></div>
           <div class="empty-state-title">No servers yet</div>
           <div class="empty-state-desc">Create your first server to get started</div>
           <button class="btn btn-primary" id="empty-create-server-btn">Create Server</button>
@@ -832,25 +1042,30 @@ async function renderOverview() {
       `;
     }
 
-    renderActivity();
   } catch (err) {
     $('#recent-servers-list').innerHTML = html`
       <div style="text-align:center;padding:32px;color:var(--accent-red)">Failed to load: ${err.message}</div>
     `;
   }
+
+  initIcons();
 }
 
 let activityIcons = {
-  server_created: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
-  server_renewed: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>',
-  server_renamed: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
-  server_reinstalled: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>',
-  server_deleted: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>',
-  account_registered: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>',
-  password_changed: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>',
-  email_changed: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
-  account_deleted: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><circle cx="12" cy="18" r="1"/></svg>',
-  api_key_updated: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>',
+  server_created: '<i data-lucide="plus-circle" style="width:14px;height:14px"></i>',
+  server_renewed: '<i data-lucide="refresh-cw" style="width:14px;height:14px"></i>',
+  server_renamed: '<i data-lucide="edit" style="width:14px;height:14px"></i>',
+  server_reinstalled: '<i data-lucide="refresh-cw" style="width:14px;height:14px"></i>',
+  server_deleted: '<i data-lucide="trash-2" style="width:14px;height:14px"></i>',
+  account_registered: '<i data-lucide="user-plus" style="width:14px;height:14px"></i>',
+  password_changed: '<i data-lucide="lock" style="width:14px;height:14px"></i>',
+  email_changed: '<i data-lucide="mail" style="width:14px;height:14px"></i>',
+  account_deleted: '<i data-lucide="triangle-alert" style="width:14px;height:14px"></i>',
+  api_key_updated: '<i data-lucide="key" style="width:14px;height:14px"></i>',
+  avatar_updated: '<i data-lucide="image" style="width:14px;height:14px"></i>',
+  admin_suspend: '<i data-lucide="shield-off" style="width:14px;height:14px"></i>',
+  admin_unsuspend: '<i data-lucide="shield-check" style="width:14px;height:14px"></i>',
+  admin_renew_now: '<i data-lucide="refresh-cw" style="width:14px;height:14px"></i>',
 };
 
 function formatRelativeTime(dateStr) {
@@ -877,6 +1092,10 @@ function getActionLabel(action) {
     email_changed: 'Email changed',
     account_deleted: 'Account deleted',
     api_key_updated: 'API key updated',
+    avatar_updated: 'Profile picture updated',
+    admin_suspend: 'Server suspended (Admin)',
+    admin_unsuspend: 'Server unsuspended (Admin)',
+    admin_renew_now: 'Server force-renewed (Admin)',
   };
   return labels[action] || action;
 }
@@ -932,66 +1151,10 @@ async function renderLog(pageNum) {
       </div>
       ${pageInfo}
     `;
+    initIcons();
   } catch (err) {
     const list = $('#log-list');
     if (list) list.innerHTML = '<div class="activity-empty">Could not load activity log.</div>';
-  }
-}
-
-async function renderActivity() {
-  const el = $('#page-overview');
-  let activitySection = $('#activity-section');
-
-  if (!activitySection) {
-    const card = el.querySelector('.card:last-child');
-    const section = document.createElement('div');
-    section.id = 'activity-section';
-    section.className = 'card';
-    section.style.marginTop = '20px';
-    section.innerHTML = html`
-      <div class="card-header">
-        <h2 class="card-title">Recent Activity</h2>
-      </div>
-      <div id="activity-list"><div style="text-align:center;padding:24px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</div></div>
-    `;
-    card.parentNode.insertBefore(section, card.nextSibling);
-    activitySection = section;
-  }
-
-  try {
-    const data = await api('/activity?limit=5');
-    const list = $('#activity-list');
-
-    if (data.activities.length === 0) {
-      list.innerHTML = '<div class="activity-empty">No activity yet. Create a server to get started.</div>';
-      return;
-    }
-
-    const showCount = Math.min(4, data.activities.length);
-    const hasMore = data.total > 4;
-
-    list.innerHTML = html`
-      <div class="activity-list${hasMore ? ' activity-list-truncated' : ''}">
-        ${data.activities.slice(0, showCount).map(a => html`
-          <div class="activity-item">
-            <div class="activity-icon activity-icon-${a.action}">${activityIcons[a.action] || ''}</div>
-            <div class="activity-content">
-              <div class="activity-action">${getActionLabel(a.action)}</div>
-              <div class="activity-details">${a.details || ''}</div>
-            </div>
-            <div class="activity-time">${formatRelativeTime(a.created_at)}</div>
-          </div>
-        `).join('')}
-        ${hasMore ? html`
-          <div class="activity-more-overlay">
-            <a class="btn btn-primary btn-sm" onclick="navigateTo('logs')" style="width:auto">View all logs</a>
-          </div>
-        ` : ''}
-      </div>
-    `;
-  } catch (err) {
-    const list = $('#activity-list');
-    if (list) list.innerHTML = '<div class="activity-empty">Could not load activity.</div>';
   }
 }
 
@@ -1012,12 +1175,14 @@ function renderServerCard(s) {
   const alloc = s.allocationDetails;
   const isInstalling = s.status === 'installing' || s.installed === 0 || s.installed === '0' || s.installed === false;
   const isSuspended = s.status === 'suspended';
-  const statusClass = isSuspended ? 'status-suspended' : (isInstalling ? 'status-installing' : 'status-active');
-  const statusLabel = isSuspended ? 'Suspended' : (isInstalling ? 'Installing' : 'Active');
-  const allocStr = alloc ? `${alloc.alias || alloc.nodeFqdn || alloc.ip}:${alloc.port}` : (s.nodeFqdn || `Node #${s.node}`);
   const meta = s.serverMeta;
   const days = meta ? daysRemaining(meta.expires_at) : null;
   const canRenew = days !== null && days <= 7 && days >= -7;
+  const isAdminSuspended = isSuspended && meta?.suspended_by === 'admin';
+  const isExpiredRenewable = isSuspended && canRenew && !isAdminSuspended;
+  const statusClass = isAdminSuspended ? 'status-suspended' : (isExpiredRenewable ? 'status-expired' : (isInstalling ? 'status-installing' : 'status-active'));
+  const statusLabel = isAdminSuspended ? 'Suspended' : (isExpiredRenewable ? 'Expired' : (isInstalling ? 'Installing' : 'Active'));
+  const allocStr = alloc ? `${alloc.alias || alloc.nodeFqdn || alloc.ip}:${alloc.port}` : (s.nodeFqdn || `Node #${s.node}`);
   const expClass = days !== null && days <= 0 ? 'expired' : (days !== null && days <= 7 ? 'expiring' : '');
   return html`
     <div class="server-card">
@@ -1038,10 +1203,10 @@ function renderServerCard(s) {
       ` : ''}
       <div class="server-card-actions">
         <button class="btn btn-ghost btn-sm" onclick="openPyrodactylPanel('${s.identifier}')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+          <i data-lucide="external-link" style="width:14px;height:14px"></i>
           Open Panel
         </button>
-        ${canRenew ? html`
+        ${canRenew && !isAdminSuspended ? html`
           <button class="btn btn-primary btn-sm btn-renew-server" data-server-id="${s.id}">Renew</button>
         ` : ''}
       </div>
@@ -1054,13 +1219,15 @@ function renderServerRow(s) {
   const alloc = s.allocationDetails;
   const isInstalling = s.status === 'installing' || s.installed === 0 || s.installed === '0' || s.installed === false;
   const isSuspended = s.status === 'suspended';
-  const powerState = s.currentState ? s.currentState.charAt(0).toUpperCase() + s.currentState.slice(1) : null;
-  const statusClass = isSuspended ? 'status-suspended' : (isInstalling ? 'status-installing' : (powerState === 'Offline' ? 'status-offline' : 'status-active'));
-  const statusLabel = isSuspended ? 'Suspended' : (isInstalling ? 'Installing' : (powerState || 'Active'));
-  const allocStr = alloc ? `${alloc.alias || alloc.nodeFqdn || alloc.ip}:${alloc.port}` : (s.nodeFqdn || `Node #${s.node}`);
   const meta = s.serverMeta;
   const days = meta ? daysRemaining(meta.expires_at) : null;
   const canRenew = days !== null && days <= 7 && days >= -7;
+  const isAdminSuspended = isSuspended && meta?.suspended_by === 'admin';
+  const isExpiredRenewable = isSuspended && canRenew && !isAdminSuspended;
+  const powerState = s.currentState ? s.currentState.charAt(0).toUpperCase() + s.currentState.slice(1) : null;
+  const statusClass = isAdminSuspended ? 'status-suspended' : (isExpiredRenewable ? 'status-expired' : (isInstalling ? 'status-installing' : (powerState === 'Offline' ? 'status-offline' : 'status-active')));
+  const statusLabel = isAdminSuspended ? 'Suspended' : (isExpiredRenewable ? 'Expired' : (isInstalling ? 'Installing' : (powerState || 'Active')));
+  const allocStr = alloc ? `${alloc.alias || alloc.nodeFqdn || alloc.ip}:${alloc.port}` : (s.nodeFqdn || `Node #${s.node}`);
   return html`
     <tr>
       <td><strong><a href="/server/${s.id}" onclick="event.preventDefault();navigateTo('server/${s.id}')" style="color:inherit;text-decoration:none">${s.name}</a></strong></td>
@@ -1073,7 +1240,7 @@ function renderServerRow(s) {
         <div style="display:flex;gap:6px">
           <a class="btn btn-ghost btn-sm" href="/server/${s.id}" onclick="event.preventDefault();navigateTo('server/${s.id}')">Settings</a>
           <button class="btn btn-ghost btn-sm" onclick="openPyrodactylPanel('${s.identifier}')">Manage Pyrodactyl</button>
-          ${canRenew ? html`
+          ${canRenew && !isAdminSuspended ? html`
             <button class="btn btn-primary btn-sm btn-renew-server" data-server-id="${s.id}">Renew</button>
           ` : ''}
         </div>
@@ -1092,7 +1259,7 @@ async function renderServers() {
     </div>
     <div class="servers-toolbar">
       <div class="search-wrapper">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <i data-lucide="search" style="width:16px;height:16px"></i>
         <input type="text" id="server-search-input" placeholder="Search servers..." autocomplete="off" />
       </div>
       <div class="filter-group" id="server-filters">
@@ -1125,9 +1292,16 @@ async function renderServers() {
     state.servers = data.servers;
 
     if (data.servers.length === 0) {
-      $('#servers-table-body').innerHTML = html`
-        <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary)">No servers yet. <a href="/create" onclick="navigateTo('create')">Create one</a></td></tr>
+      const container = el.querySelector('.table-container');
+      container.innerHTML = html`
+        <div class="empty-state">
+          <div class="empty-state-icon"><i data-lucide="server" style="width:24px;height:24px"></i></div>
+          <div class="empty-state-title">No servers yet</div>
+          <div class="empty-state-desc">Create your first server to get started</div>
+          <button class="btn btn-primary" id="servers-empty-create-btn">Create Server</button>
+        </div>
       `;
+      $('#servers-empty-create-btn').addEventListener('click', () => navigateTo('create'));
       return;
     }
 
@@ -1179,6 +1353,8 @@ async function renderServers() {
       <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>
     `;
   }
+
+  initIcons();
 }
 
 // ===== CREATE SERVER =====
@@ -1203,12 +1379,11 @@ async function renderCreateServer() {
           <div class="custom-select" id="custom-egg-select">
             <button type="button" class="custom-select-trigger" id="custom-egg-trigger">
               <span id="custom-egg-label">Select an egg...</span>
-              <svg class="custom-select-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              <i data-lucide="chevron-down" class="custom-select-arrow" style="width:12px;height:12px"></i>
             </button>
             <div class="custom-select-dropdown" id="custom-egg-dropdown"></div>
           </div>
         </div>
-        <div id="egg-variables"></div>
         <div class="card" style="margin-top:20px;margin-bottom:24px;background:var(--bg-secondary)">
           <div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px">Default resources</div>
           <div style="display:flex;gap:16px;flex-wrap:wrap">
@@ -1221,7 +1396,7 @@ async function renderCreateServer() {
           <cap-widget data-cap-api-endpoint="https://cap.zero-host.org/f6c8171b08/" theme="dark"></cap-widget>
         </div>
         <button type="submit" class="btn btn-primary btn-full" id="create-btn" style="margin-top:16px">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          <i data-lucide="plus" style="width:18px;height:18px"></i>
           Create Server
         </button>
       </form>
@@ -1243,16 +1418,15 @@ async function renderCreateServer() {
     const data = await api('/servers/eggs');
     eggCache = data.eggs;
     const dropdown = $('#custom-egg-dropdown');
-    const nestLabels = { 5: 'Application', 6: 'Code', 7: 'Database' };
     const grouped = {};
     for (const e of data.eggs) {
-      if (!grouped[e.nestId]) grouped[e.nestId] = [];
-      grouped[e.nestId].push(e);
+      if (!grouped[e.nestId]) grouped[e.nestId] = { name: e.nestName, eggs: [] };
+      grouped[e.nestId].eggs.push(e);
     }
     let htmlStr = '';
     for (const nestId of Object.keys(grouped).sort()) {
-      htmlStr += `<div class="custom-select-category">${nestLabels[nestId] || `Nest ${nestId}`}</div>`;
-      for (const e of grouped[nestId]) {
+      htmlStr += `<div class="custom-select-category">${grouped[nestId].name || `Nest ${nestId}`}</div>`;
+      for (const e of grouped[nestId].eggs) {
         htmlStr += `<div class="custom-select-option" data-value="${e.eggId},${e.nestId}">${e.name}</div>`;
       }
     }
@@ -1270,31 +1444,11 @@ async function renderCreateServer() {
     $('#custom-egg-trigger').disabled = true;
     showToast('Could not load eggs: ' + err.message, 'error');
   }
+
+  initIcons();
 }
 
-function handleEggChange() {
-  const varsEl = $('#egg-variables');
-  varsEl.innerHTML = '';
-  const eggVal = $('#custom-egg-trigger').dataset.value;
-  if (!eggVal) return;
-  const [eggId, nestId] = eggVal.split(',').map(Number);
-  const egg = eggCache.find(e => e.eggId === eggId && e.nestId === nestId);
-  if (!egg || !egg.variables || egg.variables.length === 0) return;
-  const userViewable = egg.variables.filter(v => v.userViewable !== 0);
-  if (userViewable.length === 0) return;
-  let htmlStr = '<div class="card" style="margin-top:20px;padding:20px"><h3 style="font-size:0.95rem;font-weight:700;margin-bottom:16px">Egg Variables</h3>';
-  for (const v of userViewable) {
-    const isEditable = v.userEditable !== 0;
-    const desc = v.description ? `<p style="font-size:0.75rem;color:var(--text-muted);margin-top:2px">${v.description}</p>` : '';
-    if (isEditable) {
-      htmlStr += `<div class="form-group"><label for="egg-var-${v.envVariable}">${v.name}</label><input type="text" id="egg-var-${v.envVariable}" value="${v.defaultValue || ''}" placeholder="${v.name}" />${desc}</div>`;
-    } else {
-      htmlStr += `<div class="form-group"><label>${v.name}</label><input type="text" value="${v.defaultValue || ''}" disabled />${desc}</div>`;
-    }
-  }
-  htmlStr += '</div>';
-  varsEl.innerHTML = htmlStr;
-}
+function handleEggChange() {}
 
 async function handleCreateServer(e) {
   e.preventDefault();
@@ -1318,15 +1472,7 @@ async function handleCreateServer(e) {
   }
 
   const [eggId, nestId] = eggVal.split(',').map(Number);
-  const egg = eggCache.find(e => e.eggId === eggId && e.nestId === nestId);
-
   const environment = {};
-  if (egg && egg.variables) {
-    for (const v of egg.variables) {
-      const input = document.getElementById(`egg-var-${v.envVariable}`);
-      environment[v.envVariable] = input ? input.value.trim() : (v.defaultValue || '');
-    }
-  }
 
   try {
     const capToken = document.querySelector('[name="cap-token"]')?.value || '';
@@ -1355,20 +1501,21 @@ function renderPyrodactyl() {
     <div class="ptero-grid">
       <div class="card ptero-card">
         <div class="ptero-card-icon">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M9 6V5a2 2 0 012-2h2a2 2 0 012 2v1M9 12h6M9 16h4"/></svg>
+          <i data-lucide="package" style="width:28px;height:28px"></i>
         </div>
         <h2 class="ptero-card-title">Opening Pyrodactyl...</h2>
         <p class="ptero-card-desc">
           Click the button below to open the Pyrodactyl panel.
         </p>
         <button class="btn btn-primary btn-full" id="ptero-open-btn" onclick="openPyrodactylPanel()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+          <i data-lucide="external-link" style="width:18px;height:18px"></i>
           Open Panel Now
         </button>
       </div>
     </div>
   `;
   setTimeout(() => openPyrodactylPanel(), 500);
+  initIcons();
 }
 
 // ===== ACCOUNT PAGE =====
@@ -1383,75 +1530,62 @@ function renderAccount() {
       <div class="card account-menu-card" id="account-menu-edit" style="cursor:pointer">
         <div class="account-menu-item">
           <div class="account-menu-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            <i data-lucide="edit" style="width:22px;height:22px"></i>
           </div>
           <div class="account-menu-text">
             <div class="account-menu-title">Change Account Info</div>
             <div class="account-menu-desc">Update your email address or password</div>
           </div>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
-        </div>
-      </div>
-
-      <div class="card account-menu-card" id="account-menu-links" style="cursor:pointer">
-        <div class="account-menu-item">
-          <div class="account-menu-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
-          </div>
-          <div class="account-menu-text">
-            <div class="account-menu-title">Linked Accounts</div>
-            <div class="account-menu-desc">Manage your linked accounts</div>
-          </div>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
+          <i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--text-muted);flex-shrink:0"></i>
         </div>
       </div>
 
       <div class="card account-menu-card" id="account-menu-logs" style="cursor:pointer">
         <div class="account-menu-item">
           <div class="account-menu-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <i data-lucide="file-text" style="width:22px;height:22px"></i>
           </div>
           <div class="account-menu-text">
             <div class="account-menu-title">Activity Log</div>
             <div class="account-menu-desc">View all account activity</div>
           </div>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
+          <i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--text-muted);flex-shrink:0"></i>
         </div>
       </div>
 
       <div class="card account-menu-card" id="account-menu-logout" style="cursor:pointer">
         <div class="account-menu-item">
           <div class="account-menu-icon" style="color:var(--accent-red)">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+            <i data-lucide="log-out" style="width:22px;height:22px"></i>
           </div>
           <div class="account-menu-text">
             <div class="account-menu-title">Sign Out</div>
             <div class="account-menu-desc">Logout from your account</div>
           </div>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
+          <i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--text-muted);flex-shrink:0"></i>
         </div>
       </div>
 
       <div class="card account-menu-card" id="account-menu-dangerous" style="cursor:pointer">
         <div class="account-menu-item">
           <div class="account-menu-icon" style="color:var(--accent-red)">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><circle cx="12" cy="18" r="1"/></svg>
+            <i data-lucide="triangle-alert" style="width:22px;height:22px"></i>
           </div>
           <div class="account-menu-text">
             <div class="account-menu-title">Dangerous Zone & Export Account Data</div>
             <div class="account-menu-desc">Delete your account or export your personal data (RGPD)</div>
           </div>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
+          <i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--text-muted);flex-shrink:0"></i>
         </div>
       </div>
     </div>
   `;
 
   $('#account-menu-edit').addEventListener('click', () => navigateTo('account/edit'));
-  $('#account-menu-links').addEventListener('click', () => navigateTo('account/links'));
   $('#account-menu-logs').addEventListener('click', () => navigateTo('logs'));
   $('#account-menu-dangerous').addEventListener('click', () => navigateTo('account/dangerous'));
   $('#account-menu-logout').addEventListener('click', async () => {
+    initIcons();
     try { await api('/auth/logout', { method: 'POST' }); } catch {}
     state.token = null;
     state.user = null;
@@ -1466,7 +1600,7 @@ function renderAccountEdit() {
   el.innerHTML = html`
     <div class="page-header" style="display:flex;align-items:center;gap:12px">
       <a href="/account" onclick="event.preventDefault();navigateTo('account')" style="color:var(--text-muted);display:flex;padding:4px;border-radius:var(--radius-sm);cursor:pointer">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        <i data-lucide="arrow-left" style="width:20px;height:20px"></i>
       </a>
       <div>
         <h1 class="page-title" style="margin:0">Change Account Info</h1>
@@ -1475,8 +1609,29 @@ function renderAccountEdit() {
     </div>
     <div class="account-grid">
       <div class="card">
+        <h2 class="card-title" style="margin-bottom:20px">Profile Picture</h2>
+        <div class="avatar-upload">
+          <div class="avatar-upload-preview">
+            <img id="avatar-preview-img" src="${avatarUrl(state.user?.id)}" alt="" onerror="this.style.display='none';document.getElementById('avatar-preview-placeholder').style.display='flex'" onload="document.getElementById('avatar-preview-placeholder').style.display='none'" />
+            <div class="avatar-upload-placeholder" id="avatar-preview-placeholder">${state.user?.username?.[0]?.toUpperCase() || 'U'}</div>
+          </div>
+          <div class="avatar-upload-info">
+            <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin-bottom:12px">
+              Upload a profile picture. Supported formats: PNG, JPEG, GIF, WebP. Max size: 2MB.
+            </p>
+            <input type="file" id="avatar-file-input" accept="image/png,image/jpeg,image/gif,image/webp" hidden />
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-primary" id="avatar-choose-btn">Choose Image</button>
+              <button class="btn btn-primary" id="avatar-upload-btn" disabled style="display:none">Upload</button>
+            </div>
+            <div id="avatar-status" style="margin-top:8px;font-size:0.82rem;color:var(--text-muted)"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
         <h2 class="card-title" style="margin-bottom:20px">Change Email</h2>
-        <form id="change-email-form" style="max-width:480px">
+        <form id="change-email-form" style="width:100%">
           <div class="form-group">
             <label for="acc-new-email">New Email</label>
             <input type="email" id="acc-new-email" placeholder="${state.user?.email || 'Enter new email'}" required />
@@ -1491,7 +1646,7 @@ function renderAccountEdit() {
 
       <div class="card">
         <h2 class="card-title" style="margin-bottom:20px">Change Password</h2>
-        <form id="change-password-form" style="max-width:480px">
+        <form id="change-password-form" style="width:100%">
           <div class="form-group">
             <label for="acc-current-pw">Current Password</label>
             <input type="password" id="acc-current-pw" placeholder="Enter current password" required autocomplete="current-password" />
@@ -1515,7 +1670,7 @@ function renderAccountEdit() {
           Generate one at <a href="https://panel.zero-host.org/account/api" target="_blank">panel.zero-host.org/account/api</a>.
         </p>
         <div id="api-key-section-content">
-          <form id="api-key-form" style="max-width:480px">
+          <form id="api-key-form" style="width:100%">
             <div class="form-group">
               <label for="ptero-api-key-input">API Key</label>
               <input type="password" id="ptero-api-key-input" placeholder="ptla_..." autocomplete="off" />
@@ -1532,7 +1687,80 @@ function renderAccountEdit() {
   $('#change-password-form').addEventListener('submit', handleChangePassword);
   $('#api-key-form').addEventListener('submit', handleSaveApiKey);
 
+  $('#avatar-choose-btn').addEventListener('click', () => {
+    $('#avatar-file-input').click();
+  });
+
+  $('#avatar-file-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const validTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      $('#avatar-status').textContent = 'Invalid file type. Please use PNG, JPEG, GIF, or WebP.';
+      $('#avatar-status').style.color = 'var(--accent-red)';
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      $('#avatar-status').textContent = 'File too large. Maximum size is 2MB.';
+      $('#avatar-status').style.color = 'var(--accent-red)';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      $('#avatar-preview-img').src = ev.target.result;
+      $('#avatar-preview-img').style.display = 'block';
+      $('#avatar-preview-placeholder').style.display = 'none';
+      $('#avatar-upload-btn').style.display = 'inline-flex';
+      $('#avatar-upload-btn').disabled = false;
+      $('#avatar-status').textContent = 'Click "Upload" to save your new profile picture.';
+      $('#avatar-status').style.color = 'var(--text-muted)';
+    };
+    reader.readAsDataURL(file);
+  });
+
+  $('#avatar-upload-btn').addEventListener('click', handleAvatarUpload);
+
   checkApiKeyStatus();
+  initIcons();
+}
+
+async function handleAvatarUpload() {
+  const btn = $('#avatar-upload-btn');
+  const status = $('#avatar-status');
+  const img = $('#avatar-preview-img');
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  status.textContent = '';
+
+  try {
+    const data = await api('/auth/upload-avatar', {
+      method: 'POST',
+      body: JSON.stringify({ image: img.src }),
+    });
+    showToast('Profile picture updated successfully', 'success');
+    status.textContent = 'Profile picture updated!';
+    status.style.color = 'var(--accent-green)';
+    btn.style.display = 'none';
+
+    const sidebarImg = document.querySelector('#avatar-container img');
+    if (sidebarImg) {
+      sidebarImg.src = avatarUrl(state.user.id);
+      sidebarImg.dataset.fallbackTried = '';
+      sidebarImg.style.display = '';
+      const fallback = document.getElementById('avatar-fallback');
+      if (fallback) fallback.style.display = 'none';
+    }
+  } catch (err) {
+    status.textContent = err.message;
+    status.style.color = 'var(--accent-red)';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Upload';
+  }
 }
 
 async function handleSaveApiKey(e) {
@@ -1585,7 +1813,7 @@ function renderApiKeySaved() {
   section.innerHTML = html`
     <div style="padding:8px 0">
       <p style="color:var(--accent-green);font-size:0.9rem;margin-bottom:16px">
-        &#10003; Your Pyrodactyl API key is saved and active.
+        <i data-lucide="check" style="width:16px;height:16px;color:var(--accent-green);stroke-width:3;margin-right:4px;vertical-align:middle"></i>Your Pyrodactyl API key is saved and active.
       </p>
       <div style="display:flex;gap:8px">
         <button class="btn btn-primary" id="modify-api-key-btn">Modify</button>
@@ -1600,7 +1828,7 @@ function renderApiKeySaved() {
 function renderApiKeyForm() {
   const section = $('#api-key-section-content');
   section.innerHTML = html`
-    <form id="api-key-form" style="max-width:480px">
+    <form id="api-key-form" style="width:100%">
       <div class="form-group">
         <label for="ptero-api-key-input">API Key</label>
         <input type="password" id="ptero-api-key-input" placeholder="ptla_..." autocomplete="off" />
@@ -1699,29 +1927,6 @@ async function handleConfirmDeleteApiKey() {
   }
 }
 
-function renderAccountLinks() {
-  const el = $('#page-account');
-  el.innerHTML = html`
-    <div class="page-header" style="display:flex;align-items:center;gap:12px">
-      <a href="/account" onclick="event.preventDefault();navigateTo('account')" style="color:var(--text-muted);display:flex;padding:4px;border-radius:var(--radius-sm);cursor:pointer">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-      </a>
-      <div>
-        <h1 class="page-title" style="margin:0">Linked Accounts</h1>
-        <p class="page-subtitle" style="margin:0">Manage your linked accounts</p>
-      </div>
-    </div>
-    <div class="card" style="margin-bottom:20px">
-      <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin:0">
-        No account linking system is currently active due to the complexity
-        of maintaining it both on the dashboard and the Pyrodactyl panel. This is why
-        we have removed account creation and login via Discord. Perhaps this will
-        return later.
-      </p>
-    </div>
-  `;
-}
-
 async function handleChangeEmail(e) {
   e.preventDefault();
   const btn = $('#change-email-btn');
@@ -1799,7 +2004,7 @@ function renderDangerous() {
   el.innerHTML = html`
     <div class="page-header" style="display:flex;align-items:center;gap:12px">
       <a href="/account" onclick="event.preventDefault();navigateTo('account')" style="color:var(--text-muted);display:flex;padding:4px;border-radius:var(--radius-sm);cursor:pointer">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        <i data-lucide="arrow-left" style="width:20px;height:20px"></i>
       </a>
       <div>
         <h1 class="page-title" style="margin:0">Dangerous Zone & Export Account Data</h1>
@@ -1821,7 +2026,7 @@ function renderDangerous() {
           Under Article 15 and 20 of the RGPD, you have the right to access and port your personal data. Click below to download a copy of all data we hold about you.
         </p>
         <button class="btn btn-primary btn-full" id="export-data-btn">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          <i data-lucide="download" style="width:18px;height:18px"></i>
           Export My Data
         </button>
       </div>
@@ -1829,6 +2034,7 @@ function renderDangerous() {
   `;
   $('#delete-account-btn').addEventListener('click', handleDeleteAccountClick);
   $('#export-data-btn').addEventListener('click', handleExportData);
+  initIcons();
 }
 
 function handleDeleteAccountClick() {
@@ -1897,10 +2103,12 @@ async function renderServerDetail(serverId) {
   const allocStr = alloc ? `${alloc.alias || alloc.nodeFqdn || alloc.ip}:${alloc.port}` : (s.nodeFqdn || `Node #${s.node}`);
     const isInstalling = s.status === 'installing' || s.installed === 0 || s.installed === '0' || s.installed === false;
     const isSuspended = s.status === 'suspended';
-    const statusClass = isSuspended ? 'status-suspended' : (isInstalling ? 'status-installing' : 'status-active');
-    const statusLabel = isSuspended ? 'Suspended' : (isInstalling ? 'Installing' : 'Active');
     const days = meta ? daysRemaining(meta.expires_at) : null;
     const canRenew = days !== null && days <= 7 && days >= -7;
+    const isAdminSuspended = isSuspended && meta?.suspended_by === 'admin';
+    const isExpiredRenewable = isSuspended && canRenew && !isAdminSuspended;
+    const statusClass = isAdminSuspended ? 'status-suspended' : (isExpiredRenewable ? 'status-expired' : (isInstalling ? 'status-installing' : 'status-active'));
+    const statusLabel = isAdminSuspended ? 'Suspended' : (isExpiredRenewable ? 'Expired' : (isInstalling ? 'Installing' : 'Active'));
     const expClass = days !== null && days <= 0 ? 'expired' : (days !== null && days <= 7 ? 'expiring' : '');
 
     const activeTab = state.serverDetailTab || 'info';
@@ -1908,22 +2116,28 @@ async function renderServerDetail(serverId) {
     el.innerHTML = html`
       <div class="page-header">
         <a href="/servers" onclick="event.preventDefault();navigateTo('servers')" class="btn btn-ghost btn-sm" style="margin-bottom:16px;display:inline-flex;width:auto">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          <i data-lucide="arrow-left" style="width:14px;height:14px"></i>
           Back to Servers
         </a>
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
           <h1 class="page-title" style="margin-bottom:0">${s.name}</h1>
           <button class="btn btn-ghost btn-sm btn-rename-server" data-server-id="${s.id}" data-server-name="${s.name.replace(/"/g, '&quot;')}" title="Rename server" style="width:auto;padding:6px">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            <i data-lucide="edit" style="width:16px;height:16px"></i>
           </button>
           <span class="server-card-status ${statusClass}" style="font-size:0.8rem">${statusLabel}</span>
         </div>
       </div>
 
-      ${isSuspended && meta?.suspend_reason ? html`
+      ${isAdminSuspended && meta?.suspend_reason ? html`
         <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:16px;margin-bottom:24px">
           <div style="font-weight:700;color:var(--accent-red);margin-bottom:4px">Server Suspended</div>
           <div style="color:var(--text-secondary);font-size:0.88rem">${meta.suspend_reason}</div>
+        </div>
+      ` : ''}
+      ${isExpiredRenewable ? html`
+        <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:16px;margin-bottom:24px">
+          <div style="font-weight:700;color:var(--accent-orange);margin-bottom:4px">Server Expired</div>
+          <div style="color:var(--text-secondary);font-size:0.88rem">This server has expired. Renew it to reactivate it instantly.</div>
         </div>
       ` : ''}
 
@@ -1977,12 +2191,12 @@ async function renderServerDetail(serverId) {
               <div class="detail-list">
                 <div class="detail-item"><span class="detail-label">Created</span><span class="detail-value">${formatDate(meta.created_at)}</span></div>
                 <div class="detail-item ${expClass}"><span class="detail-label">Expires</span><span class="detail-value">${formatDate(meta.expires_at)} ${days !== null ? '(' + (days > 0 ? days + ' days' : 'Expired') + ')' : ''}</span></div>
-                <div class="detail-item"><span class="detail-label">Status</span><span class="detail-value" style="text-transform:capitalize">${meta.status}</span></div>
-                ${meta.status === 'suspended' && meta.suspend_reason ? html`
+                <div class="detail-item"><span class="detail-label">Status</span><span class="detail-value" style="text-transform:capitalize">${isExpiredRenewable ? 'expired' : meta.status}</span></div>
+                ${isAdminSuspended && meta.suspend_reason ? html`
                   <div class="detail-item"><span class="detail-label">Reason</span><span class="detail-value" style="color:var(--accent-red)">${meta.suspend_reason}</span></div>
                 ` : ''}
               </div>
-              ${canRenew ? html`
+              ${canRenew && !isAdminSuspended ? html`
                 <button class="btn btn-primary btn-full btn-renew-server" data-server-id="${s.id}" style="margin-top:16px">Renew Server (90 days)</button>
               ` : html`
                 ${days < -7 ? html`<p style="color:var(--accent-red);margin-top:12px;font-size:0.88rem">This server has expired. Contact support to renew.</p>` : ''}
@@ -2000,7 +2214,7 @@ async function renderServerDetail(serverId) {
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
             <h2 class="card-title" style="margin:0">Live Resource Usage</h2>
             <button class="btn btn-ghost btn-sm" id="refresh-resources-btn" style="width:auto">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
+              <i data-lucide="refresh-cw" style="width:14px;height:14px"></i>
               Refresh
             </button>
           </div>
@@ -2011,55 +2225,80 @@ async function renderServerDetail(serverId) {
       </div>
 
       <div id="server-tab-actions" class="tab-content" style="display:${activeTab === 'actions' ? 'block' : 'none'}">
-        <div class="action-card">
-          <div class="action-card-header">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-            <div>
-              <h3 class="action-card-title">Power Controls</h3>
-              <p class="action-card-desc">
-                Current state: <strong>${s.currentState || 'Unknown'}</strong>
-              </p>
+        ${isAdminSuspended ? html`
+        <div style="text-align:center;padding:48px 24px">
+          <i data-lucide="lock" style="width:64px;height:64px;color:var(--accent-red);stroke-width:1.5;margin-bottom:16px"></i>
+          <h2 style="margin:0 0 8px 0;color:var(--text-primary)">Server Suspended</h2>
+          <p style="color:var(--text-secondary);font-size:0.95rem;margin:0 0 4px 0">This server has been suspended by an administrator. No actions are available.</p>
+          <p style="color:var(--text-secondary);font-size:0.95rem;margin:0">Please contact support via <a href="https://discord.zero-host.org" target="_blank" style="color:var(--accent-1);text-decoration:underline">Discord</a> for assistance.</p>
+        </div>
+        ` : isExpiredRenewable ? html`
+        <div style="text-align:center;padding:48px 24px">
+          <i data-lucide="clock" style="width:64px;height:64px;color:var(--accent-orange);stroke-width:1.5;margin-bottom:16px"></i>
+          <h2 style="margin:0 0 8px 0;color:var(--text-primary)">Server Expired</h2>
+          <p style="color:var(--text-secondary);font-size:0.95rem;margin:0 0 4px 0">This server has expired. Renew it to reactivate it instantly and get 90 more days.</p>
+          <button class="btn btn-primary btn-renew-server" data-server-id="${s.id}" style="margin-top:16px">Renew Server (90 days)</button>
+        </div>
+        ` : isSuspended ? html`
+        <div style="text-align:center;padding:48px 24px">
+          <i data-lucide="lock" style="width:64px;height:64px;color:var(--accent-red);stroke-width:1.5;margin-bottom:16px"></i>
+          <h2 style="margin:0 0 8px 0;color:var(--text-primary)">Server Expired</h2>
+          <p style="color:var(--text-secondary);font-size:0.95rem;margin:0 0 4px 0">This server has been expired for too long. Please contact support to renew.</p>
+          <p style="color:var(--text-secondary);font-size:0.95rem;margin:0">Reach out via <a href="https://discord.zero-host.org" target="_blank" style="color:var(--accent-1);text-decoration:underline">Discord</a> for assistance.</p>
+        </div>
+        ` : html`
+        <div class="server-detail-grid">
+          <div class="action-card">
+            <div class="action-card-header">
+              <i data-lucide="zap" style="width:24px;height:24px"></i>
+              <div>
+                <h3 class="action-card-title">Power Controls</h3>
+                <p class="action-card-desc">
+                  Current state: <strong>${s.currentState || 'Unknown'}</strong>
+                </p>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn ${s.currentState === 'running' ? 'btn-ghost' : 'btn-success'} btn-full" style="flex:1" onclick="sendPowerCommand('${s.identifier}','start',event)" ${s.currentState === 'running' ? 'disabled' : ''}>Start</button>
+              <button class="btn btn-warning btn-full" style="flex:1" onclick="sendPowerCommand('${s.identifier}','stop',event)" ${s.currentState !== 'running' ? 'disabled' : ''}>Stop</button>
+              <button class="btn btn-ghost btn-full" style="flex:1" onclick="sendPowerCommand('${s.identifier}','restart',event)" ${s.currentState !== 'running' ? 'disabled' : ''}>Restart</button>
             </div>
           </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn btn-success btn-full" style="flex:1" onclick="sendPowerCommand('${s.identifier}','start',event)" ${s.currentState === 'running' ? 'disabled' : ''}>Start</button>
-            <button class="btn btn-warning btn-full" style="flex:1" onclick="sendPowerCommand('${s.identifier}','stop',event)" ${s.currentState !== 'running' ? 'disabled' : ''}>Stop</button>
-            <button class="btn btn-ghost btn-full" style="flex:1" onclick="sendPowerCommand('${s.identifier}','restart',event)" ${s.currentState !== 'running' ? 'disabled' : ''}>Restart</button>
-          </div>
-        </div>
 
-        <div class="action-card">
-          <div class="action-card-header">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
-            <div>
-              <h3 class="action-card-title">Open Panel</h3>
-              <p class="action-card-desc">Access the full Pyrodactyl control panel to manage files, console, databases, schedules, and more.</p>
+          <div class="action-card">
+            <div class="action-card-header">
+              <i data-lucide="external-link" style="width:24px;height:24px"></i>
+              <div>
+                <h3 class="action-card-title">Open Panel</h3>
+                <p class="action-card-desc">Access the full Pyrodactyl control panel to manage files, console, databases, schedules, and more.</p>
+              </div>
             </div>
+            <button class="btn btn-primary btn-full" onclick="openPyrodactylPanel('${s.identifier}')">Open Panel</button>
           </div>
-          <button class="btn btn-primary btn-full" onclick="openPyrodactylPanel('${s.identifier}')">Open Panel</button>
-        </div>
 
-        <div class="action-card">
-          <div class="action-card-header">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
-            <div>
-              <h3 class="action-card-title">Reinstall Server</h3>
-              <p class="action-card-desc">Delete all files and reinstall the server from scratch. Only do this if you are experiencing critical issues with your server.</p>
+          <div class="action-card">
+            <div class="action-card-header">
+              <i data-lucide="refresh-cw" style="width:24px;height:24px"></i>
+              <div>
+                <h3 class="action-card-title">Reinstall Server</h3>
+                <p class="action-card-desc">Delete all files and reinstall the server from scratch. Only do this if you are experiencing critical issues with your server.</p>
+              </div>
             </div>
+            <button class="btn btn-warning btn-full btn-reinstall-server" data-server-id="${s.id}" data-server-name="${s.name.replace(/"/g, '&quot;')}">Reinstall Server</button>
           </div>
-          <button class="btn btn-warning btn-full btn-reinstall-server" data-server-id="${s.id}" data-server-name="${s.name.replace(/"/g, '&quot;')}">Reinstall Server</button>
-        </div>
 
-        <div class="action-card">
-          <div class="action-card-header">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-            <div>
-              <h3 class="action-card-title">Delete Server</h3>
-              <p class="action-card-desc">Permanently delete this server and all associated data. This action is irreversible.</p>
+          <div class="action-card">
+            <div class="action-card-header">
+              <i data-lucide="trash-2" style="width:24px;height:24px"></i>
+              <div>
+                <h3 class="action-card-title">Delete Server</h3>
+                <p class="action-card-desc">Permanently delete this server and all associated data. This action is irreversible.</p>
+              </div>
             </div>
+            <button class="btn btn-danger btn-full btn-delete-server" data-server-id="${s.id}" data-server-name="${s.name.replace(/"/g, '&quot;')}">Delete Server</button>
           </div>
-          <button class="btn btn-danger btn-full btn-delete-server" data-server-id="${s.id}" data-server-name="${s.name.replace(/"/g, '&quot;')}">Delete Server</button>
         </div>
+        `}
       </div>
     `;
 
@@ -2080,15 +2319,18 @@ async function renderServerDetail(serverId) {
       indicator.style.transition = '';
     }
 
+    initIcons();
+
   } catch (err) {
     el.innerHTML = html`
       <div class="empty-state">
-        <div class="empty-state-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div>
+        <div class="empty-state-icon"><i data-lucide="circle-alert" style="width:24px;height:24px"></i></div>
         <div class="empty-state-title">Server not found</div>
         <div class="empty-state-desc">${err.message}</div>
         <button class="btn btn-primary" onclick="navigateTo('servers')">Back to Servers</button>
       </div>
     `;
+    initIcons();
   }
 }
 
@@ -2200,6 +2442,9 @@ function switchTab(tabBtn) {
       fetchLiveResources(state.serverIdentifier);
     }
   }
+
+  const newUrl = `/server/${state.serverId}/${tabName}`;
+  history.pushState({ page: 'server', serverId: state.serverId, tab: tabName }, '', newUrl);
 }
 
 // ===== DELETE SERVER =====
@@ -2409,7 +2654,7 @@ async function handleExportData() {
     showToast('Failed to export data: ' + err.message, 'error');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg> Export My Data`;
+    btn.innerHTML = `        <i data-lucide="download" style="width:18px;height:18px"></i> Export My Data`;
   }
 }
 
@@ -2441,7 +2686,11 @@ function init() {
       renderRegisterPage();
     }
   } else if (state.token) {
-    api('/servers/overview').then(() => renderDashboard()).catch(() => {
+    api('/servers/overview').then(() => {
+      renderDashboard();
+      fetchUnreadCount();
+      setInterval(fetchUnreadCount, 30000);
+    }).catch(() => {
       renderDashboard();
     });
   } else {

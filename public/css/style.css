@@ -538,7 +538,8 @@ cap-widget {
 
 .sidebar.collapsed .sidebar-footer {
   border-top: none;
-  padding: 0;
+  padding: 8px 0 0;
+  text-align: center;
 }
 
 .sidebar.collapsed #logout-btn {
@@ -546,8 +547,19 @@ cap-widget {
 }
 
 .sidebar.collapsed .user-info {
-  justify-content: center;
-  padding: 4px 0;
+  display: block !important;
+  padding: 0 !important;
+  text-align: center !important;
+}
+
+.sidebar.collapsed #sidebar-user-info > div:first-child {
+  gap: 0;
+  display: inline-flex !important;
+  overflow: visible !important;
+}
+
+.sidebar.collapsed #sidebar-user-info > div:first-child > div:last-child {
+  display: none;
 }
 
 .sidebar.collapsed .user-name,
@@ -838,6 +850,17 @@ cap-widget {
   font-weight: 500;
 }
 
+.chart-container {
+  position: relative;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.chart-container canvas {
+  width: 100% !important;
+  height: auto !important;
+}
+
 /* ===== SERVER LIST ===== */
 .server-grid {
   display: grid;
@@ -916,6 +939,11 @@ cap-widget {
 .status-suspended {
   background: rgba(239, 68, 68, 0.12);
   color: var(--accent-red);
+}
+
+.status-expired {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--accent-orange);
 }
 
 .status-installing {
@@ -1202,6 +1230,204 @@ tbody tr:hover {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ===== NOTIFICATION PANEL ===== */
+.notif-panel {
+  position: fixed;
+  top: 0;
+  left: var(--sidebar-w);
+  width: 380px;
+  height: 100vh;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
+  z-index: 99;
+  transform: translateX(-100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.notif-panel.open {
+  transform: translateX(0);
+}
+
+.sidebar.collapsed ~ .notif-panel {
+  left: 60px;
+}
+
+.notif-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.notif-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.notif-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.notif-panel-header h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.notif-mark-all {
+  background: none;
+  border: none;
+  color: var(--accent-3);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+}
+
+.notif-mark-all:hover {
+  background: rgba(238, 129, 50, 0.1);
+}
+
+.notif-panel-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.notif-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 48px 20px;
+  font-size: 0.9rem;
+}
+
+.notif-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 20px;
+  cursor: pointer;
+  transition: background var(--transition);
+  position: relative;
+}
+
+.notif-item:hover {
+  background: rgba(238, 129, 50, 0.04);
+}
+
+.notif-unread {
+  background: rgba(238, 129, 50, 0.06);
+}
+
+.notif-unread:hover {
+  background: rgba(238, 129, 50, 0.1);
+}
+
+.notif-item-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.notif-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.notif-item-icon.notif-success {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-green);
+}
+
+.notif-item-icon.notif-error {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--accent-red);
+}
+
+.notif-item-icon.notif-warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-orange);
+}
+
+.notif-item-icon.notif-info {
+  background: rgba(6, 182, 212, 0.15);
+  color: var(--accent-cyan);
+}
+
+.notif-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-item-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.notif-item-msg {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.notif-item-time {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.notif-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-3);
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.notif-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 99px;
+  background: var(--accent-red);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  line-height: 1;
+}
+
 /* ===== RESPONSIVE ===== */
 .hamburger-toggle {
   display: none;
@@ -1378,6 +1604,50 @@ tbody tr:hover {
   font-size: 0.8rem;
   color: var(--text-muted);
   margin-top: 2px;
+}
+
+/* ===== AVATAR UPLOAD ===== */
+.avatar-upload {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.avatar-upload-preview {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: var(--accent-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.avatar-upload-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.avatar-upload-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-upload-info {
+  flex: 1;
+  min-width: 200px;
 }
 
 /* ===== SERVER EXPIRY ===== */
@@ -1644,20 +1914,6 @@ tbody tr:hover {
   border-bottom: none;
 }
 
-.activity-item::before {
-  content: '';
-  position: absolute;
-  left: 15px;
-  top: 42px;
-  bottom: 0;
-  width: 1px;
-  background: rgba(255,255,255,0.06);
-}
-
-.activity-item:last-child::before {
-  display: none;
-}
-
 .activity-icon {
   width: 32px;
   height: 32px;
@@ -1681,6 +1937,10 @@ tbody tr:hover {
 .activity-icon-email_changed { background: rgba(59,130,246,0.15); color: #3b82f6; }
 .activity-icon-account_deleted { background: rgba(239,68,68,0.15); color: var(--accent-red); }
 .activity-icon-api_key_updated { background: rgba(236,201,75,0.15); color: #ecc94b; }
+.activity-icon-avatar_updated { background: rgba(168,85,247,0.15); color: #a855f7; }
+.activity-icon-admin_suspend { background: rgba(245,158,11,0.15); color: var(--accent-orange); }
+.activity-icon-admin_unsuspend { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+.activity-icon-admin_renew_now { background: rgba(6,182,212,0.15); color: var(--accent-cyan); }
 
 .activity-content {
   flex: 1;
@@ -1711,33 +1971,6 @@ tbody tr:hover {
   padding: 32px 16px;
   color: var(--text-muted);
   font-size: 0.88rem;
-}
-
-.activity-list-truncated {
-  position: relative;
-}
-
-.activity-list-truncated::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: -24px;
-  right: -24px;
-  height: 200px;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  mask-image: linear-gradient(transparent, #000 calc(100% - 20px));
-  -webkit-mask-image: linear-gradient(transparent, #000 calc(100% - 20px));
-  pointer-events: none;
-}
-
-.activity-more-overlay {
-  position: absolute;
-  bottom: 8px;
-  left: 0;
-  right: 0;
-  text-align: center;
-  z-index: 2;
 }
 
 /* ===== LOG PAGE ===== */
@@ -2083,6 +2316,28 @@ tbody tr:hover {
   .admin-content {
     padding: 20px;
   }
+}
+
+.date-tooltip {
+  cursor: help;
+}
+#admin-date-tooltip {
+  position: fixed;
+  z-index: 10000;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+  transition: opacity 0.15s ease;
+}
+#admin-date-tooltip.visible {
+  opacity: 1;
 }
 
 

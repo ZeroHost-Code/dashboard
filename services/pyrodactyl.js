@@ -1,4 +1,4 @@
-import { PTERO_URL, PTERO_API_KEY, SERVER_LIMITS, FEATURE_LIMITS, DEPLOY_LOCATIONS, NEST_IDS } from '../config/pyrodactyl.js';
+import { PTERO_URL, PTERO_API_KEY, SERVER_LIMITS, FEATURE_LIMITS, DEPLOY_LOCATIONS } from '../config/pyrodactyl.js';
 
 const FETCH_TIMEOUT = 15000;
 const CACHE_TTL = 5 * 60 * 1000;
@@ -91,6 +91,16 @@ async function getNode(nodeId) {
 export async function getEgg(nestId, eggId) {
   const data = await pteroFetch(`/nests/${nestId}/eggs/${eggId}`);
   return data.attributes;
+}
+
+export async function getPteroNests() {
+  const data = await pteroFetch('/nests?per_page=100');
+  return data.data.map(n => n.attributes);
+}
+
+export async function getPteroNestEggs(nestId) {
+  const data = await pteroFetch(`/nests/${nestId}/eggs?per_page=100`);
+  return data.data.map(e => e.attributes);
 }
 
 export async function getAllServers() {
@@ -193,7 +203,8 @@ export async function getServerById(serverId) {
   return server;
 }
 
-export async function createPteroServer({ name, userId, eggId, nestId, environment, startup, dockerImage }) {
+export async function createPteroServer({ name, userId, eggId, nestId, environment, startup, dockerImage, customLimits }) {
+  const limits = { ...SERVER_LIMITS, ...customLimits };
   const body = {
     name,
     user: userId,
@@ -201,7 +212,7 @@ export async function createPteroServer({ name, userId, eggId, nestId, environme
     docker_image: dockerImage,
     startup,
     environment,
-    limits: SERVER_LIMITS,
+    limits,
     feature_limits: FEATURE_LIMITS,
     deploy: {
       locations: DEPLOY_LOCATIONS,
@@ -244,6 +255,43 @@ export async function reinstallPteroServer(serverId) {
   });
 }
 
+export async function updatePteroServerBuild(serverId, limits) {
+  // Fetch current server to get all required fields
+  const server = await getServerById(serverId);
+  const currentLimits = server.limits || {};
+  const mergedLimits = { ...currentLimits, ...limits };
+  await pteroFetch(`/servers/${serverId}/build`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      allocation: server.allocation,
+      ...mergedLimits,
+      feature_limits: server.feature_limits || { databases: 0, allocations: 1, backups: 1 },
+      oom_disabled: server.oom_disabled ?? true,
+    }),
+  });
+}
+
+export async function getPergoServerIdsByEgg(nestId, eggId) {
+  const ids = [];
+  let page = 1;
+  let hasMore = true;
+  while (hasMore) {
+    const data = await pteroFetch(`/servers?page=${page}&per_page=100`);
+    const servers = data.data.map(s => s.attributes);
+    for (const s of servers) {
+      if (s.nest === nestId && s.egg === eggId) {
+        ids.push(s.id);
+      }
+    }
+    if (data.meta?.pagination?.total_pages > page) {
+      page++;
+    } else {
+      hasMore = false;
+    }
+  }
+  return ids;
+}
+
 export async function renamePteroServer(serverId, name) {
   const server = await getServerById(serverId);
   await pteroFetch(`/servers/${serverId}/details`, {
@@ -280,12 +328,12 @@ export async function deletePteroUser(userId) {
   await pteroFetch(`/users/${userId}`, { method: 'DELETE' });
 }
 
-export async function getAllEggs() {
+export async function getAllEggs(nestIds = []) {
   const eggs = [];
 
-  for (const nestId of NEST_IDS) {
+  for (const nestId of nestIds) {
     try {
-      const nestData = await pteroFetch(`/nests/${nestId}/eggs`);
+      const nestData = await pteroFetch(`/nests/${nestId}/eggs?per_page=100`);
       for (const e of nestData.data) {
         try {
           const full = await getEgg(nestId, e.attributes.id);

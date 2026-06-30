@@ -17,6 +17,7 @@ import path from 'path';
 import authRoutes from './routes/auth.js';
 import serverRoutes from './routes/servers.js';
 import adminRoutes from './routes/admin.js';
+import notificationRoutes from './routes/notifications.js';
 import { startScheduler } from './services/scheduler.js';
 import { migrate } from './config/migrate.js';
 import { query } from './config/db.js';
@@ -43,12 +44,12 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net", "https://unpkg.com"],
       scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
-      connectSrc: ["'self'", "https://panel.zero-host.org", "https://cap.zero-host.org", "https://cdn.jsdelivr.net"],
+      connectSrc: ["'self'", "https://panel.zero-host.org", "https://cap.zero-host.org", "https://cdn.jsdelivr.net", "https://unpkg.com"],
       workerSrc: ["'self'", "blob:"],
       frameSrc: ["https://cap.zero-host.org"],
       objectSrc: ["'none'"],
@@ -102,6 +103,7 @@ app.use('/api', apiLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/servers', serverRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.get('/api/activity', async (req, res) => {
   try {

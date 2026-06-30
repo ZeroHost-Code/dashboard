@@ -1,12 +1,22 @@
 import { Router } from 'express';
 import argon2 from 'argon2';
+import jwt from 'jsonwebtoken';
+import { readdir, writeFile, unlink, mkdir } from 'fs/promises';
+import { existsSync } from 'fs';
+import { join, dirname, extname } from 'path';
+import { fileURLToPath } from 'url';
 import { query } from '../config/db.js';
 import { generateToken, authenticateToken } from '../middleware/auth.js';
 import { createPteroUser, updatePteroPassword, updatePteroEmail, deletePteroUser, getServersByUser, deletePteroServer } from '../services/pyrodactyl.js';
 import { verifyCap } from '../config/cap.js';
 import { logActivity } from '../services/activity.js';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const UPLOAD_DIR = join(__dirname, '..', 'uploads', 'avatars');
+
 const router = Router();
+
+const MIME_TYPES = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp' };
 
 function getClientIp(req) {
   const forwarded = req.headers['x-forwarded-for'];
@@ -141,6 +151,8 @@ router.post('/register', async (req, res) => {
         username,
         firstName: username,
         lastName: 'User',
+        isAdmin: false,
+        restricted: false,
       },
     });
   } catch (err) {
@@ -186,6 +198,10 @@ router.post('/login', async (req, res) => {
 
     if (process.env.NODE_ENV !== 'production') console.log('[LOGIN] User found:', { id: user.id, email: user.email });
 
+    if (user.auth_restricted) {
+      return res.status(403).json({ error: 'Your account has been restricted. Contact support for assistance.' });
+    }
+
     const validPassword = await argon2.verify(user.password_hash, password, { type: argon2.argon2id });
     if (!validPassword) {
       if (process.env.NODE_ENV !== 'production') console.log('[LOGIN] Password mismatch for user:', user.id);
@@ -198,6 +214,7 @@ router.post('/login', async (req, res) => {
       username: user.username,
       pteroId: user.ptero_user_id,
       isAdmin: !!user.is_admin,
+      tokenVersion: user.token_version,
     });
 
     res.cookie('token', token, {
@@ -217,6 +234,7 @@ router.post('/login', async (req, res) => {
         firstName: user.first_name,
         lastName: user.last_name,
         isAdmin: !!user.is_admin,
+        restricted: !!user.restricted,
       },
     });
   } catch (err) {
@@ -390,6 +408,20 @@ router.post('/delete-account', authenticateToken, async (req, res) => {
       }
     }
 
+    // Clean up avatar file
+    try {
+      if (existsSync(UPLOAD_DIR)) {
+        const files = await readdir(UPLOAD_DIR);
+        for (const file of files) {
+          if (file.startsWith(`avatar_${user.id}.`)) {
+            await unlink(join(UPLOAD_DIR, file));
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to clean up avatar:', err.message);
+    }
+
     await logActivity(user.id, 'account_deleted', 'Deleted account');
 
     // Delete from local DB (cascades to user_ips)
@@ -399,6 +431,100 @@ router.post('/delete-account', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Delete account error:', err.message);
     res.status(500).json({ error: 'Failed to delete account' });
+  }
+});
+
+router.post('/upload-avatar', authenticateToken, async (req, res) => {
+  try {
+    const { image } = req.body;
+    if (!image) {
+      return res.status(400).json({ error: 'No image provided' });
+    }
+
+    const matches = image.match(/^data:image\/(png|jpeg|jpg|gif|webp);base64,(.+)$/);
+    if (!matches) {
+      return res.status(400).json({ error: 'Invalid image format. Use PNG, JPEG, GIF, or WebP.' });
+    }
+
+    const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+    const data = Buffer.from(matches[2], 'base64');
+
+    if (data.length > 2 * 1024 * 1024) {
+      return res.status(400).json({ error: 'Image too large. Maximum size is 2MB.' });
+    }
+
+    if (!existsSync(UPLOAD_DIR)) {
+      await mkdir(UPLOAD_DIR, { recursive: true });
+    }
+
+    const files = await readdir(UPLOAD_DIR);
+    for (const file of files) {
+      if (file.startsWith(`avatar_${req.user.userId}.`)) {
+        await unlink(join(UPLOAD_DIR, file));
+      }
+    }
+
+    const filename = `avatar_${req.user.userId}.${ext}`;
+    await writeFile(join(UPLOAD_DIR, filename), data);
+
+    await query('UPDATE users SET avatar = ? WHERE id = ?', [filename, req.user.userId]);
+
+    await logActivity(req.user.userId, 'avatar_updated', 'Updated profile picture');
+
+    res.json({ message: 'Avatar updated successfully' });
+  } catch (err) {
+    console.error('Upload avatar error:', err.message);
+    res.status(500).json({ error: 'Failed to upload avatar' });
+  }
+});
+
+router.get('/avatar/:userId', async (req, res) => {
+  try {
+    const requestedId = parseInt(req.params.userId, 10);
+    if (isNaN(requestedId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    let token = null;
+    const authHeader = req.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    } else if (req.cookies && req.cookies.token) {
+      token = req.cookies.token;
+    }
+
+    if (!token) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (decoded.userId !== requestedId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    if (!existsSync(UPLOAD_DIR)) {
+      return res.status(404).json({ error: 'No avatar found' });
+    }
+
+    const files = await readdir(UPLOAD_DIR);
+    const avatarFile = files.find(f => f.startsWith(`avatar_${requestedId}.`));
+
+    if (!avatarFile) {
+      return res.status(404).json({ error: 'No avatar found' });
+    }
+
+    const mimeType = MIME_TYPES[extname(avatarFile).toLowerCase().slice(1)] || 'application/octet-stream';
+
+    res.set('Content-Type', mimeType);
+    res.set('Cache-Control', 'private, max-age=3600');
+    res.sendFile(join(UPLOAD_DIR, avatarFile));
+  } catch (err) {
+    if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+    console.error('Avatar serve error:', err.message);
+    res.status(500).json({ error: 'Failed to serve avatar' });
   }
 });
 

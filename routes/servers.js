@@ -15,6 +15,7 @@ import { PTERO_URL, PANEL_DB_NAME } from '../config/pyrodactyl.js';
 import { query } from '../config/db.js';
 import { verifyCap } from '../config/cap.js';
 import { logActivity } from '../services/activity.js';
+import { createNotification } from '../services/notification.js';
 
 const router = Router();
 
@@ -75,17 +76,20 @@ router.get('/list', authenticateToken, async (req, res) => {
 
 router.get('/eggs', authenticateToken, async (req, res) => {
   try {
-    const eggs = await getAllEggs();
+    const dbNests = await query('SELECT ptero_nest_id, name FROM nests');
+    const nestMap = {};
+    for (const n of dbNests) {
+      nestMap[n.ptero_nest_id] = n.name;
+    }
+    const nestIds = dbNests.map(n => n.ptero_nest_id);
+
+    const eggs = await getAllEggs(nestIds);
     const simplified = [];
 
     for (const { nest, egg } of eggs) {
-      let variables = [];
-      try {
-        const vars = await query(`SELECT name, env_variable, default_value, rules, description, user_viewable, user_editable FROM ${PANEL_DB_NAME}.egg_variables WHERE egg_id = ?`, [egg.id]);
-        variables = vars;
-      } catch {}
       simplified.push({
         nestId: nest,
+        nestName: nestMap[nest] || `Nest ${nest}`,
         eggId: egg.id,
         name: egg.name,
         description: egg.description,
@@ -93,15 +97,7 @@ router.get('/eggs', authenticateToken, async (req, res) => {
         dockerImages: egg.docker_images,
         configStop: egg.config?.stop || '^^C',
         configStartup: egg.config?.startup || null,
-        variables: variables.map(v => ({
-          name: v.name,
-          envVariable: v.env_variable,
-          defaultValue: v.default_value,
-          rules: v.rules,
-          description: v.description,
-          userViewable: v.user_viewable,
-          userEditable: v.user_editable,
-        })),
+        variables: [],
       });
     }
     res.json({ eggs: simplified });
@@ -115,6 +111,11 @@ router.post('/create', authenticateToken, async (req, res) => {
   try {
     const { name, nestId, eggId, environment, capToken } = req.body;
     const pteroId = req.user.pteroId;
+
+    const userCheck = await query('SELECT restricted FROM users WHERE id = ?', [req.user.userId]);
+    if (userCheck.length > 0 && userCheck[0].restricted) {
+      return res.status(403).json({ error: 'Your account is restricted. Server creation is disabled.' });
+    }
 
     if (!name || !nestId || !eggId) {
       return res.status(400).json({ error: 'Name, nest ID and egg ID are required' });
@@ -136,15 +137,20 @@ router.post('/create', authenticateToken, async (req, res) => {
     const egg = await getEgg(nestId, eggId);
     const dockerImage = Object.values(egg.docker_images)[0] || Object.keys(egg.docker_images)[0];
 
-    const eggVars = await query(`SELECT name, env_variable, default_value, rules FROM ${PANEL_DB_NAME}.egg_variables WHERE egg_id = ?`, [eggId]);
+    const eggVars = await query(`SELECT env_variable, default_value FROM ${PANEL_DB_NAME}.egg_variables WHERE egg_id = ?`, [eggId]);
 
     const mergedEnv = {};
     for (const v of eggVars) {
-      const val = environment?.[v.env_variable] ?? v.default_value ?? '';
-      if (v.rules && v.rules.includes('required') && !val) {
-        return res.status(400).json({ error: `The ${v.name} variable is required.` });
-      }
-      mergedEnv[v.env_variable] = val;
+      mergedEnv[v.env_variable] = v.default_value ?? '';
+    }
+
+    // Check for per-egg custom resource overrides
+    const [eggRes] = await query('SELECT * FROM egg_resources WHERE ptero_nest_id = ? AND ptero_egg_id = ?', [nestId, eggId]);
+    const customLimits = {};
+    if (eggRes) {
+      if (eggRes.cpu_limit != null) customLimits.cpu = eggRes.cpu_limit;
+      if (eggRes.memory_limit != null) customLimits.memory = eggRes.memory_limit;
+      if (eggRes.disk_limit != null) customLimits.disk = eggRes.disk_limit;
     }
 
     const server = await createPteroServer({
@@ -155,6 +161,7 @@ router.post('/create', authenticateToken, async (req, res) => {
       environment: mergedEnv,
       startup: egg.startup,
       dockerImage,
+      customLimits: Object.keys(customLimits).length > 0 ? customLimits : undefined,
     });
 
     // Log server creation date
@@ -164,6 +171,7 @@ router.post('/create', authenticateToken, async (req, res) => {
     ).catch(err => console.error('Failed to log server meta:', err.message));
 
     await logActivity(req.user.userId, 'server_created', `Created server "${name}"`, server.id);
+    await createNotification(req.user.userId, 'Server Created', `Your server "${name}" has been created and is now being set up.`, 'success', `/servers`);
     res.status(201).json({ server });
   } catch (err) {
     console.error('Create server error:', err.message);
@@ -222,6 +230,11 @@ router.post('/renew/:id', authenticateToken, async (req, res) => {
     }
     const pteroId = req.user.pteroId;
 
+    const userCheck = await query('SELECT restricted FROM users WHERE id = ?', [req.user.userId]);
+    if (userCheck.length > 0 && userCheck[0].restricted) {
+      return res.status(403).json({ error: 'Your account is restricted. Renewal is disabled.' });
+    }
+
     const meta = await query('SELECT * FROM server_meta WHERE ptero_server_id = ?', [serverId]);
     if (meta.length === 0) {
       return res.status(404).json({ error: 'Server meta not found' });
@@ -270,6 +283,7 @@ router.post('/renew/:id', authenticateToken, async (req, res) => {
     }
 
     await logActivity(req.user.userId, 'server_renewed', `Renewed server #${serverId}`, serverId);
+    await createNotification(req.user.userId, 'Server Renewed', `Your server #${serverId} has been renewed for another 90 days.`, 'success', `/server/${serverId}`);
     const updated = await query('SELECT * FROM server_meta WHERE id = ?', [row.id]);
     res.json({ serverMeta: updated[0] });
   } catch (err) {
@@ -302,6 +316,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
 
     await renamePteroServer(serverId, name.trim());
     await logActivity(req.user.userId, 'server_renamed', `Renamed server #${serverId} to "${name.trim()}"`, serverId);
+    await createNotification(req.user.userId, 'Server Renamed', `Your server #${serverId} has been renamed to "${name.trim()}".`, 'info', `/server/${serverId}`);
     res.json({ success: true });
   } catch (err) {
     console.error('Rename server error:', err.message);
@@ -325,6 +340,7 @@ router.post('/:id/reinstall', authenticateToken, async (req, res) => {
 
     await reinstallPteroServer(serverId);
     await logActivity(req.user.userId, 'server_reinstalled', `Reinstalled server #${serverId}`, serverId);
+    await createNotification(req.user.userId, 'Server Reinstalled', `Your server #${serverId} is being reinstalled.`, 'warning', `/server/${serverId}`);
     res.json({ success: true });
   } catch (err) {
     console.error('Reinstall server error:', err.message);
@@ -338,9 +354,18 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     if (isNaN(serverId)) {
       return res.status(400).json({ error: 'Invalid server ID' });
     }
-    await deletePteroServer(serverId);
+    const meta = await query('SELECT status FROM server_meta WHERE ptero_server_id = ?', [serverId]);
+    if (meta.length > 0 && meta[0].status === 'suspended') {
+      return res.status(403).json({ error: 'Cannot delete a suspended server' });
+    }
+    try {
+      await deletePteroServer(serverId);
+    } catch (err) {
+      console.warn('Pterodactyl delete failed (proceeding with local cleanup):', err.message);
+    }
     await query('DELETE FROM server_meta WHERE ptero_server_id = ?', [serverId]);
     await logActivity(req.user.userId, 'server_deleted', `Deleted server #${serverId}`);
+    await createNotification(req.user.userId, 'Server Deleted', `Your server #${serverId} has been permanently deleted.`, 'error');
     res.json({ success: true });
   } catch (err) {
     console.error('Delete server error:', err.message);
@@ -351,12 +376,16 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 router.get('/overview', authenticateToken, async (req, res) => {
   try {
     const pteroId = req.user.pteroId;
+    const userRow = await query('SELECT restricted FROM users WHERE id = ?', [req.user.userId]);
+    const restricted = userRow.length > 0 && !!userRow[0].restricted;
+
     let servers = [];
     try {
       servers = await getServersByUser(pteroId);
     } catch (err) {
       console.error('Overview Pyrodactyl error:', err.message);
       return res.json({
+        restricted,
         totalServers: 0,
         activeServers: 0,
         servers: [],
@@ -374,6 +403,7 @@ router.get('/overview', authenticateToken, async (req, res) => {
     }
 
     res.json({
+      restricted,
       totalServers: servers.length,
       activeServers: servers.filter(s => s.status !== 'suspended').length,
       serverLimit: 3,
