@@ -299,13 +299,15 @@ function renderNotifications() {
     </div>
   `).join('');
 
-  list.querySelectorAll('.notif-item.notif-unread').forEach(el => {
+  list.querySelectorAll('.notif-item').forEach(el => {
     const msgEl = el.querySelector('.notif-item-msg');
     const isTruncated = msgEl && msgEl.scrollHeight > msgEl.clientHeight;
 
     el.addEventListener('click', () => {
       const id = parseInt(el.dataset.id, 10);
-      markAsRead(id);
+      if (el.classList.contains('notif-unread')) {
+        markAsRead(id);
+      }
       if (isTruncated) {
         const notif = state.notifications.find(n => n.id === id);
         if (notif) showNotifDetailModal(notif);
