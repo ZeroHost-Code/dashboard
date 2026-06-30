@@ -1383,6 +1383,13 @@ async function showAddNestsModal() {
   const overlay = $a('#admin-modal-overlay');
   if (!content || !overlay) return;
 
+  if (!$a('#custom-checkbox-style')) {
+    const style = document.createElement('style');
+    style.id = 'custom-checkbox-style';
+    style.textContent = '.custom-checkbox-label.checked .custom-checkbox-ui { background: var(--accent-1); border-color: var(--accent-1); } .custom-checkbox-label.checked .custom-checkbox-ui .custom-checkbox-check { display: block; }';
+    document.head.appendChild(style);
+  }
+
   content.innerHTML = '<div style="text-align:center;padding:24px"><span class="spinner"></span> Loading available nests...</div>';
   overlay.style.display = 'flex';
 
@@ -1405,7 +1412,7 @@ async function showAddNestsModal() {
         <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:16px">Select nests from the panel to make them available:</p>
         <div id="add-nests-list" style="max-height:300px;overflow-y:auto;margin-bottom:16px">
           ${data.nests.map(n => ahtml`
-            <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer" class="custom-checkbox-label">
+            <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer" class="custom-checkbox-label" data-id="${n.id}">
               <input type="checkbox" class="add-nest-checkbox" value="${n.id}" data-name="${n.name}" style="display:none" />
               <span class="custom-checkbox-ui" style="width:20px;height:20px;border:2px solid var(--text-secondary);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:var(--transition);background:transparent">
                 <svg class="custom-checkbox-check" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--bg-primary)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polyline points="20 6 9 17 4 12"/></svg>
@@ -1414,10 +1421,6 @@ async function showAddNestsModal() {
             </label>
           `).join('')}
         </div>
-        <style id="custom-checkbox-style">
-          .custom-checkbox-label input:checked + .custom-checkbox-ui { background: var(--accent-1); border-color: var(--accent-1); }
-          .custom-checkbox-label input:checked + .custom-checkbox-ui .custom-checkbox-check { display: block; }
-        </style>
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary btn-full" id="btn-confirm-add-nests" style="justify-content:center">Add Selected</button>
           <button class="btn btn-ghost btn-full" onclick="closeAdminModal()" style="justify-content:center">Cancel</button>
@@ -1425,6 +1428,16 @@ async function showAddNestsModal() {
         <div id="add-nests-error" style="margin-top:12px;color:var(--accent-red);display:none"></div>
       </div>
     `;
+
+    document.querySelectorAll('.custom-checkbox-label').forEach(label => {
+      label.addEventListener('click', (e) => {
+        e.preventDefault();
+        const cb = label.querySelector('.add-nest-checkbox');
+        if (!cb) return;
+        cb.checked = !cb.checked;
+        label.classList.toggle('checked', cb.checked);
+      });
+    });
 
     $a('#btn-confirm-add-nests')?.addEventListener('click', async () => {
       const checked = document.querySelectorAll('.add-nest-checkbox:checked');
