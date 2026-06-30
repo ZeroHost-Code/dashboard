@@ -1,3 +1,5 @@
+function initIcons() { if (window.lucide) lucide.createIcons(); }
+
 const API_BASE = window.location.origin;
 
 const state = {
@@ -69,7 +71,7 @@ async function sendPowerCommand(identifier, signal, event) {
     content.innerHTML = html`
       <div class="modal-title">Command Failed</div>
       <div style="text-align:center;padding:8px 0 16px">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent-red)" stroke-width="1.5" style="margin-bottom:12px"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <i data-lucide="circle-alert" style="width:48px;height:48px;color:var(--accent-red);margin-bottom:12px"></i>
         <p style="color:var(--text-secondary);line-height:1.6;margin:0">Failed to send ${signal} command:</p>
         <p style="color:var(--text-primary);font-weight:600;margin:4px 0 0 0">${err.message}</p>
       </div>
@@ -207,10 +209,10 @@ function hideError(form) {
 }
 
 const NOTIF_ICONS = {
-  success: '<svg class="notif-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
-  error: '<svg class="notif-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>',
-  warning: '<svg class="notif-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
-  info: '<svg class="notif-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>',
+  success: '<i data-lucide="check-circle" class="notif-icon"></i>',
+  error: '<i data-lucide="x-circle" class="notif-icon"></i>',
+  warning: '<i data-lucide="triangle-alert" class="notif-icon"></i>',
+  info: '<i data-lucide="info" class="notif-icon"></i>',
 };
 
 function timeAgo(dateStr) {
@@ -634,37 +636,37 @@ async function renderDashboard() {
           <div class="nav-indicator" id="nav-indicator"></div>
           <div class="nav-section-label">Main</div>
           <a class="nav-item active" data-page="overview" href="/">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            <i data-lucide="grid-3x3"></i>
             Overview
           </a>
           <a class="nav-item" data-page="servers" href="/servers">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1" fill="currentColor"/><circle cx="6" cy="18" r="1" fill="currentColor"/></svg>
+            <i data-lucide="server"></i>
             My Servers
           </a>
           <a class="nav-item" id="nav-notifications" href="#">
             <span style="position:relative;display:inline-flex">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              <i data-lucide="bell"></i>
               <span class="notif-badge" id="notif-badge"></span>
             </span>
             Notifications
           </a>
           <div class="nav-section-label">Actions</div>
           <a class="nav-item" data-page="create" href="/create">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            <i data-lucide="plus"></i>
             Create Server
           </a>
           <div class="nav-section-label">Links</div>
           <a class="nav-item" href="https://hub.zero-host.org" target="_blank">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <i data-lucide="globe"></i>
             Links Hub
           </a>
           <a class="nav-item" href="${window.location.hostname === 'beta.zero-host.org' ? 'https://dashboard.zero-host.org' : 'https://beta.zero-host.org'}" target="_blank">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+            <i data-lucide="globe"></i>
             ${window.location.hostname === 'beta.zero-host.org' ? 'Switch to Stable' : 'Switch to Beta'}
           </a>
           ${state.user?.isAdmin ? html`
           <a class="nav-item" href="/admin">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <i data-lucide="shield"></i>
             Switch Admin
           </a>
           ` : ''}
@@ -680,7 +682,7 @@ async function renderDashboard() {
               </div>
             </div>
             <div id="logout-btn" style="cursor:pointer;color:var(--text-muted);display:flex;align-items:center;padding:6px;border-radius:var(--radius-sm);transition:all var(--transition)" title="Sign Out">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+              <i data-lucide="log-out" style="width:18px;height:18px"></i>
             </div>
           </div>
           <div style="border-top:1px solid var(--border);margin:6px -12px 0"></div>
@@ -704,12 +706,12 @@ async function renderDashboard() {
       <div class="notif-backdrop" id="notif-backdrop"></div>
 
       <button class="hamburger-toggle" id="hamburger-toggle" aria-label="Toggle menu">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+        <i data-lucide="menu" style="width:20px;height:20px"></i>
       </button>
 
       <main class="main-content">
         <div id="restricted-banner" style="display:${state.user?.restricted ? 'flex' : 'none'};align-items:center;justify-content:center;gap:8px;background:rgba(239,68,68,0.12);color:var(--accent-red);padding:12px 20px;font-size:0.875rem;text-align:center;border:2px solid rgba(239,68,68,0.25);border-radius:10px;margin:8px 16px 0">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <i data-lucide="triangle-alert" style="width:18px;height:18px;flex-shrink:0"></i>
           <span><strong>Account Restricted</strong> &mdash; Your account has been restricted. You cannot create or renew servers.</span>
         </div>
         <div class="page active" id="page-overview"></div>
@@ -770,6 +772,8 @@ async function renderDashboard() {
   initSidebarResize();
 
   initSidebarTooltip();
+
+  initIcons();
 
   const page = window.location.pathname.replace('/', '') || 'overview';
   navigateTo(page);
@@ -901,6 +905,8 @@ function navigateTo(page) {
   if (window.innerWidth <= 768) {
     $('#sidebar').classList.remove('open');
   }
+
+  initIcons();
 }
 
 function updateNavIndicator() {
@@ -973,10 +979,10 @@ async function renderOverview() {
       <p class="page-subtitle">Welcome back, ${state.user?.username || 'user'}</p>
     </div>
     <div class="stat-grid" id="stats-grid">
-      <div class="stat-card"><div class="stat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg></div><div class="stat-value" id="stat-total">—</div><div class="stat-label">Total Servers</div></div>
-      <div class="stat-card"><div class="stat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><div class="stat-value" id="stat-active">—</div><div class="stat-label">Active Servers</div></div>
-      <div class="stat-card"><div class="stat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="4"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div><div class="stat-value" id="stat-slots">—</div><div class="stat-label">Server Slots</div></div>
-      <div class="stat-card"><div class="stat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div><div class="stat-value" id="stat-renew">—</div><div class="stat-label">To Renew</div></div>
+      <div class="stat-card"><div class="stat-icon"><i data-lucide="server" style="width:20px;height:20px"></i></div><div class="stat-value" id="stat-total">—</div><div class="stat-label">Total Servers</div></div>
+      <div class="stat-card"><div class="stat-icon"><i data-lucide="activity" style="width:20px;height:20px"></i></div><div class="stat-value" id="stat-active">—</div><div class="stat-label">Active Servers</div></div>
+      <div class="stat-card"><div class="stat-icon"><i data-lucide="target" style="width:20px;height:20px"></i></div><div class="stat-value" id="stat-slots">—</div><div class="stat-label">Server Slots</div></div>
+      <div class="stat-card"><div class="stat-icon"><i data-lucide="eye" style="width:20px;height:20px"></i></div><div class="stat-value" id="stat-renew">—</div><div class="stat-label">To Renew</div></div>
     </div>
     <div class="card">
       <div class="card-header">
@@ -1020,7 +1026,7 @@ async function renderOverview() {
     if (data.servers.length === 0 && !data.pteroError) {
       $('#recent-servers-list').innerHTML = html`
         <div class="empty-state">
-          <div class="empty-state-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg></div>
+          <div class="empty-state-icon"><i data-lucide="server" style="width:24px;height:24px"></i></div>
           <div class="empty-state-title">No servers yet</div>
           <div class="empty-state-desc">Create your first server to get started</div>
           <button class="btn btn-primary" id="empty-create-server-btn">Create Server</button>
@@ -1040,23 +1046,25 @@ async function renderOverview() {
       <div style="text-align:center;padding:32px;color:var(--accent-red)">Failed to load: ${err.message}</div>
     `;
   }
+
+  initIcons();
 }
 
 let activityIcons = {
-  server_created: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
-  server_renewed: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>',
-  server_renamed: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
-  server_reinstalled: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>',
-  server_deleted: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>',
-  account_registered: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>',
-  password_changed: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>',
-  email_changed: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
-  account_deleted: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><circle cx="12" cy="18" r="1"/></svg>',
-  api_key_updated: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>',
-  avatar_updated: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>',
-  admin_suspend: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="9" y1="12" x2="15" y2="12"/></svg>',
-  admin_unsuspend: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>',
-  admin_renew_now: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>',
+  server_created: '<i data-lucide="plus-circle" style="width:14px;height:14px"></i>',
+  server_renewed: '<i data-lucide="refresh-cw" style="width:14px;height:14px"></i>',
+  server_renamed: '<i data-lucide="edit" style="width:14px;height:14px"></i>',
+  server_reinstalled: '<i data-lucide="refresh-cw" style="width:14px;height:14px"></i>',
+  server_deleted: '<i data-lucide="trash-2" style="width:14px;height:14px"></i>',
+  account_registered: '<i data-lucide="user-plus" style="width:14px;height:14px"></i>',
+  password_changed: '<i data-lucide="lock" style="width:14px;height:14px"></i>',
+  email_changed: '<i data-lucide="mail" style="width:14px;height:14px"></i>',
+  account_deleted: '<i data-lucide="triangle-alert" style="width:14px;height:14px"></i>',
+  api_key_updated: '<i data-lucide="key" style="width:14px;height:14px"></i>',
+  avatar_updated: '<i data-lucide="image" style="width:14px;height:14px"></i>',
+  admin_suspend: '<i data-lucide="shield-off" style="width:14px;height:14px"></i>',
+  admin_unsuspend: '<i data-lucide="shield-check" style="width:14px;height:14px"></i>',
+  admin_renew_now: '<i data-lucide="refresh-cw" style="width:14px;height:14px"></i>',
 };
 
 function formatRelativeTime(dateStr) {
@@ -1193,7 +1201,7 @@ function renderServerCard(s) {
       ` : ''}
       <div class="server-card-actions">
         <button class="btn btn-ghost btn-sm" onclick="openPyrodactylPanel('${s.identifier}')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+          <i data-lucide="external-link" style="width:14px;height:14px"></i>
           Open Panel
         </button>
         ${canRenew && !isAdminSuspended ? html`
@@ -1249,7 +1257,7 @@ async function renderServers() {
     </div>
     <div class="servers-toolbar">
       <div class="search-wrapper">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <i data-lucide="search" style="width:16px;height:16px"></i>
         <input type="text" id="server-search-input" placeholder="Search servers..." autocomplete="off" />
       </div>
       <div class="filter-group" id="server-filters">
@@ -1285,7 +1293,7 @@ async function renderServers() {
       const container = el.querySelector('.table-container');
       container.innerHTML = html`
         <div class="empty-state">
-          <div class="empty-state-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1" fill="currentColor"/><circle cx="6" cy="18" r="1" fill="currentColor"/></svg></div>
+          <div class="empty-state-icon"><i data-lucide="server" style="width:24px;height:24px"></i></div>
           <div class="empty-state-title">No servers yet</div>
           <div class="empty-state-desc">Create your first server to get started</div>
           <button class="btn btn-primary" id="servers-empty-create-btn">Create Server</button>
@@ -1343,6 +1351,8 @@ async function renderServers() {
       <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>
     `;
   }
+
+  initIcons();
 }
 
 // ===== CREATE SERVER =====
@@ -1367,7 +1377,7 @@ async function renderCreateServer() {
           <div class="custom-select" id="custom-egg-select">
             <button type="button" class="custom-select-trigger" id="custom-egg-trigger">
               <span id="custom-egg-label">Select an egg...</span>
-              <svg class="custom-select-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              <i data-lucide="chevron-down" class="custom-select-arrow" style="width:12px;height:12px"></i>
             </button>
             <div class="custom-select-dropdown" id="custom-egg-dropdown"></div>
           </div>
@@ -1384,7 +1394,7 @@ async function renderCreateServer() {
           <cap-widget data-cap-api-endpoint="https://cap.zero-host.org/f6c8171b08/" theme="dark"></cap-widget>
         </div>
         <button type="submit" class="btn btn-primary btn-full" id="create-btn" style="margin-top:16px">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          <i data-lucide="plus" style="width:18px;height:18px"></i>
           Create Server
         </button>
       </form>
@@ -1432,6 +1442,8 @@ async function renderCreateServer() {
     $('#custom-egg-trigger').disabled = true;
     showToast('Could not load eggs: ' + err.message, 'error');
   }
+
+  initIcons();
 }
 
 function handleEggChange() {}
@@ -1487,20 +1499,21 @@ function renderPyrodactyl() {
     <div class="ptero-grid">
       <div class="card ptero-card">
         <div class="ptero-card-icon">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M9 6V5a2 2 0 012-2h2a2 2 0 012 2v1M9 12h6M9 16h4"/></svg>
+          <i data-lucide="package" style="width:28px;height:28px"></i>
         </div>
         <h2 class="ptero-card-title">Opening Pyrodactyl...</h2>
         <p class="ptero-card-desc">
           Click the button below to open the Pyrodactyl panel.
         </p>
         <button class="btn btn-primary btn-full" id="ptero-open-btn" onclick="openPyrodactylPanel()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+          <i data-lucide="external-link" style="width:18px;height:18px"></i>
           Open Panel Now
         </button>
       </div>
     </div>
   `;
   setTimeout(() => openPyrodactylPanel(), 500);
+  initIcons();
 }
 
 // ===== ACCOUNT PAGE =====
@@ -1515,52 +1528,52 @@ function renderAccount() {
       <div class="card account-menu-card" id="account-menu-edit" style="cursor:pointer">
         <div class="account-menu-item">
           <div class="account-menu-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            <i data-lucide="edit" style="width:22px;height:22px"></i>
           </div>
           <div class="account-menu-text">
             <div class="account-menu-title">Change Account Info</div>
             <div class="account-menu-desc">Update your email address or password</div>
           </div>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
+          <i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--text-muted);flex-shrink:0"></i>
         </div>
       </div>
 
       <div class="card account-menu-card" id="account-menu-logs" style="cursor:pointer">
         <div class="account-menu-item">
           <div class="account-menu-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <i data-lucide="file-text" style="width:22px;height:22px"></i>
           </div>
           <div class="account-menu-text">
             <div class="account-menu-title">Activity Log</div>
             <div class="account-menu-desc">View all account activity</div>
           </div>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
+          <i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--text-muted);flex-shrink:0"></i>
         </div>
       </div>
 
       <div class="card account-menu-card" id="account-menu-logout" style="cursor:pointer">
         <div class="account-menu-item">
           <div class="account-menu-icon" style="color:var(--accent-red)">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+            <i data-lucide="log-out" style="width:22px;height:22px"></i>
           </div>
           <div class="account-menu-text">
             <div class="account-menu-title">Sign Out</div>
             <div class="account-menu-desc">Logout from your account</div>
           </div>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
+          <i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--text-muted);flex-shrink:0"></i>
         </div>
       </div>
 
       <div class="card account-menu-card" id="account-menu-dangerous" style="cursor:pointer">
         <div class="account-menu-item">
           <div class="account-menu-icon" style="color:var(--accent-red)">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><circle cx="12" cy="18" r="1"/></svg>
+            <i data-lucide="triangle-alert" style="width:22px;height:22px"></i>
           </div>
           <div class="account-menu-text">
             <div class="account-menu-title">Dangerous Zone & Export Account Data</div>
             <div class="account-menu-desc">Delete your account or export your personal data (RGPD)</div>
           </div>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
+          <i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--text-muted);flex-shrink:0"></i>
         </div>
       </div>
     </div>
@@ -1570,6 +1583,7 @@ function renderAccount() {
   $('#account-menu-logs').addEventListener('click', () => navigateTo('logs'));
   $('#account-menu-dangerous').addEventListener('click', () => navigateTo('account/dangerous'));
   $('#account-menu-logout').addEventListener('click', async () => {
+    initIcons();
     try { await api('/auth/logout', { method: 'POST' }); } catch {}
     state.token = null;
     state.user = null;
@@ -1584,7 +1598,7 @@ function renderAccountEdit() {
   el.innerHTML = html`
     <div class="page-header" style="display:flex;align-items:center;gap:12px">
       <a href="/account" onclick="event.preventDefault();navigateTo('account')" style="color:var(--text-muted);display:flex;padding:4px;border-radius:var(--radius-sm);cursor:pointer">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        <i data-lucide="arrow-left" style="width:20px;height:20px"></i>
       </a>
       <div>
         <h1 class="page-title" style="margin:0">Change Account Info</h1>
@@ -1708,6 +1722,7 @@ function renderAccountEdit() {
   $('#avatar-upload-btn').addEventListener('click', handleAvatarUpload);
 
   checkApiKeyStatus();
+  initIcons();
 }
 
 async function handleAvatarUpload() {
@@ -1796,7 +1811,7 @@ function renderApiKeySaved() {
   section.innerHTML = html`
     <div style="padding:8px 0">
       <p style="color:var(--accent-green);font-size:0.9rem;margin-bottom:16px">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg>Your Pyrodactyl API key is saved and active.
+        <i data-lucide="check" style="width:16px;height:16px;color:var(--accent-green);stroke-width:3;margin-right:4px;vertical-align:middle"></i>Your Pyrodactyl API key is saved and active.
       </p>
       <div style="display:flex;gap:8px">
         <button class="btn btn-primary" id="modify-api-key-btn">Modify</button>
@@ -1987,7 +2002,7 @@ function renderDangerous() {
   el.innerHTML = html`
     <div class="page-header" style="display:flex;align-items:center;gap:12px">
       <a href="/account" onclick="event.preventDefault();navigateTo('account')" style="color:var(--text-muted);display:flex;padding:4px;border-radius:var(--radius-sm);cursor:pointer">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        <i data-lucide="arrow-left" style="width:20px;height:20px"></i>
       </a>
       <div>
         <h1 class="page-title" style="margin:0">Dangerous Zone & Export Account Data</h1>
@@ -2009,7 +2024,7 @@ function renderDangerous() {
           Under Article 15 and 20 of the RGPD, you have the right to access and port your personal data. Click below to download a copy of all data we hold about you.
         </p>
         <button class="btn btn-primary btn-full" id="export-data-btn">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          <i data-lucide="download" style="width:18px;height:18px"></i>
           Export My Data
         </button>
       </div>
@@ -2017,6 +2032,7 @@ function renderDangerous() {
   `;
   $('#delete-account-btn').addEventListener('click', handleDeleteAccountClick);
   $('#export-data-btn').addEventListener('click', handleExportData);
+  initIcons();
 }
 
 function handleDeleteAccountClick() {
@@ -2098,13 +2114,13 @@ async function renderServerDetail(serverId) {
     el.innerHTML = html`
       <div class="page-header">
         <a href="/servers" onclick="event.preventDefault();navigateTo('servers')" class="btn btn-ghost btn-sm" style="margin-bottom:16px;display:inline-flex;width:auto">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          <i data-lucide="arrow-left" style="width:14px;height:14px"></i>
           Back to Servers
         </a>
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
           <h1 class="page-title" style="margin-bottom:0">${s.name}</h1>
           <button class="btn btn-ghost btn-sm btn-rename-server" data-server-id="${s.id}" data-server-name="${s.name.replace(/"/g, '&quot;')}" title="Rename server" style="width:auto;padding:6px">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            <i data-lucide="edit" style="width:16px;height:16px"></i>
           </button>
           <span class="server-card-status ${statusClass}" style="font-size:0.8rem">${statusLabel}</span>
         </div>
@@ -2196,7 +2212,7 @@ async function renderServerDetail(serverId) {
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
             <h2 class="card-title" style="margin:0">Live Resource Usage</h2>
             <button class="btn btn-ghost btn-sm" id="refresh-resources-btn" style="width:auto">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
+              <i data-lucide="refresh-cw" style="width:14px;height:14px"></i>
               Refresh
             </button>
           </div>
@@ -2209,21 +2225,21 @@ async function renderServerDetail(serverId) {
       <div id="server-tab-actions" class="tab-content" style="display:${activeTab === 'actions' ? 'block' : 'none'}">
         ${isAdminSuspended ? html`
         <div style="text-align:center;padding:48px 24px">
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--accent-red)" stroke-width="1.5" style="margin-bottom:16px"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          <i data-lucide="lock" style="width:64px;height:64px;color:var(--accent-red);stroke-width:1.5;margin-bottom:16px"></i>
           <h2 style="margin:0 0 8px 0;color:var(--text-primary)">Server Suspended</h2>
           <p style="color:var(--text-secondary);font-size:0.95rem;margin:0 0 4px 0">This server has been suspended by an administrator. No actions are available.</p>
           <p style="color:var(--text-secondary);font-size:0.95rem;margin:0">Please contact support via <a href="https://discord.zero-host.org" target="_blank" style="color:var(--accent-1);text-decoration:underline">Discord</a> for assistance.</p>
         </div>
         ` : isExpiredRenewable ? html`
         <div style="text-align:center;padding:48px 24px">
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--accent-orange)" stroke-width="1.5" style="margin-bottom:16px"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          <i data-lucide="clock" style="width:64px;height:64px;color:var(--accent-orange);stroke-width:1.5;margin-bottom:16px"></i>
           <h2 style="margin:0 0 8px 0;color:var(--text-primary)">Server Expired</h2>
           <p style="color:var(--text-secondary);font-size:0.95rem;margin:0 0 4px 0">This server has expired. Renew it to reactivate it instantly and get 90 more days.</p>
           <button class="btn btn-primary btn-renew-server" data-server-id="${s.id}" style="margin-top:16px">Renew Server (90 days)</button>
         </div>
         ` : isSuspended ? html`
         <div style="text-align:center;padding:48px 24px">
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--accent-red)" stroke-width="1.5" style="margin-bottom:16px"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          <i data-lucide="lock" style="width:64px;height:64px;color:var(--accent-red);stroke-width:1.5;margin-bottom:16px"></i>
           <h2 style="margin:0 0 8px 0;color:var(--text-primary)">Server Expired</h2>
           <p style="color:var(--text-secondary);font-size:0.95rem;margin:0 0 4px 0">This server has been expired for too long. Please contact support to renew.</p>
           <p style="color:var(--text-secondary);font-size:0.95rem;margin:0">Reach out via <a href="https://discord.zero-host.org" target="_blank" style="color:var(--accent-1);text-decoration:underline">Discord</a> for assistance.</p>
@@ -2232,7 +2248,7 @@ async function renderServerDetail(serverId) {
         <div class="server-detail-grid">
           <div class="action-card">
             <div class="action-card-header">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              <i data-lucide="zap" style="width:24px;height:24px"></i>
               <div>
                 <h3 class="action-card-title">Power Controls</h3>
                 <p class="action-card-desc">
@@ -2249,7 +2265,7 @@ async function renderServerDetail(serverId) {
 
           <div class="action-card">
             <div class="action-card-header">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+              <i data-lucide="external-link" style="width:24px;height:24px"></i>
               <div>
                 <h3 class="action-card-title">Open Panel</h3>
                 <p class="action-card-desc">Access the full Pyrodactyl control panel to manage files, console, databases, schedules, and more.</p>
@@ -2260,7 +2276,7 @@ async function renderServerDetail(serverId) {
 
           <div class="action-card">
             <div class="action-card-header">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
+              <i data-lucide="refresh-cw" style="width:24px;height:24px"></i>
               <div>
                 <h3 class="action-card-title">Reinstall Server</h3>
                 <p class="action-card-desc">Delete all files and reinstall the server from scratch. Only do this if you are experiencing critical issues with your server.</p>
@@ -2271,7 +2287,7 @@ async function renderServerDetail(serverId) {
 
           <div class="action-card">
             <div class="action-card-header">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+              <i data-lucide="trash-2" style="width:24px;height:24px"></i>
               <div>
                 <h3 class="action-card-title">Delete Server</h3>
                 <p class="action-card-desc">Permanently delete this server and all associated data. This action is irreversible.</p>
@@ -2301,15 +2317,18 @@ async function renderServerDetail(serverId) {
       indicator.style.transition = '';
     }
 
+    initIcons();
+
   } catch (err) {
     el.innerHTML = html`
       <div class="empty-state">
-        <div class="empty-state-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div>
+        <div class="empty-state-icon"><i data-lucide="circle-alert" style="width:24px;height:24px"></i></div>
         <div class="empty-state-title">Server not found</div>
         <div class="empty-state-desc">${err.message}</div>
         <button class="btn btn-primary" onclick="navigateTo('servers')">Back to Servers</button>
       </div>
     `;
+    initIcons();
   }
 }
 
@@ -2633,7 +2652,7 @@ async function handleExportData() {
     showToast('Failed to export data: ' + err.message, 'error');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg> Export My Data`;
+    btn.innerHTML = `        <i data-lucide="download" style="width:18px;height:18px"></i> Export My Data`;
   }
 }
 

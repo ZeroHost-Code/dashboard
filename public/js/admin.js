@@ -1,3 +1,5 @@
+function initIcons() { if (window.lucide) lucide.createIcons(); }
+
 const ADMIN_STORAGE_KEY = 'zh_admin_token';
 
 const adminState = {
@@ -197,23 +199,23 @@ function renderAdminLayout() {
         </div>
         <div class="admin-navbar-center">
           <a class="admin-nav-link" data-page="dashboard" href="/admin/dashboard">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            <i data-lucide="grid-3x3" style="width:18px;height:18px"></i>
             Dashboard
           </a>
           <a class="admin-nav-link" data-page="servers" href="/admin/servers">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1" fill="currentColor"/><circle cx="6" cy="18" r="1" fill="currentColor"/></svg>
+            <i data-lucide="server" style="width:18px;height:18px"></i>
             Servers
           </a>
           <a class="admin-nav-link" data-page="users" href="/admin/users">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <i data-lucide="users" style="width:18px;height:18px"></i>
             Users
           </a>
           <a class="admin-nav-link" data-page="activity" href="/admin/activity">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            <i data-lucide="activity" style="width:18px;height:18px"></i>
             Activity
           </a>
           <a class="admin-nav-link" data-page="settings" href="/admin/settings">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <i data-lucide="settings" style="width:18px;height:18px"></i>
             Settings
           </a>
         </div>
@@ -254,6 +256,7 @@ function renderAdminLayout() {
   });
 
   initAdminDateTooltip();
+  initIcons();
 
   const path = window.location.pathname.replace('/admin/', '').split('/');
   const basePage = path[0] || 'dashboard';
@@ -408,6 +411,7 @@ async function renderAdminServers() {
     const tbody = $a('#admin-servers-tbody');
     if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
   }
+  initIcons();
 }
 
 async function renderAdminServerDetail(serverId) {
@@ -435,7 +439,7 @@ async function renderAdminServerDetail(serverId) {
     detailPage.innerHTML = ahtml`
       <div class="page-header">
         <a href="/admin/servers" onclick="event.preventDefault();adminNavigateTo('servers')" class="btn btn-ghost btn-sm" style="display:inline-flex;width:auto;margin-bottom:16px">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          <i data-lucide="arrow-left" style="width:14px;height:14px"></i>
           Back to Servers
         </a>
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
@@ -511,6 +515,7 @@ async function renderAdminServerDetail(serverId) {
 
     initAdminTabs();
     initAdminActions(serverId);
+    initIcons();
   } catch (err) {
     detailPage.innerHTML = ahtml`
       <div class="page-header">
@@ -918,6 +923,7 @@ async function renderAdminUsers() {
     const tbody = $a('#admin-users-tbody');
     if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
   }
+  initIcons();
 }
 
 // ─── User Detail ────────────────────────────────────────
@@ -938,7 +944,7 @@ async function renderAdminUserDetail(userId) {
     el.innerHTML = ahtml`
       <div class="page-header">
         <a href="/admin/users" onclick="event.preventDefault();adminNavigateTo('users')" class="btn btn-ghost btn-sm" style="display:inline-flex;width:auto;margin-bottom:16px">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          <i data-lucide="arrow-left" style="width:14px;height:14px"></i>
           Back to Users
         </a>
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
@@ -1053,6 +1059,7 @@ async function renderAdminUserDetail(userId) {
 
     initUserTabs();
     initUserActions(userId);
+    initIcons();
   } catch (err) {
     el.innerHTML = ahtml`
       <div class="page-header">
@@ -1250,7 +1257,7 @@ async function renderAdminSettings() {
     <div class="settings-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
       <div class="card settings-card" style="cursor:pointer;padding:24px;transition:var(--transition);border:1px solid var(--border);border-radius:var(--radius-md)" id="settings-eggs-entry" onmouseover="this.style.borderColor='var(--accent-1)'" onmouseout="this.style.borderColor='var(--border)'">
         <div style="font-size:1.5rem;margin-bottom:8px">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-1)" stroke-width="2"><path d="M12 2a8 8 0 0 0-8 8c0 3.5 2 6.5 4 8.5S11 22 12 22s2-1.5 4-3.5 4-5 4-8.5a8 8 0 0 0-8-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <i data-lucide="egg" style="width:32px;height:32px;color:var(--accent-1)"></i>
         </div>
         <h2 class="card-title" style="margin-bottom:4px">Eggs Settings</h2>
         <p style="color:var(--text-secondary);font-size:0.85rem;margin:0">Manage nests, eggs, and per-egg resource overrides</p>
@@ -1258,6 +1265,7 @@ async function renderAdminSettings() {
     </div>
   `;
   $a('#settings-eggs-entry')?.addEventListener('click', () => adminNavigateTo('settings/eggs'));
+  initIcons();
 }
 
 // ─── Eggs Settings: Nests List ──────────────────────────
@@ -1269,8 +1277,8 @@ async function renderAdminEggsSettings() {
   el.innerHTML = ahtml`
     <div class="page-header">
       <a href="/admin/settings" onclick="event.preventDefault();adminNavigateTo('settings')" class="btn btn-ghost btn-sm" style="display:inline-flex;width:auto;margin-bottom:16px">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-        Back to Settings
+          <i data-lucide="arrow-left" style="width:14px;height:14px"></i>
+          Back to Settings
       </a>
       <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
         <h1 class="page-title" style="margin-bottom:0">Eggs Settings</h1>
@@ -1344,8 +1352,8 @@ async function renderAdminNestEggs(nestId) {
   el.innerHTML = ahtml`
     <div class="page-header">
       <a href="/admin/settings/eggs" onclick="event.preventDefault();adminNavigateTo('settings/eggs')" class="btn btn-ghost btn-sm" style="display:inline-flex;width:auto;margin-bottom:16px">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-        Back to Nests
+          <i data-lucide="arrow-left" style="width:14px;height:14px"></i>
+          Back to Nests
       </a>
       <h1 class="page-title" style="margin-bottom:0">Eggs</h1>
       <p class="page-subtitle">Nest ID: ${nestId}</p>
@@ -1399,6 +1407,7 @@ async function renderAdminNestEggs(nestId) {
     const tbody = $a('#admin-eggs-tbody');
     if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
   }
+  initIcons();
 }
 
 // ─── Eggs Settings: Egg Resource Configuration ──────────
@@ -1410,8 +1419,8 @@ async function renderAdminEggSettings(nestId, eggId) {
   el.innerHTML = ahtml`
     <div class="page-header">
       <a href="/admin/settings/eggs/${nestId}" onclick="event.preventDefault();adminNavigateTo('settings/eggs/${nestId}')" class="btn btn-ghost btn-sm" style="display:inline-flex;width:auto;margin-bottom:16px">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-        Back to Eggs
+          <i data-lucide="arrow-left" style="width:14px;height:14px"></i>
+          Back to Eggs
       </a>
       <h1 class="page-title" style="margin-bottom:0">Egg Resources</h1>
       <p class="page-subtitle" id="admin-egg-name">Loading...</p>
@@ -1508,6 +1517,8 @@ async function renderAdminEggSettings(nestId, eggId) {
       if (errEl) { errEl.textContent = err.message; errEl.classList.add('show'); }
     }
   });
+
+  initIcons();
 
   $a('#btn-save-egg-resources-all')?.addEventListener('click', async () => {
     if (!confirm('Apply these resources to ALL existing servers using this egg? This will update their limits on the panel.')) return;
