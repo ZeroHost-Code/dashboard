@@ -941,24 +941,35 @@ async function renderAdminUserDetail(userId) {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
           Back to Users
         </a>
-        <h1 class="page-title" style="margin-bottom:0">${u.username}</h1>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <h1 class="page-title" style="margin-bottom:0">${u.username}</h1>
+          ${u.restricted ? '<span class="server-card-status status-suspended" style="font-size:0.75rem">Restricted</span>' : '<span class="server-card-status status-active" style="font-size:0.75rem">Active</span>'}
+          ${u.auth_restricted ? '<span class="server-card-status status-suspended" style="font-size:0.75rem">Auth Restricted</span>' : ''}
+        </div>
       </div>
 
-      <div class="server-detail-grid" style="margin-bottom:24px">
-        <div class="card">
-          <h2 class="card-title" style="margin-bottom:16px">User Info</h2>
-          <div class="detail-list">
-            <div class="detail-item"><span class="detail-label">ID</span><span class="detail-value">${u.id}</span></div>
-            <div class="detail-item"><span class="detail-label">Username</span><span class="detail-value">${u.username}</span></div>
-            <div class="detail-item"><span class="detail-label">Email</span><span class="detail-value">${u.email}</span></div>
-            <div class="detail-item"><span class="detail-label">Role</span><span class="detail-value">${u.is_admin ? '<span class="server-card-status status-active" style="font-size:0.75rem">Admin</span>' : '<span class="server-card-status status-installing" style="font-size:0.75rem">User</span>'}</span></div>
-            <div class="detail-item"><span class="detail-label">Status</span><span class="detail-value">${u.restricted ? '<span class="server-card-status status-suspended" style="font-size:0.75rem">Restricted</span>' : '<span class="server-card-status status-active" style="font-size:0.75rem">Active</span>'} ${u.auth_restricted ? '<span class="server-card-status status-suspended" style="font-size:0.75rem">Auth Restricted</span>' : ''}</span></div>
-            <div class="detail-item"><span class="detail-label">Ptero ID</span><span class="detail-value" style="font-family:monospace">${u.ptero_user_id || 'N/A'}</span></div>
-            <div class="detail-item"><span class="detail-label">API Key Set</span><span class="detail-value">${u.ptero_client_api_key ? 'Yes' : 'No'}</span></div>
-            <div class="detail-item"><span class="detail-label">Created</span><span class="detail-value">${formatDateWithTooltip(u.created_at)}</span></div>
+      <div class="tabs" id="admin-user-tabs">
+        <button class="tab active" data-tab="info">Info</button>
+        <button class="tab" data-tab="servers">Servers (${data.servers.length})</button>
+        <button class="tab" data-tab="admin">Admin</button>
+        <div class="tab-indicator" id="admin-user-tab-indicator"></div>
+      </div>
+
+      <div id="admin-user-tab-info" class="tab-content" style="display:block">
+        <div class="server-detail-grid">
+          <div class="card">
+            <h2 class="card-title" style="margin-bottom:16px">User Info</h2>
+            <div class="detail-list">
+              <div class="detail-item"><span class="detail-label">ID</span><span class="detail-value">${u.id}</span></div>
+              <div class="detail-item"><span class="detail-label">Username</span><span class="detail-value">${u.username}</span></div>
+              <div class="detail-item"><span class="detail-label">Email</span><span class="detail-value">${u.email}</span></div>
+              <div class="detail-item"><span class="detail-label">Role</span><span class="detail-value">${u.is_admin ? '<span class="server-card-status status-active" style="font-size:0.75rem">Admin</span>' : '<span class="server-card-status status-installing" style="font-size:0.75rem">User</span>'}</span></div>
+              <div class="detail-item"><span class="detail-label">Status</span><span class="detail-value">${u.restricted ? '<span class="server-card-status status-suspended" style="font-size:0.75rem">Restricted</span>' : '<span class="server-card-status status-active" style="font-size:0.75rem">Active</span>'} ${u.auth_restricted ? '<span class="server-card-status status-suspended" style="font-size:0.75rem">Auth Restricted</span>' : ''}</span></div>
+              <div class="detail-item"><span class="detail-label">Ptero ID</span><span class="detail-value" style="font-family:monospace">${u.ptero_user_id || 'N/A'}</span></div>
+              <div class="detail-item"><span class="detail-label">API Key Set</span><span class="detail-value">${u.ptero_client_api_key ? 'Yes' : 'No'}</span></div>
+              <div class="detail-item"><span class="detail-label">Created</span><span class="detail-value">${formatDateWithTooltip(u.created_at)}</span></div>
+            </div>
           </div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:20px">
           <div class="card">
             <h2 class="card-title" style="margin-bottom:16px">IP Addresses</h2>
             ${data.ips && data.ips.length > 0 ? ahtml`
@@ -967,6 +978,46 @@ async function renderAdminUserDetail(userId) {
               </div>
             ` : '<p style="color:var(--text-secondary)">No IPs recorded.</p>'}
           </div>
+        </div>
+      </div>
+
+      <div id="admin-user-tab-servers" class="tab-content" style="display:none">
+        <div class="card">
+          <h2 class="card-title" style="margin-bottom:16px">Servers (${data.servers.length})</h2>
+          ${data.servers.length > 0 ? ahtml`
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Expires</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${data.servers.map(s => ahtml`
+                    <tr>
+                      <td><strong>${s.server_name || 'Unknown'}</strong></td>
+                      <td><span class="server-card-status ${s.status === 'active' ? 'status-active' : s.status === 'suspended' ? 'status-suspended' : 'status-installing'}" style="font-size:0.75rem;text-transform:capitalize">${s.status}</span></td>
+                      <td>${formatDateWithTooltip(s.created_at)}</td>
+                      <td>${formatDateWithTooltip(s.expires_at)}</td>
+                      <td style="display:flex;gap:6px">
+                        <a class="btn btn-ghost btn-sm" href="/admin/server/${s.ptero_server_id}" onclick="event.preventDefault();adminNavigateTo('server/${s.ptero_server_id}')">Manage</a>
+                        <button class="btn btn-ghost btn-sm" onclick="window.open('${PTERO_URL}/server/${s.server_uuid}', '_blank')">Open Pyrodactyl</button>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          ` : '<p style="color:var(--text-secondary)">No servers.</p>'}
+        </div>
+      </div>
+
+      <div id="admin-user-tab-admin" class="tab-content" style="display:none">
+        <div class="server-detail-grid">
           <div class="card">
             <h2 class="card-title" style="margin-bottom:16px;color:var(--accent-orange)">Restrictions</h2>
             <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:12px">
@@ -984,55 +1035,23 @@ async function renderAdminUserDetail(userId) {
             </p>
             <button class="btn btn-primary" id="admin-btn-show-notify-modal" style="width:auto">Send a Notification</button>
           </div>
-        </div>
-      </div>
-
-      <div class="card" style="margin-bottom:24px">
-        <h2 class="card-title" style="margin-bottom:16px">Servers (${data.servers.length})</h2>
-        ${data.servers.length > 0 ? ahtml`
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Status</th>
-                  <th>Created</th>
-                  <th>Expires</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${data.servers.map(s => ahtml`
-                  <tr>
-                    <td><strong>${s.server_name || 'Unknown'}</strong></td>
-                    <td><span class="server-card-status ${s.status === 'active' ? 'status-active' : s.status === 'suspended' ? 'status-suspended' : 'status-installing'}" style="font-size:0.75rem;text-transform:capitalize">${s.status}</span></td>
-                    <td>${formatDateWithTooltip(s.created_at)}</td>
-                    <td>${formatDateWithTooltip(s.expires_at)}</td>
-                    <td style="display:flex;gap:6px">
-                      <a class="btn btn-ghost btn-sm" href="/admin/server/${s.ptero_server_id}" onclick="event.preventDefault();adminNavigateTo('server/${s.ptero_server_id}')">Manage</a>
-                      <button class="btn btn-ghost btn-sm" onclick="window.open('${PTERO_URL}/server/${s.server_uuid}', '_blank')">Open Pyrodactyl</button>
-                    </td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
+          <div class="card">
+            <h2 class="card-title" style="margin-bottom:16px;color:var(--accent-red)">Danger Zone</h2>
+            <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:12px">
+              Toggle admin privileges or delete this user.
+            </p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn ${u.is_admin ? 'btn-warning' : 'btn-primary'}" id="admin-btn-toggle-admin" style="width:auto">${u.is_admin ? 'Remove Admin' : 'Make Admin'}</button>
+              <button class="btn btn-danger" id="admin-btn-delete-user" style="width:auto">Delete User</button>
+            </div>
           </div>
-        ` : '<p style="color:var(--text-secondary)">No servers.</p>'}
+        </div>
       </div>
 
-      <div class="card">
-        <h2 class="card-title" style="margin-bottom:16px;color:var(--accent-red)">Danger Zone</h2>
-        <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:12px">
-          Toggle admin privileges or delete this user.
-        </p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn ${u.is_admin ? 'btn-warning' : 'btn-primary'}" id="admin-btn-toggle-admin" style="width:auto">${u.is_admin ? 'Remove Admin' : 'Make Admin'}</button>
-          <button class="btn btn-danger" id="admin-btn-delete-user" style="width:auto">Delete User</button>
-        </div>
-        <div id="admin-user-action-msg" style="margin-top:12px;display:none"></div>
-      </div>
+      <div id="admin-user-action-msg" style="margin-top:12px;display:none"></div>
     `;
 
+    initUserTabs();
     initUserActions(userId);
   } catch (err) {
     el.innerHTML = ahtml`
@@ -1044,6 +1063,41 @@ async function renderAdminUserDetail(userId) {
         <div class="empty-state-desc">${err.message}</div>
       </div>
     `;
+  }
+}
+
+function initUserTabs() {
+  const tabs = $a('#admin-user-tabs');
+  if (!tabs) return;
+  const indicator = $a('#admin-user-tab-indicator');
+  const btns = tabs.querySelectorAll('.tab');
+
+  function switchTab(tabBtn) {
+    const tabName = tabBtn.dataset.tab;
+    btns.forEach(t => t.classList.remove('active'));
+    tabBtn.classList.add('active');
+
+    document.querySelectorAll('#admin-page-user-detail .tab-content').forEach(c => c.style.display = 'none');
+    const target = $a('#admin-user-tab-' + tabName);
+    if (target) target.style.display = 'block';
+
+    if (indicator) {
+      indicator.style.left = tabBtn.offsetLeft + 'px';
+      indicator.style.width = tabBtn.offsetWidth + 'px';
+    }
+  }
+
+  btns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.classList.contains('active')) return;
+      switchTab(btn);
+    });
+  });
+
+  const activeBtn = tabs.querySelector('.tab.active');
+  if (activeBtn && indicator) {
+    indicator.style.left = activeBtn.offsetLeft + 'px';
+    indicator.style.width = activeBtn.offsetWidth + 'px';
   }
 }
 
