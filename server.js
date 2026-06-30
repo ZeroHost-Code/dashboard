@@ -49,7 +49,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
-      connectSrc: ["'self'", "https://panel.zero-host.org", "https://cap.zero-host.org", "https://cdn.jsdelivr.net"],
+      connectSrc: ["'self'", "https://panel.zero-host.org", "https://cap.zero-host.org", "https://cdn.jsdelivr.net", "https://unpkg.com"],
       workerSrc: ["'self'", "blob:"],
       frameSrc: ["https://cap.zero-host.org"],
       objectSrc: ["'none'"],
