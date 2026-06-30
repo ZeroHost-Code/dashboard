@@ -631,16 +631,15 @@ async function renderDashboard() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1" fill="currentColor"/><circle cx="6" cy="18" r="1" fill="currentColor"/></svg>
             My Servers
           </a>
-          <div class="nav-section-label">Actions</div>
-          <a class="nav-item" data-page="create" href="/create">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-            Create Server
-          </a>
-          <div class="nav-section-label">General</div>
           <a class="nav-item" id="nav-notifications" href="#" style="position:relative">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             Notifications
             <span class="notif-badge" id="notif-badge"></span>
+          </a>
+          <div class="nav-section-label">Actions</div>
+          <a class="nav-item" data-page="create" href="/create">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            Create Server
           </a>
           <div class="nav-section-label">Links</div>
           <a class="nav-item" href="https://hub.zero-host.org" target="_blank">
