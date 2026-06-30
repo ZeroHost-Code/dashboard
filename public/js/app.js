@@ -243,6 +243,43 @@ async function fetchNotifications() {
   } catch {}
 }
 
+function showNotifDetailModal(notif) {
+  const existing = $('#notif-view-modal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'notif-view-modal';
+  overlay.id = 'notif-view-modal';
+  overlay.innerHTML = html`
+    <div class="notif-view-modal-content" onclick="event.stopPropagation()">
+      <div class="notif-view-modal-header">
+        <h3>${notif.title}</h3>
+        <button class="notif-view-modal-close" id="notif-view-modal-close-btn">
+          <i data-lucide="x" style="width:20px;height:20px"></i>
+        </button>
+      </div>
+      <div class="notif-view-modal-body">${notif.message}</div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  requestAnimationFrame(() => {
+    overlay.classList.add('open');
+  });
+
+  overlay.addEventListener('click', closeNotifDetailModal);
+  $('#notif-view-modal-close-btn')?.addEventListener('click', closeNotifDetailModal);
+
+  initIcons();
+}
+
+function closeNotifDetailModal() {
+  const overlay = $('#notif-view-modal');
+  if (!overlay) return;
+  overlay.classList.remove('open');
+  setTimeout(() => overlay.remove(), 200);
+}
+
 function renderNotifications() {
   const list = $('#notif-panel-list');
   if (!list) return;
@@ -263,9 +300,16 @@ function renderNotifications() {
   `).join('');
 
   list.querySelectorAll('.notif-item.notif-unread').forEach(el => {
+    const msgEl = el.querySelector('.notif-item-msg');
+    const isTruncated = msgEl && msgEl.scrollHeight > msgEl.clientHeight;
+
     el.addEventListener('click', () => {
       const id = parseInt(el.dataset.id, 10);
       markAsRead(id);
+      if (isTruncated) {
+        const notif = state.notifications.find(n => n.id === id);
+        if (notif) showNotifDetailModal(notif);
+      }
     });
   });
   initIcons();
