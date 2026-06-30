@@ -3,7 +3,7 @@ import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 import { authenticateToken } from '../middleware/auth.js';
 import { query } from '../config/db.js';
-import { getAllServers, getServerById, suspendPteroServer, unsuspendPteroServer, deletePteroServer, deletePteroUser } from '../services/pyrodactyl.js';
+import { getAllServers, getServerById, getEgg, getPteroNests, getPteroNestEggs, suspendPteroServer, unsuspendPteroServer, deletePteroServer, deletePteroUser } from '../services/pyrodactyl.js';
 import { verifyCap } from '../config/cap.js';
 import { logActivity } from '../services/activity.js';
 
@@ -479,6 +479,127 @@ router.get('/activity', authenticateToken, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Admin activity error:', err.message);
     res.status(500).json({ error: 'Failed to fetch activity log' });
+  }
+});
+
+// ─── Settings: Nests ────────────────────────────────────
+router.get('/settings/nests', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const nests = await query('SELECT * FROM nests ORDER BY name ASC');
+    res.json({ nests });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch nests' });
+  }
+});
+
+router.get('/settings/nests/available', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const pteroNests = await getPteroNests();
+    const localNests = await query('SELECT ptero_nest_id FROM nests');
+    const localIds = new Set(localNests.map(n => n.ptero_nest_id));
+    const available = pteroNests.filter(n => !localIds.has(n.id));
+    res.json({ nests: available });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch available nests: ' + err.message });
+  }
+});
+
+router.post('/settings/nests', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { pteroNestId, name } = req.body;
+    if (!pteroNestId) return res.status(400).json({ error: 'Nest ID is required' });
+
+    const pteroNests = await getPteroNests();
+    const nest = pteroNests.find(n => n.id === pteroNestId);
+    if (!nest) return res.status(404).json({ error: 'Nest not found in panel' });
+
+    const displayName = name || nest.name;
+    await query('INSERT INTO nests (ptero_nest_id, name) VALUES (?, ?)', [pteroNestId, displayName]);
+    const [inserted] = await query('SELECT * FROM nests WHERE ptero_nest_id = ?', [pteroNestId]);
+    res.status(201).json({ nest: inserted });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ error: 'Nest already added' });
+    }
+    res.status(500).json({ error: 'Failed to add nest: ' + err.message });
+  }
+});
+
+router.put('/settings/nests/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: 'Name is required' });
+    await query('UPDATE nests SET name = ? WHERE id = ?', [name, id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to rename nest' });
+  }
+});
+
+router.delete('/settings/nests/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const [nest] = await query('SELECT ptero_nest_id FROM nests WHERE id = ?', [id]);
+    if (!nest) return res.status(404).json({ error: 'Nest not found' });
+    await query('DELETE FROM egg_resources WHERE ptero_nest_id = ?', [nest.ptero_nest_id]);
+    await query('DELETE FROM nests WHERE id = ?', [id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete nest' });
+  }
+});
+
+// ─── Settings: Eggs ─────────────────────────────────────
+router.get('/settings/nests/:nestId/eggs', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const nestId = parseInt(req.params.nestId, 10);
+    const pteroEggs = await getPteroNestEggs(nestId);
+    const resources = await query('SELECT * FROM egg_resources WHERE ptero_nest_id = ?', [nestId]);
+    const resourceMap = {};
+    for (const r of resources) {
+      resourceMap[r.ptero_egg_id] = r;
+    }
+    const eggs = pteroEggs.map(e => ({
+      ...e,
+      customResources: resourceMap[e.id] || null,
+    }));
+    res.json({ eggs });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch eggs: ' + err.message });
+  }
+});
+
+router.get('/settings/eggs/:nestId/:eggId', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { nestId, eggId } = req.params;
+    const [resources] = await query('SELECT * FROM egg_resources WHERE ptero_nest_id = ? AND ptero_egg_id = ?', [nestId, eggId]);
+    let eggDetails = null;
+    try {
+      eggDetails = await getEgg(nestId, eggId);
+    } catch {}
+    res.json({ resources: resources || null, egg: eggDetails });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch egg settings' });
+  }
+});
+
+router.put('/settings/eggs/:nestId/:eggId', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { nestId, eggId } = req.params;
+    const { cpu_limit, memory_limit, disk_limit } = req.body;
+
+    const [existing] = await query('SELECT id FROM egg_resources WHERE ptero_nest_id = ? AND ptero_egg_id = ?', [nestId, eggId]);
+    if (existing) {
+      await query('UPDATE egg_resources SET cpu_limit = ?, memory_limit = ?, disk_limit = ? WHERE id = ?',
+        [cpu_limit ?? null, memory_limit ?? null, disk_limit ?? null, existing.id]);
+    } else {
+      await query('INSERT INTO egg_resources (ptero_nest_id, ptero_egg_id, cpu_limit, memory_limit, disk_limit) VALUES (?, ?, ?, ?, ?)',
+        [nestId, eggId, cpu_limit ?? null, memory_limit ?? null, disk_limit ?? null]);
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save egg settings' });
   }
 });
 

@@ -82,8 +82,24 @@ function adminNavigateTo(page) {
     renderAdminActivity();
     history.pushState({ adminPage: 'activity' }, '', '/admin/activity');
   } else if (basePage === 'settings') {
-    renderAdminSettings();
-    history.pushState({ adminPage: 'settings' }, '', '/admin/settings');
+    const sub = parts[1];
+    if (sub === 'eggs') {
+      const nestId = parts[2] ? parseInt(parts[2], 10) : null;
+      const eggId = parts[3] ? parseInt(parts[3], 10) : null;
+      if (nestId && eggId) {
+        renderAdminEggSettings(nestId, eggId);
+        history.pushState({ adminPage: 'settings', sub: 'eggs', nestId, eggId }, '', `/admin/settings/eggs/${nestId}/${eggId}`);
+      } else if (nestId) {
+        renderAdminNestEggs(nestId);
+        history.pushState({ adminPage: 'settings', sub: 'eggs', nestId }, '', `/admin/settings/eggs/${nestId}`);
+      } else {
+        renderAdminEggsSettings();
+        history.pushState({ adminPage: 'settings', sub: 'eggs' }, '', '/admin/settings/eggs');
+      }
+    } else {
+      renderAdminSettings();
+      history.pushState({ adminPage: 'settings' }, '', '/admin/settings');
+    }
   } else {
     renderAdminServers();
     history.pushState({ adminPage: 'servers' }, '', '/admin/servers');
@@ -271,8 +287,20 @@ function renderAdminLayout() {
     renderAdminActivity();
   } else if (basePage === 'settings') {
     adminState.currentPage = 'settings';
+    adminState.settingsNestId = null;
+    adminState.settingsEggId = null;
     updateAdminNav();
-    renderAdminSettings();
+    $a('#admin-page-settings').classList.add('active');
+    const sub = path[1];
+    if (sub === 'eggs') {
+      const nestId = path[2] ? parseInt(path[2], 10) : null;
+      const eggId = path[3] ? parseInt(path[3], 10) : null;
+      if (nestId && eggId) renderAdminEggSettings(nestId, eggId);
+      else if (nestId) renderAdminNestEggs(nestId);
+      else renderAdminEggsSettings();
+    } else {
+      renderAdminSettings();
+    }
   } else {
     adminState.currentPage = 'servers';
     updateAdminNav();
@@ -1088,11 +1116,446 @@ async function renderAdminSettings() {
       <h1 class="page-title">Settings</h1>
       <p class="page-subtitle">Admin panel configuration</p>
     </div>
-    <div class="empty-state">
-      <div class="empty-state-title">Soon</div>
-      <div class="empty-state-desc">Settings are coming in a future update.</div>
+    <div class="settings-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
+      <div class="card settings-card" style="cursor:pointer;padding:24px;transition:var(--transition);border:1px solid var(--border);border-radius:var(--radius-md)" id="settings-eggs-entry" onmouseover="this.style.borderColor='var(--accent-1)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-size:1.5rem;margin-bottom:8px">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-1)" stroke-width="2"><path d="M12 2a8 8 0 0 0-8 8c0 3.5 2 6.5 4 8.5S11 22 12 22s2-1.5 4-3.5 4-5 4-8.5a8 8 0 0 0-8-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+        <h2 class="card-title" style="margin-bottom:4px">Eggs Settings</h2>
+        <p style="color:var(--text-secondary);font-size:0.85rem;margin:0">Manage nests, eggs, and per-egg resource overrides</p>
+      </div>
     </div>
   `;
+  $a('#settings-eggs-entry')?.addEventListener('click', () => adminNavigateTo('settings/eggs'));
+}
+
+// ─── Eggs Settings: Nests List ──────────────────────────
+async function renderAdminEggsSettings() {
+  document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
+  const el = $a('#admin-page-settings');
+  if (!el) return;
+  el.classList.add('active');
+  el.innerHTML = ahtml`
+    <div class="page-header">
+      <a href="/admin/settings" onclick="event.preventDefault();adminNavigateTo('settings')" class="btn btn-ghost btn-sm" style="display:inline-flex;width:auto;margin-bottom:16px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        Back to Settings
+      </a>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <h1 class="page-title" style="margin-bottom:0">Eggs Settings</h1>
+        <button class="btn btn-primary" id="btn-add-nests" style="width:auto">+ Add Nests</button>
+      </div>
+      <p class="page-subtitle">Manage nests available for server creation</p>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Local ID</th>
+            <th>Name</th>
+            <th>Panel Nest ID</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="admin-nests-tbody">
+          <tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  $a('#btn-add-nests')?.addEventListener('click', showAddNestsModal);
+
+  try {
+    const data = await adminApi('/settings/nests');
+    const tbody = $a('#admin-nests-tbody');
+    if (!tbody) return;
+
+    if (data.nests.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-secondary)">No nests configured. Click "Add Nests" to add some.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.nests.map(n => ahtml`
+      <tr>
+        <td>${n.id}</td>
+        <td><a href="/admin/settings/eggs/${n.ptero_nest_id}" onclick="event.preventDefault();adminNavigateTo('settings/eggs/${n.ptero_nest_id}')" style="font-weight:600;cursor:pointer">${n.name}</a></td>
+        <td><span class="server-detail-tag">${n.ptero_nest_id}</span></td>
+        <td style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm btn-rename-nest" data-id="${n.id}" data-name="${n.name}" style="width:auto">Rename</button>
+          <button class="btn btn-danger btn-sm btn-delete-nest" data-id="${n.id}" data-name="${n.name}" style="width:auto">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+
+    tbody.querySelectorAll('.btn-rename-nest').forEach(btn => {
+      btn.addEventListener('click', () => {
+        showRenameNestModal(btn.dataset.id, btn.dataset.name);
+      });
+    });
+    tbody.querySelectorAll('.btn-delete-nest').forEach(btn => {
+      btn.addEventListener('click', () => {
+        showDeleteNestConfirm(btn.dataset.id, btn.dataset.name);
+      });
+    });
+  } catch (err) {
+    const tbody = $a('#admin-nests-tbody');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
+  }
+}
+
+// ─── Eggs Settings: Nest Eggs ───────────────────────────
+async function renderAdminNestEggs(nestId) {
+  document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
+  const el = $a('#admin-page-settings');
+  if (!el) return;
+  el.classList.add('active');
+  el.innerHTML = ahtml`
+    <div class="page-header">
+      <a href="/admin/settings/eggs" onclick="event.preventDefault();adminNavigateTo('settings/eggs')" class="btn btn-ghost btn-sm" style="display:inline-flex;width:auto;margin-bottom:16px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        Back to Nests
+      </a>
+      <h1 class="page-title" style="margin-bottom:0">Eggs</h1>
+      <p class="page-subtitle">Nest ID: ${nestId}</p>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Resources</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="admin-eggs-tbody">
+          <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  try {
+    const data = await adminApi(`/settings/nests/${nestId}/eggs`);
+    const tbody = $a('#admin-eggs-tbody');
+    if (!tbody) return;
+
+    if (data.eggs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary)">No eggs found in this nest.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.eggs.map(e => {
+      const res = e.customResources;
+      const resStr = res
+        ? `CPU: ${res.cpu_limit ?? 'default'}% / RAM: ${res.memory_limit ?? 'default'} MB / Disk: ${res.disk_limit ?? 'default'} MB`
+        : 'Defaults';
+      return ahtml`
+        <tr>
+          <td>${e.id}</td>
+          <td><strong>${e.name}</strong></td>
+          <td style="color:var(--text-secondary);font-size:0.85rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.description || '—'}</td>
+          <td><span class="server-detail-tag" style="font-size:0.75rem">${resStr}</span></td>
+          <td>
+            <a href="/admin/settings/eggs/${nestId}/${e.id}" onclick="event.preventDefault();adminNavigateTo('settings/eggs/${nestId}/${e.id}')" class="btn btn-ghost btn-sm">Configure</a>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  } catch (err) {
+    const tbody = $a('#admin-eggs-tbody');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
+  }
+}
+
+// ─── Eggs Settings: Egg Resource Configuration ──────────
+async function renderAdminEggSettings(nestId, eggId) {
+  document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
+  const el = $a('#admin-page-settings');
+  if (!el) return;
+  el.classList.add('active');
+  el.innerHTML = ahtml`
+    <div class="page-header">
+      <a href="/admin/settings/eggs/${nestId}" onclick="event.preventDefault();adminNavigateTo('settings/eggs/${nestId}')" class="btn btn-ghost btn-sm" style="display:inline-flex;width:auto;margin-bottom:16px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        Back to Eggs
+      </a>
+      <h1 class="page-title" style="margin-bottom:0">Egg Resources</h1>
+      <p class="page-subtitle" id="admin-egg-name">Loading...</p>
+    </div>
+    <div class="card" style="max-width:480px">
+      <form id="admin-egg-resources-form">
+        <div id="admin-egg-resources-error" class="auth-error" style="margin-bottom:16px"></div>
+        <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:20px">
+          Set custom resource limits for this egg. Leave empty to use defaults.
+        </p>
+        <div class="form-group">
+          <label for="egg-cpu">CPU Limit (%)</label>
+          <input type="number" id="egg-cpu" min="0" placeholder="e.g. 50" style="width:100%" />
+        </div>
+        <div class="form-group">
+          <label for="egg-memory">Memory Limit (MB)</label>
+          <input type="number" id="egg-memory" min="0" placeholder="e.g. 512" style="width:100%" />
+        </div>
+        <div class="form-group">
+          <label for="egg-disk">Disk Limit (MB)</label>
+          <input type="number" id="egg-disk" min="0" placeholder="e.g. 3072" style="width:100%" />
+        </div>
+        <div style="display:flex;gap:8px;margin-top:20px">
+          <button type="submit" class="btn btn-primary" id="btn-save-egg-resources" style="width:auto">Save</button>
+          <button type="button" class="btn btn-ghost" id="btn-clear-egg-resources" style="width:auto">Clear Overrides</button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  try {
+    const data = await adminApi(`/settings/eggs/${nestId}/${eggId}`);
+    const nameEl = $a('#admin-egg-name');
+    if (data.egg) nameEl.textContent = data.egg.name + ` (Egg #${eggId})`;
+
+    if (data.resources) {
+      if (data.resources.cpu_limit != null) $a('#egg-cpu').value = data.resources.cpu_limit;
+      if (data.resources.memory_limit != null) $a('#egg-memory').value = data.resources.memory_limit;
+      if (data.resources.disk_limit != null) $a('#egg-disk').value = data.resources.disk_limit;
+    }
+  } catch (err) {
+    const errEl = $a('#admin-egg-resources-error');
+    if (errEl) { errEl.textContent = err.message; errEl.classList.add('show'); }
+  }
+
+  $a('#admin-egg-resources-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = $a('#btn-save-egg-resources');
+    const errEl = $a('#admin-egg-resources-error');
+    if (errEl) errEl.classList.remove('show');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Saving...';
+
+    const cpu = $a('#egg-cpu').value;
+    const memory = $a('#egg-memory').value;
+    const disk = $a('#egg-disk').value;
+
+    try {
+      await adminApi(`/settings/eggs/${nestId}/${eggId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          cpu_limit: cpu !== '' ? parseInt(cpu, 10) : null,
+          memory_limit: memory !== '' ? parseInt(memory, 10) : null,
+          disk_limit: disk !== '' ? parseInt(disk, 10) : null,
+        }),
+      });
+      btn.innerHTML = 'Saved!';
+      setTimeout(() => { btn.disabled = false; btn.innerHTML = 'Save'; }, 1500);
+    } catch (err) {
+      if (errEl) { errEl.textContent = err.message; errEl.classList.add('show'); }
+      btn.disabled = false;
+      btn.innerHTML = 'Save';
+    }
+  });
+
+  $a('#btn-clear-egg-resources')?.addEventListener('click', async () => {
+    if (!confirm('Clear all resource overrides for this egg?')) return;
+    const errEl = $a('#admin-egg-resources-error');
+    if (errEl) errEl.classList.remove('show');
+    try {
+      await adminApi(`/settings/eggs/${nestId}/${eggId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ cpu_limit: null, memory_limit: null, disk_limit: null }),
+      });
+      $a('#egg-cpu').value = '';
+      $a('#egg-memory').value = '';
+      $a('#egg-disk').value = '';
+      const btn = $a('#btn-clear-egg-resources');
+      btn.textContent = 'Cleared!';
+      setTimeout(() => { btn.textContent = 'Clear Overrides'; }, 1500);
+    } catch (err) {
+      if (errEl) { errEl.textContent = err.message; errEl.classList.add('show'); }
+    }
+  });
+}
+
+// ─── Add Nests Modal ────────────────────────────────────
+async function showAddNestsModal() {
+  const content = $a('#admin-modal-content');
+  const overlay = $a('#admin-modal-overlay');
+  if (!content || !overlay) return;
+
+  content.innerHTML = '<div style="text-align:center;padding:24px"><span class="spinner"></span> Loading available nests...</div>';
+  overlay.style.display = 'flex';
+
+  try {
+    const data = await adminApi('/settings/nests/available');
+    if (data.nests.length === 0) {
+      content.innerHTML = ahtml`
+        <div style="text-align:center">
+          <h3 style="margin:0 0 16px 0;color:var(--text-primary)">Add Nests</h3>
+          <p style="color:var(--text-secondary)">All available nests from the panel have already been added.</p>
+          <button class="btn btn-ghost" onclick="closeAdminModal()" style="margin-top:16px;width:auto">Close</button>
+        </div>
+      `;
+      return;
+    }
+
+    content.innerHTML = ahtml`
+      <div>
+        <h3 style="margin:0 0 16px 0;color:var(--text-primary)">Add Nests</h3>
+        <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:16px">Select nests from the panel to make them available:</p>
+        <div id="add-nests-list" style="max-height:300px;overflow-y:auto;margin-bottom:16px">
+          ${data.nests.map(n => ahtml`
+            <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer">
+              <input type="checkbox" class="add-nest-checkbox" value="${n.id}" data-name="${n.name}" />
+              <span><strong>${n.name}</strong> <span style="color:var(--text-secondary);font-size:0.82rem">(ID: ${n.id})</span></span>
+            </label>
+          `).join('')}
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary btn-full" id="btn-confirm-add-nests" style="justify-content:center">Add Selected</button>
+          <button class="btn btn-ghost btn-full" onclick="closeAdminModal()" style="justify-content:center">Cancel</button>
+        </div>
+        <div id="add-nests-error" style="margin-top:12px;color:var(--accent-red);display:none"></div>
+      </div>
+    `;
+
+    $a('#btn-confirm-add-nests')?.addEventListener('click', async () => {
+      const checked = document.querySelectorAll('.add-nest-checkbox:checked');
+      if (checked.length === 0) {
+        const err = $a('#add-nests-error');
+        if (err) { err.textContent = 'Select at least one nest'; err.style.display = 'block'; }
+        return;
+      }
+
+      const btn = $a('#btn-confirm-add-nests');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Adding...';
+
+      let added = 0;
+      let errors = [];
+
+      for (const cb of checked) {
+        try {
+          await adminApi('/settings/nests', {
+            method: 'POST',
+            body: JSON.stringify({ pteroNestId: parseInt(cb.value, 10) }),
+          });
+          added++;
+        } catch (err) {
+          errors.push(`${cb.dataset.name}: ${err.message}`);
+        }
+      }
+
+      if (errors.length > 0) {
+        const errEl = $a('#add-nests-error');
+        if (errEl) { errEl.textContent = errors.join('; '); errEl.style.display = 'block'; }
+      }
+
+      btn.innerHTML = added > 0 ? `Added ${added} nest(s)!` : 'Failed';
+      setTimeout(() => {
+        closeAdminModal();
+        renderAdminEggsSettings();
+      }, 1200);
+    });
+  } catch (err) {
+    content.innerHTML = ahtml`
+      <div style="text-align:center">
+        <h3 style="margin:0 0 16px 0;color:var(--text-primary)">Error</h3>
+        <p style="color:var(--accent-red)">${err.message}</p>
+        <button class="btn btn-ghost" onclick="closeAdminModal()" style="margin-top:16px;width:auto">Close</button>
+      </div>
+    `;
+  }
+}
+
+// ─── Rename Nest Modal ──────────────────────────────────
+function showRenameNestModal(nestId, currentName) {
+  const content = $a('#admin-modal-content');
+  const overlay = $a('#admin-modal-overlay');
+  if (!content || !overlay) return;
+
+  content.innerHTML = ahtml`
+    <div>
+      <h3 style="margin:0 0 16px 0;color:var(--text-primary)">Rename Nest</h3>
+      <div class="form-group" style="margin-bottom:16px">
+        <label for="modal-rename-nest-name">Display Name</label>
+        <input type="text" id="modal-rename-nest-name" value="${currentName}" style="width:100%" />
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-full" id="btn-confirm-rename-nest" style="justify-content:center">Save</button>
+        <button class="btn btn-ghost btn-full" onclick="closeAdminModal()" style="justify-content:center">Cancel</button>
+      </div>
+      <div id="rename-nest-error" style="margin-top:12px;color:var(--accent-red);display:none"></div>
+    </div>
+  `;
+  overlay.style.display = 'flex';
+
+  $a('#btn-confirm-rename-nest')?.addEventListener('click', async () => {
+    const name = $a('#modal-rename-nest-name').value.trim();
+    if (!name) {
+      const err = $a('#rename-nest-error');
+      if (err) { err.textContent = 'Name is required'; err.style.display = 'block'; }
+      return;
+    }
+
+    const btn = $a('#btn-confirm-rename-nest');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Saving...';
+
+    try {
+      await adminApi(`/settings/nests/${nestId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ name }),
+      });
+      closeAdminModal();
+      renderAdminEggsSettings();
+    } catch (err) {
+      const errEl = $a('#rename-nest-error');
+      if (errEl) { errEl.textContent = err.message; errEl.style.display = 'block'; }
+      btn.disabled = false;
+      btn.innerHTML = 'Save';
+    }
+  });
+}
+
+// ─── Delete Nest Confirmation ───────────────────────────
+function showDeleteNestConfirm(nestId, name) {
+  const content = $a('#admin-modal-content');
+  const overlay = $a('#admin-modal-overlay');
+  if (!content || !overlay) return;
+
+  content.innerHTML = ahtml`
+    <div style="text-align:center">
+      <h3 style="margin:0 0 12px 0;color:var(--accent-red)">Delete Nest</h3>
+      <p style="color:var(--text-secondary);margin-bottom:20px">
+        Are you sure you want to delete "<strong>${name}</strong>"?<br />
+        This will also remove all egg resource overrides for this nest.
+      </p>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-danger btn-full" id="btn-confirm-delete-nest" style="justify-content:center">Delete</button>
+        <button class="btn btn-ghost btn-full" onclick="closeAdminModal()" style="justify-content:center">Cancel</button>
+      </div>
+      <div id="delete-nest-error" style="margin-top:12px;color:var(--accent-red);display:none"></div>
+    </div>
+  `;
+  overlay.style.display = 'flex';
+
+  $a('#btn-confirm-delete-nest')?.addEventListener('click', async () => {
+    const btn = $a('#btn-confirm-delete-nest');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Deleting...';
+
+    try {
+      await adminApi(`/settings/nests/${nestId}`, { method: 'DELETE' });
+      closeAdminModal();
+      renderAdminEggsSettings();
+    } catch (err) {
+      const errEl = $a('#delete-nest-error');
+      if (errEl) { errEl.textContent = err.message; errEl.style.display = 'block'; }
+      btn.disabled = false;
+      btn.innerHTML = 'Delete';
+    }
+  });
 }
 
 // ─── Common ─────────────────────────────────────────────
@@ -1134,7 +1597,7 @@ window.addEventListener('popstate', () => {
   } else if (basePage === 'activity') {
     adminNavigateTo('activity');
   } else if (basePage === 'settings') {
-    adminNavigateTo('settings');
+    adminNavigateTo(pathParts.join('/'));
   } else {
     adminNavigateTo('servers');
   }

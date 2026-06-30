@@ -51,6 +51,26 @@ const tables = {
       { name: 'created_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
     ],
   },
+  nests: {
+    columns: [
+      { name: 'id', def: 'INT AUTO_INCREMENT PRIMARY KEY' },
+      { name: 'ptero_nest_id', def: 'INT NOT NULL UNIQUE' },
+      { name: 'name', def: 'VARCHAR(255) NOT NULL' },
+      { name: 'created_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
+    ],
+  },
+  egg_resources: {
+    columns: [
+      { name: 'id', def: 'INT AUTO_INCREMENT PRIMARY KEY' },
+      { name: 'ptero_nest_id', def: 'INT NOT NULL' },
+      { name: 'ptero_egg_id', def: 'INT NOT NULL' },
+      { name: 'cpu_limit', def: 'INT DEFAULT NULL' },
+      { name: 'memory_limit', def: 'INT DEFAULT NULL' },
+      { name: 'disk_limit', def: 'INT DEFAULT NULL' },
+      { name: 'created_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
+      { name: 'updated_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP' },
+    ],
+  },
 
 };
 
@@ -71,6 +91,7 @@ const constraints = [
   { table: 'user_ips', sql: 'ALTER TABLE user_ips ADD CONSTRAINT fk_user_ips_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE', name: 'fk_user_ips_user' },
   { table: 'activity_log', sql: 'ALTER TABLE activity_log ADD INDEX idx_activity_user (user_id)', name: 'idx_activity_user' },
   { table: 'activity_log', sql: 'ALTER TABLE activity_log ADD INDEX idx_activity_created (created_at)', name: 'idx_activity_created' },
+  { table: 'egg_resources', sql: 'ALTER TABLE egg_resources ADD UNIQUE INDEX idx_egg_resources_nest_egg (ptero_nest_id, ptero_egg_id)', name: 'idx_egg_resources_nest_egg' },
 ];
 
 export async function migrate() {

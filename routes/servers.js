@@ -75,12 +75,20 @@ router.get('/list', authenticateToken, async (req, res) => {
 
 router.get('/eggs', authenticateToken, async (req, res) => {
   try {
-    const eggs = await getAllEggs();
+    const dbNests = await query('SELECT ptero_nest_id, name FROM nests');
+    const nestMap = {};
+    for (const n of dbNests) {
+      nestMap[n.ptero_nest_id] = n.name;
+    }
+    const nestIds = dbNests.map(n => n.ptero_nest_id);
+
+    const eggs = await getAllEggs(nestIds);
     const simplified = [];
 
     for (const { nest, egg } of eggs) {
       simplified.push({
         nestId: nest,
+        nestName: nestMap[nest] || `Nest ${nest}`,
         eggId: egg.id,
         name: egg.name,
         description: egg.description,
@@ -135,6 +143,15 @@ router.post('/create', authenticateToken, async (req, res) => {
       mergedEnv[v.env_variable] = v.default_value ?? '';
     }
 
+    // Check for per-egg custom resource overrides
+    const [eggRes] = await query('SELECT * FROM egg_resources WHERE ptero_nest_id = ? AND ptero_egg_id = ?', [nestId, eggId]);
+    const customLimits = {};
+    if (eggRes) {
+      if (eggRes.cpu_limit != null) customLimits.cpu = eggRes.cpu_limit;
+      if (eggRes.memory_limit != null) customLimits.memory = eggRes.memory_limit;
+      if (eggRes.disk_limit != null) customLimits.disk = eggRes.disk_limit;
+    }
+
     const server = await createPteroServer({
       name,
       userId: pteroId,
@@ -143,6 +160,7 @@ router.post('/create', authenticateToken, async (req, res) => {
       environment: mergedEnv,
       startup: egg.startup,
       dockerImage,
+      customLimits: Object.keys(customLimits).length > 0 ? customLimits : undefined,
     });
 
     // Log server creation date

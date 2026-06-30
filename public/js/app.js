@@ -1247,16 +1247,15 @@ async function renderCreateServer() {
     const data = await api('/servers/eggs');
     eggCache = data.eggs;
     const dropdown = $('#custom-egg-dropdown');
-    const nestLabels = { 5: 'Application', 6: 'Code', 7: 'Database' };
     const grouped = {};
     for (const e of data.eggs) {
-      if (!grouped[e.nestId]) grouped[e.nestId] = [];
-      grouped[e.nestId].push(e);
+      if (!grouped[e.nestId]) grouped[e.nestId] = { name: e.nestName, eggs: [] };
+      grouped[e.nestId].eggs.push(e);
     }
     let htmlStr = '';
     for (const nestId of Object.keys(grouped).sort()) {
-      htmlStr += `<div class="custom-select-category">${nestLabels[nestId] || `Nest ${nestId}`}</div>`;
-      for (const e of grouped[nestId]) {
+      htmlStr += `<div class="custom-select-category">${grouped[nestId].name || `Nest ${nestId}`}</div>`;
+      for (const e of grouped[nestId].eggs) {
         htmlStr += `<div class="custom-select-option" data-value="${e.eggId},${e.nestId}">${e.name}</div>`;
       }
     }

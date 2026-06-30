@@ -1,4 +1,4 @@
-import { PTERO_URL, PTERO_API_KEY, SERVER_LIMITS, FEATURE_LIMITS, DEPLOY_LOCATIONS, NEST_IDS } from '../config/pyrodactyl.js';
+import { PTERO_URL, PTERO_API_KEY, SERVER_LIMITS, FEATURE_LIMITS, DEPLOY_LOCATIONS } from '../config/pyrodactyl.js';
 
 const FETCH_TIMEOUT = 15000;
 const CACHE_TTL = 5 * 60 * 1000;
@@ -91,6 +91,16 @@ async function getNode(nodeId) {
 export async function getEgg(nestId, eggId) {
   const data = await pteroFetch(`/nests/${nestId}/eggs/${eggId}`);
   return data.attributes;
+}
+
+export async function getPteroNests() {
+  const data = await pteroFetch('/nests?per_page=100');
+  return data.data.map(n => n.attributes);
+}
+
+export async function getPteroNestEggs(nestId) {
+  const data = await pteroFetch(`/nests/${nestId}/eggs?per_page=100`);
+  return data.data.map(e => e.attributes);
 }
 
 export async function getAllServers() {
@@ -193,7 +203,8 @@ export async function getServerById(serverId) {
   return server;
 }
 
-export async function createPteroServer({ name, userId, eggId, nestId, environment, startup, dockerImage }) {
+export async function createPteroServer({ name, userId, eggId, nestId, environment, startup, dockerImage, customLimits }) {
+  const limits = { ...SERVER_LIMITS, ...customLimits };
   const body = {
     name,
     user: userId,
@@ -201,7 +212,7 @@ export async function createPteroServer({ name, userId, eggId, nestId, environme
     docker_image: dockerImage,
     startup,
     environment,
-    limits: SERVER_LIMITS,
+    limits,
     feature_limits: FEATURE_LIMITS,
     deploy: {
       locations: DEPLOY_LOCATIONS,
@@ -280,12 +291,12 @@ export async function deletePteroUser(userId) {
   await pteroFetch(`/users/${userId}`, { method: 'DELETE' });
 }
 
-export async function getAllEggs() {
+export async function getAllEggs(nestIds = []) {
   const eggs = [];
 
-  for (const nestId of NEST_IDS) {
+  for (const nestId of nestIds) {
     try {
-      const nestData = await pteroFetch(`/nests/${nestId}/eggs`);
+      const nestData = await pteroFetch(`/nests/${nestId}/eggs?per_page=100`);
       for (const e of nestData.data) {
         try {
           const full = await getEgg(nestId, e.attributes.id);
