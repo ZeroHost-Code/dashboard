@@ -1405,12 +1405,19 @@ async function showAddNestsModal() {
         <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:16px">Select nests from the panel to make them available:</p>
         <div id="add-nests-list" style="max-height:300px;overflow-y:auto;margin-bottom:16px">
           ${data.nests.map(n => ahtml`
-            <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer">
-              <input type="checkbox" class="add-nest-checkbox" value="${n.id}" data-name="${n.name}" />
+            <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer" class="custom-checkbox-label">
+              <input type="checkbox" class="add-nest-checkbox" value="${n.id}" data-name="${n.name}" style="display:none" />
+              <span class="custom-checkbox-ui" style="width:20px;height:20px;border:2px solid var(--text-secondary);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:var(--transition);background:transparent">
+                <svg class="custom-checkbox-check" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--bg-primary)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polyline points="20 6 9 17 4 12"/></svg>
+              </span>
               <span><strong>${n.name}</strong> <span style="color:var(--text-secondary);font-size:0.82rem">(ID: ${n.id})</span></span>
             </label>
           `).join('')}
         </div>
+        <style id="custom-checkbox-style">
+          .custom-checkbox-label input:checked + .custom-checkbox-ui { background: var(--accent-1); border-color: var(--accent-1); }
+          .custom-checkbox-label input:checked + .custom-checkbox-ui .custom-checkbox-check { display: block; }
+        </style>
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary btn-full" id="btn-confirm-add-nests" style="justify-content:center">Add Selected</button>
           <button class="btn btn-ghost btn-full" onclick="closeAdminModal()" style="justify-content:center">Cancel</button>
