@@ -185,7 +185,36 @@ app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 app.use('/api/activity', activityLimiter);
 app.use('/api/notifications', authLimiter);
+app.use('/api/servers', apiLimiter);
+app.use('/api/admin', apiLimiter);
 app.use('/api', apiLimiter);
+
+const userRateMap = new Map();
+const USER_RATE_MAX = 200;
+const USER_RATE_WINDOW = 60000;
+
+app.use('/api', (req, res, next) => {
+  const userId = req.user?.userId;
+  if (!userId) return next();
+  const now = Date.now();
+  let entry = userRateMap.get(userId);
+  if (!entry || now - entry.windowStart > USER_RATE_WINDOW) {
+    entry = { count: 0, windowStart: now };
+    userRateMap.set(userId, entry);
+  }
+  entry.count++;
+  if (entry.count > USER_RATE_MAX) {
+    return res.status(429).json({ error: 'User rate limit exceeded. Slow down.', requestId: req.requestId });
+  }
+  next();
+});
+
+setInterval(() => {
+  const cutoff = Date.now() - USER_RATE_WINDOW;
+  for (const [uid, entry] of userRateMap) {
+    if (entry.windowStart < cutoff) userRateMap.delete(uid);
+  }
+}, 60000);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/servers', serverRoutes);
