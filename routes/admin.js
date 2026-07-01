@@ -22,6 +22,22 @@ const adminLoginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const adminApiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  message: { error: 'Too many admin API requests' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const notifyAllLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { error: 'Too many notify-all requests. Max 5 per hour.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 function requireAdmin(req, res, next) {
   if (!req.user?.isAdmin) {
     return res.status(403).json({ error: 'Admin access required' });
@@ -34,6 +50,10 @@ router.post('/login', adminLoginLimiter, async (req, res) => {
     const { email, password, capToken } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Invalid input types' });
     }
 
     if (!await verifyCap(capToken)) {
@@ -71,7 +91,7 @@ router.post('/login', adminLoginLimiter, async (req, res) => {
   }
 });
 
-router.get('/check', authenticateToken, requireAdmin, (req, res) => {
+router.get('/check', authenticateToken, requireAdmin, adminApiLimiter, (req, res) => {
   res.json({ admin: true, user: req.user });
 });
 
