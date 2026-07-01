@@ -285,7 +285,7 @@ router.post('/change-password', authenticateToken, async (req, res) => {
       parallelism: 4,
     });
 
-    await query('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, user.id]);
+    await query('UPDATE users SET password_hash = ?, token_version = token_version + 1 WHERE id = ?', [passwordHash, user.id]);
 
     try {
       await updatePteroPassword(pteroId, newPassword);
