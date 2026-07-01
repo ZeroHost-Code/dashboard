@@ -3,8 +3,6 @@ export const PTERO_API_KEY = process.env.PTERO_API_KEY || '';
 export const PANEL_DB_NAME = (process.env.PANEL_DB_NAME || 'panel').replace(/[^a-zA-Z0-9_]/g, '');
 
 export const SERVER_LIMITS = {
-
-export const SERVER_LIMITS = {
   memory: 512,
   swap: 0,
   disk: 3072,

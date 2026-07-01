@@ -70,7 +70,7 @@ export function startScheduler() {
 async function cleanupOldNotifications() {
   try {
     const result = await query(
-      "DELETE FROM notifications WHERE created_at < NOW() - INTERVAL 90 DAY AND read = 1"
+      "DELETE FROM notifications WHERE created_at < NOW() - INTERVAL 90 DAY AND is_read = 1"
     );
     if (result.affectedRows > 0) {
       console.log(`Cleaned up ${result.affectedRows} old read notification(s)`);
@@ -83,7 +83,7 @@ async function cleanupOldNotifications() {
 async function cleanupOldActivityLogs() {
   try {
     const result = await query(
-      "DELETE FROM activity_logs WHERE created_at < NOW() - INTERVAL 90 DAY"
+      "DELETE FROM activity_log WHERE created_at < NOW() - INTERVAL 90 DAY"
     );
     if (result.affectedRows > 0) {
       console.log(`Cleaned up ${result.affectedRows} old activity log(s)`);
