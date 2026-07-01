@@ -520,7 +520,7 @@ router.post('/delete-account', authenticateToken, sensitiveLimiter, async (req, 
   }
 });
 
-router.post('/upload-avatar', authenticateToken, async (req, res) => {
+router.post('/upload-avatar', authenticateToken, sensitiveLimiter, async (req, res) => {
   try {
     const { image } = req.body;
     if (!image) {
@@ -634,7 +634,7 @@ router.post('/logout', (req, res) => {
   res.json({ message: 'Logged out' });
 });
 
-router.get('/export-data', authenticateToken, async (req, res) => {
+router.get('/export-data', authenticateToken, sensitiveLimiter, async (req, res) => {
   try {
     const userId = req.user.userId;
     const pteroId = req.user.pteroId;
