@@ -18,9 +18,9 @@ import authRoutes from './routes/auth.js';
 import serverRoutes from './routes/servers.js';
 import adminRoutes from './routes/admin.js';
 import notificationRoutes from './routes/notifications.js';
-import { startScheduler } from './services/scheduler.js';
+import { startScheduler, stopScheduler } from './services/scheduler.js';
 import { migrate } from './config/migrate.js';
-import { query } from './config/db.js';
+import { query, closePool } from './config/db.js';
 import { getRecentActivity } from './services/activity.js';
 
 const app = express();
@@ -168,22 +168,38 @@ app.use((err, req, res, _next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled Promise rejection:', reason);
-  process.exit(1);
-});
-
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught exception:', err);
-  process.exit(1);
-});
-
 migrate().then(() => {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`ZeroHost Dashboard running on port ${PORT}`);
     startScheduler();
   });
+
+  function shutdown(signal) {
+    console.log(`\nReceived ${signal}, shutting down gracefully...`);
+    stopScheduler();
+    server.close(() => {
+      closePool();
+      process.exit(0);
+    });
+    setTimeout(() => {
+      console.error('Forced shutdown after timeout');
+      process.exit(1);
+    }, 10000);
+  }
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 }).catch(err => {
   console.error('Migration failed:', err);
   process.exit(1);
 });
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Promise rejection:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+});
+
+

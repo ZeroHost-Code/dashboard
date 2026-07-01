@@ -33,10 +33,25 @@ function msUntilMidnight() {
   return midnight.getTime() - now.getTime();
 }
 
+let schedulerTimer = null;
+let schedulerRunning = false;
+
+export function stopScheduler() {
+  schedulerRunning = false;
+  if (schedulerTimer) {
+    clearTimeout(schedulerTimer);
+    schedulerTimer = null;
+  }
+}
+
 export function startScheduler() {
+  if (schedulerRunning) return;
+  schedulerRunning = true;
   suspendExpiredServers().catch(err => console.error('Initial scheduler run failed:', err.message));
   const tick = () => {
-    setTimeout(async () => {
+    if (!schedulerRunning) return;
+    schedulerTimer = setTimeout(async () => {
+      if (!schedulerRunning) return;
       try {
         await suspendExpiredServers();
       } catch (err) {

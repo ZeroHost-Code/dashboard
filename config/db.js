@@ -19,6 +19,14 @@ const pool = mariadb.createPool({
   insertIdAsNumber: true,
 });
 
+export async function closePool() {
+  try {
+    await pool.end();
+  } catch (err) {
+    console.error('Error closing pool:', err.message);
+  }
+}
+
 export async function query(sql, params = []) {
   let lastErr;
   for (let attempt = 1; attempt <= 3; attempt++) {
