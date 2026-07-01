@@ -151,6 +151,8 @@ app.use(cookieParser(process.env.COOKIE_SECRET));
 app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  res.setHeader('X-DNS-Prefetch-Control', 'off');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   next();
 });
 
