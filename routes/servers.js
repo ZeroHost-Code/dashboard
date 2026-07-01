@@ -52,6 +52,14 @@ const reinstallLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const powerLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  message: { error: 'Too many power actions. Max 20 per minute.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 router.get('/list', authenticateToken, async (req, res) => {
   try {
     const pteroId = req.user.pteroId;
@@ -490,7 +498,7 @@ router.get('/resources/:identifier', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/power/:identifier', authenticateToken, async (req, res) => {
+router.post('/power/:identifier', authenticateToken, powerLimiter, async (req, res) => {
   try {
     const { identifier } = req.params;
     const { signal } = req.body;
