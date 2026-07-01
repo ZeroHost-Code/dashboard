@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 import { readdir, writeFile, unlink, mkdir } from 'fs/promises';
@@ -17,6 +18,14 @@ const UPLOAD_DIR = join(__dirname, '..', 'uploads', 'avatars');
 const router = Router();
 
 const MIME_TYPES = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp' };
+
+const sensitiveLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: 'Too many sensitive operations, try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 function getClientIp(req) {
   const forwarded = req.headers['x-forwarded-for'];
@@ -253,7 +262,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.post('/change-password', authenticateToken, async (req, res) => {
+router.post('/change-password', authenticateToken, sensitiveLimiter, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
     const pteroId = req.user?.pteroId;
@@ -301,7 +310,7 @@ router.post('/change-password', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/change-email', authenticateToken, async (req, res) => {
+router.post('/change-email', authenticateToken, sensitiveLimiter, async (req, res) => {
   try {
     const { newEmail, password } = req.body;
     const pteroId = req.user?.pteroId;
@@ -374,7 +383,7 @@ router.post('/change-email', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/delete-account', authenticateToken, async (req, res) => {
+router.post('/delete-account', authenticateToken, sensitiveLimiter, async (req, res) => {
   try {
     const { password } = req.body;
     const userId = req.user?.userId;
