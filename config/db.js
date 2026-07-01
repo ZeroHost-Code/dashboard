@@ -43,20 +43,23 @@ export async function query(sql, params = []) {
       const timeoutPromise = new Promise((_, reject) => {
         queryTimeout = setTimeout(() => reject(new Error('Query timeout after 30000ms')), 30000);
       });
-      const rows = await Promise.race([
+      let rows = await Promise.race([
         conn.query(sql, params),
         timeoutPromise,
       ]);
       clearTimeout(queryTimeout);
+      if (Array.isArray(rows) && rows.length > 10000) {
+        console.warn(`Large result set detected: ${rows.length} rows for query: ${sql.slice(0, 100)}`);
+      }
       return rows;
     } catch (err) {
       lastErr = err;
+      clearTimeout(queryTimeout);
       if (err.code === 'ECONNRESET' || err.code === 'PROTOCOL_CONNECTION_LOST' || err.message?.includes('timeout')) {
         console.error(`DB query attempt ${attempt}/3 failed:`, err.message);
         if (attempt < 3) await new Promise(r => setTimeout(r, 100 * attempt));
         continue;
       }
-      clearTimeout(queryTimeout);
       throw err;
     } finally {
       if (conn) conn.release();
