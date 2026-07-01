@@ -62,4 +62,33 @@ export function startScheduler() {
   };
   tick();
   console.log('Server lifetime scheduler started');
+
+  cleanupOldNotifications().catch(err => console.error('Initial notification cleanup failed:', err.message));
+  cleanupOldActivityLogs().catch(err => console.error('Initial activity log cleanup failed:', err.message));
+}
+
+async function cleanupOldNotifications() {
+  try {
+    const result = await query(
+      "DELETE FROM notifications WHERE created_at < NOW() - INTERVAL 90 DAY AND read = 1"
+    );
+    if (result.affectedRows > 0) {
+      console.log(`Cleaned up ${result.affectedRows} old read notification(s)`);
+    }
+  } catch (err) {
+    console.error('Notification cleanup error:', err.message);
+  }
+}
+
+async function cleanupOldActivityLogs() {
+  try {
+    const result = await query(
+      "DELETE FROM activity_logs WHERE created_at < NOW() - INTERVAL 90 DAY"
+    );
+    if (result.affectedRows > 0) {
+      console.log(`Cleaned up ${result.affectedRows} old activity log(s)`);
+    }
+  } catch (err) {
+    console.error('Activity log cleanup error:', err.message);
+  }
 }
