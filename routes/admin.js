@@ -22,22 +22,6 @@ const adminLoginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const adminApiLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 60,
-  message: { error: 'Too many admin API requests' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-const notifyAllLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 5,
-  message: { error: 'Too many notify-all requests. Max 5 per hour.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
 function requireAdmin(req, res, next) {
   if (!req.user?.isAdmin) {
     return res.status(403).json({ error: 'Admin access required' });
@@ -91,7 +75,7 @@ router.post('/login', adminLoginLimiter, async (req, res) => {
   }
 });
 
-router.get('/check', authenticateToken, requireAdmin, adminApiLimiter, (req, res) => {
+router.get('/check', authenticateToken, requireAdmin, (req, res) => {
   res.json({ admin: true, user: req.user });
 });
 
@@ -470,7 +454,7 @@ router.post('/users/:id/notify', authenticateToken, requireAdmin, async (req, re
   }
 });
 
-router.post('/notify-all', authenticateToken, requireAdmin, notifyAllLimiter, async (req, res) => {
+router.post('/notify-all', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { title, message, type } = req.body;
     if (typeof title !== 'string' || typeof message !== 'string') {
