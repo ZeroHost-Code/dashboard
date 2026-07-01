@@ -134,7 +134,8 @@ router.post('/servers/:id/suspend', authenticateToken, requireAdmin, async (req,
       return res.status(400).json({ error: 'Invalid server ID' });
     }
 
-    const reason = req.body.reason || 'Suspended by an Administrator. Please contact support.';
+    const reason = (req.body.reason && typeof req.body.reason === 'string')
+      ? req.body.reason.slice(0, 500) : 'Suspended by an Administrator. Please contact support.';
     await suspendPteroServer(serverId);
     await query('UPDATE server_meta SET status = ?, suspend_reason = ?, suspended_by = ? WHERE ptero_server_id = ?', ['suspended', reason, 'admin', serverId]);
 
@@ -415,11 +416,20 @@ router.post('/users/:id/notify', authenticateToken, requireAdmin, async (req, re
     }
 
     const { title, message, type } = req.body;
-    if (!title || !title.trim()) {
+    if (typeof title !== 'string' || typeof message !== 'string') {
+      return res.status(400).json({ error: 'Invalid input types' });
+    }
+    if (!title.trim()) {
       return res.status(400).json({ error: 'Title is required' });
     }
-    if (!message || !message.trim()) {
+    if (title.trim().length > 255) {
+      return res.status(400).json({ error: 'Title must be 255 characters or less' });
+    }
+    if (!message.trim()) {
       return res.status(400).json({ error: 'Message is required' });
+    }
+    if (message.trim().length > 5000) {
+      return res.status(400).json({ error: 'Message must be 5000 characters or less' });
     }
 
     const users = await query('SELECT id FROM users WHERE id = ?', [userId]);
@@ -451,11 +461,20 @@ const notifyAllLimiter = rateLimit({
 router.post('/notify-all', authenticateToken, requireAdmin, notifyAllLimiter, async (req, res) => {
   try {
     const { title, message, type } = req.body;
-    if (!title || !title.trim()) {
+    if (typeof title !== 'string' || typeof message !== 'string') {
+      return res.status(400).json({ error: 'Invalid input types' });
+    }
+    if (!title.trim()) {
       return res.status(400).json({ error: 'Title is required' });
     }
-    if (!message || !message.trim()) {
+    if (title.trim().length > 255) {
+      return res.status(400).json({ error: 'Title must be 255 characters or less' });
+    }
+    if (!message.trim()) {
       return res.status(400).json({ error: 'Message is required' });
+    }
+    if (message.trim().length > 5000) {
+      return res.status(400).json({ error: 'Message must be 5000 characters or less' });
     }
 
     const validTypes = ['info', 'success', 'warning', 'error'];
@@ -619,8 +638,9 @@ router.put('/settings/nests/:id', authenticateToken, requireAdmin, async (req, r
   try {
     const id = parseInt(req.params.id, 10);
     const { name } = req.body;
-    if (!name) return res.status(400).json({ error: 'Name is required' });
-    await query('UPDATE nests SET name = ? WHERE id = ?', [name, id]);
+    if (!name || typeof name !== 'string') return res.status(400).json({ error: 'Name is required' });
+    if (name.trim().length > 255) return res.status(400).json({ error: 'Name must be 255 characters or less' });
+    await query('UPDATE nests SET name = ? WHERE id = ?', [name.trim(), id]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to rename nest' });
@@ -679,13 +699,23 @@ router.put('/settings/eggs/:nestId/:eggId', authenticateToken, requireAdmin, asy
     const { nestId, eggId } = req.params;
     const { cpu_limit, memory_limit, disk_limit } = req.body;
 
+    const sanitized = {
+      cpu_limit: (cpu_limit != null && !isNaN(Number(cpu_limit))) ? Number(cpu_limit) : null,
+      memory_limit: (memory_limit != null && !isNaN(Number(memory_limit))) ? Number(memory_limit) : null,
+      disk_limit: (disk_limit != null && !isNaN(Number(disk_limit))) ? Number(disk_limit) : null,
+    };
+
+    if (sanitized.cpu_limit != null && sanitized.cpu_limit < 0) return res.status(400).json({ error: 'CPU limit cannot be negative' });
+    if (sanitized.memory_limit != null && sanitized.memory_limit < 0) return res.status(400).json({ error: 'Memory limit cannot be negative' });
+    if (sanitized.disk_limit != null && sanitized.disk_limit < 0) return res.status(400).json({ error: 'Disk limit cannot be negative' });
+
     const [existing] = await query('SELECT id FROM egg_resources WHERE ptero_nest_id = ? AND ptero_egg_id = ?', [nestId, eggId]);
     if (existing) {
       await query('UPDATE egg_resources SET cpu_limit = ?, memory_limit = ?, disk_limit = ? WHERE id = ?',
-        [cpu_limit ?? null, memory_limit ?? null, disk_limit ?? null, existing.id]);
+        [sanitized.cpu_limit, sanitized.memory_limit, sanitized.disk_limit, existing.id]);
     } else {
       await query('INSERT INTO egg_resources (ptero_nest_id, ptero_egg_id, cpu_limit, memory_limit, disk_limit) VALUES (?, ?, ?, ?, ?)',
-        [nestId, eggId, cpu_limit ?? null, memory_limit ?? null, disk_limit ?? null]);
+        [nestId, eggId, sanitized.cpu_limit, sanitized.memory_limit, sanitized.disk_limit]);
     }
     res.json({ success: true });
   } catch (err) {
@@ -698,14 +728,24 @@ router.post('/settings/eggs/:nestId/:eggId/apply-all', authenticateToken, requir
     const { nestId, eggId } = req.params;
     const { cpu_limit, memory_limit, disk_limit } = req.body;
 
+    const sanitized = {
+      cpu_limit: (cpu_limit != null && !isNaN(Number(cpu_limit))) ? Number(cpu_limit) : null,
+      memory_limit: (memory_limit != null && !isNaN(Number(memory_limit))) ? Number(memory_limit) : null,
+      disk_limit: (disk_limit != null && !isNaN(Number(disk_limit))) ? Number(disk_limit) : null,
+    };
+
+    if (sanitized.cpu_limit != null && sanitized.cpu_limit < 0) return res.status(400).json({ error: 'CPU limit cannot be negative' });
+    if (sanitized.memory_limit != null && sanitized.memory_limit < 0) return res.status(400).json({ error: 'Memory limit cannot be negative' });
+    if (sanitized.disk_limit != null && sanitized.disk_limit < 0) return res.status(400).json({ error: 'Disk limit cannot be negative' });
+
     // Save to egg_resources first
     const [existing] = await query('SELECT id FROM egg_resources WHERE ptero_nest_id = ? AND ptero_egg_id = ?', [nestId, eggId]);
     if (existing) {
       await query('UPDATE egg_resources SET cpu_limit = ?, memory_limit = ?, disk_limit = ? WHERE id = ?',
-        [cpu_limit ?? null, memory_limit ?? null, disk_limit ?? null, existing.id]);
+        [sanitized.cpu_limit, sanitized.memory_limit, sanitized.disk_limit, existing.id]);
     } else {
       await query('INSERT INTO egg_resources (ptero_nest_id, ptero_egg_id, cpu_limit, memory_limit, disk_limit) VALUES (?, ?, ?, ?, ?)',
-        [nestId, eggId, cpu_limit ?? null, memory_limit ?? null, disk_limit ?? null]);
+        [nestId, eggId, sanitized.cpu_limit, sanitized.memory_limit, sanitized.disk_limit]);
     }
 
     // Find all panel servers using this egg
@@ -716,9 +756,9 @@ router.post('/settings/eggs/:nestId/:eggId/apply-all', authenticateToken, requir
     }
 
     const limits = {};
-    if (cpu_limit != null) limits.cpu = cpu_limit;
-    if (memory_limit != null) limits.memory = memory_limit;
-    if (disk_limit != null) limits.disk = disk_limit;
+    if (sanitized.cpu_limit != null) limits.cpu = sanitized.cpu_limit;
+    if (sanitized.memory_limit != null) limits.memory = sanitized.memory_limit;
+    if (sanitized.disk_limit != null) limits.disk = sanitized.disk_limit;
 
     let updated = 0;
     for (const id of pteroIds) {
