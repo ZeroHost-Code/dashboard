@@ -153,6 +153,7 @@ const activityLimiter = rateLimit({
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 app.use('/api/activity', activityLimiter);
+app.use('/api/notifications', authLimiter);
 app.use('/api', apiLimiter);
 
 app.use('/api/auth', authRoutes);
