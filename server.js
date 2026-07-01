@@ -6,6 +6,18 @@ import { readFile } from 'fs/promises';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: resolve(__dirname, '.env') });
 
+const REQUIRED_ENV_VARS = ['JWT_SECRET', 'DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME', 'CAP_SECRET', 'CAP_ENDPOINT', 'COOKIE_SECRET'];
+const missing = REQUIRED_ENV_VARS.filter(v => !process.env[v]);
+if (missing.length > 0) {
+  console.error(`Missing required environment variables: ${missing.join(', ')}`);
+  process.exit(1);
+}
+
+if (process.env.JWT_SECRET && /[\$\(\)]/.test(process.env.JWT_SECRET)) {
+  console.error('JWT_SECRET contains unresolved shell expansion characters. Generate a proper random key.');
+  process.exit(1);
+}
+
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';

@@ -1,14 +1,6 @@
 const CAP_SECRET = process.env.CAP_SECRET;
 const CAP_ENDPOINT = process.env.CAP_ENDPOINT;
 
-if (!CAP_SECRET) {
-  console.error('Missing CAP_SECRET environment variable');
-}
-
-if (!CAP_ENDPOINT) {
-  console.error('Missing CAP_ENDPOINT environment variable');
-}
-
 async function fetchWithTimeout(url, options = {}, timeout = 10000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
