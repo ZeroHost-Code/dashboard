@@ -17,6 +17,45 @@ const UPLOAD_DIR = join(__dirname, '..', 'uploads', 'avatars');
 
 const router = Router();
 
+const loginAttempts = new Map();
+
+function getLoginDelay(ip) {
+  const now = Date.now();
+  const entry = loginAttempts.get(ip);
+  if (!entry) return 0;
+  const sinceFirst = now - entry.firstAttempt;
+  if (sinceFirst > 15 * 60 * 1000) {
+    loginAttempts.delete(ip);
+    return 0;
+  }
+  if (entry.count <= 3) return 0;
+  if (entry.count <= 5) return 1000;
+  if (entry.count <= 8) return 3000;
+  if (entry.count <= 12) return 5000;
+  return 10000;
+}
+
+function recordLoginAttempt(ip, success) {
+  if (success) {
+    loginAttempts.delete(ip);
+    return;
+  }
+  const now = Date.now();
+  const entry = loginAttempts.get(ip);
+  if (entry) {
+    entry.count++;
+  } else {
+    loginAttempts.set(ip, { count: 1, firstAttempt: now });
+  }
+}
+
+setInterval(() => {
+  const cutoff = Date.now() - 15 * 60 * 1000;
+  for (const [ip, entry] of loginAttempts) {
+    if (entry.firstAttempt < cutoff) loginAttempts.delete(ip);
+  }
+}, 60 * 1000);
+
 const MIME_TYPES = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp' };
 
 const sensitiveLimiter = rateLimit({
@@ -76,6 +115,12 @@ router.post('/register', async (req, res) => {
   try {
     const { email, username, password, capToken, rgpdConsent } = req.body;
 
+    const ip = getClientIp(req);
+    const delay = getLoginDelay(ip);
+    if (delay > 0) {
+      await new Promise(r => setTimeout(r, delay));
+    }
+
     if (!email || !username || !password) {
       return res.status(400).json({ error: 'Email, username and password are required' });
     }
@@ -101,10 +146,9 @@ router.post('/register', async (req, res) => {
     }
 
     if (!await verifyCap(capToken)) {
+      recordLoginAttempt(ip, false);
       return res.status(400).json({ error: 'Please complete the security check' });
     }
-
-    const ip = getClientIp(req);
 
     if (await isVpnOrProxy(ip)) {
       return res.status(403).json({ error: 'VPNs and proxies are not allowed. Please disable them to register.' });
@@ -112,11 +156,13 @@ router.post('/register', async (req, res) => {
 
     const ipCount = await query('SELECT COUNT(DISTINCT user_id) AS cnt FROM user_ips WHERE ip_address = ?', [ip]);
     if (ipCount[0].cnt >= 2) {
+      recordLoginAttempt(ip, false);
       return res.status(403).json({ error: 'Too many accounts registered from this IP address.' });
     }
 
     const existing = await query('SELECT id FROM users WHERE email = ? OR username = ?', [email, username]);
     if (existing.length > 0) {
+      recordLoginAttempt(ip, false);
       return res.status(409).json({ error: 'Email or username already exists' });
     }
 
@@ -162,6 +208,8 @@ router.post('/register', async (req, res) => {
 
     await logActivity(localUserId, 'account_registered', 'Created account');
 
+    recordLoginAttempt(ip, true);
+
     res.status(201).json({
       token,
       user: {
@@ -196,19 +244,27 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
+    const ip = getClientIp(req);
+    const delay = getLoginDelay(ip);
+    if (delay > 0) {
+      await new Promise(r => setTimeout(r, delay));
+    }
+
     // Cap verification
     if (!await verifyCap(capToken)) {
+      recordLoginAttempt(ip, false);
       return res.status(400).json({ error: 'Please complete the security check' });
     }
 
     // VPN / Proxy detection
-    const ip = getClientIp(req);
+    
     if (await isVpnOrProxy(ip)) {
       return res.status(403).json({ error: 'VPNs and proxies are not allowed. Please disable them to sign in.' });
     }
 
     const users = await query('SELECT * FROM users WHERE email = ?', [email]);
     if (users.length === 0) {
+      recordLoginAttempt(ip, false);
       if (process.env.NODE_ENV !== 'production') console.log('[LOGIN] User not found for email:', email);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
@@ -223,6 +279,7 @@ router.post('/login', async (req, res) => {
 
     const validPassword = await argon2.verify(user.password_hash, password, { type: argon2.argon2id });
     if (!validPassword) {
+      recordLoginAttempt(ip, false);
       if (process.env.NODE_ENV !== 'production') console.log('[LOGIN] Password mismatch for user:', user.id);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
@@ -242,6 +299,8 @@ router.post('/login', async (req, res) => {
       sameSite: 'strict',
       maxAge: 2 * 60 * 60 * 1000,
     });
+
+    recordLoginAttempt(ip, true);
 
     res.json({
       token,
