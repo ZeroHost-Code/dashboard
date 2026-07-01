@@ -37,9 +37,17 @@ export async function query(sql, params = []) {
   let lastErr;
   for (let attempt = 1; attempt <= 3; attempt++) {
     let conn;
+    let queryTimeout;
     try {
       conn = await pool.getConnection();
-      const rows = await conn.query(sql, params);
+      const timeoutPromise = new Promise((_, reject) => {
+        queryTimeout = setTimeout(() => reject(new Error('Query timeout after 30000ms')), 30000);
+      });
+      const rows = await Promise.race([
+        conn.query(sql, params),
+        timeoutPromise,
+      ]);
+      clearTimeout(queryTimeout);
       return rows;
     } catch (err) {
       lastErr = err;
@@ -48,6 +56,7 @@ export async function query(sql, params = []) {
         if (attempt < 3) await new Promise(r => setTimeout(r, 100 * attempt));
         continue;
       }
+      clearTimeout(queryTimeout);
       throw err;
     } finally {
       if (conn) conn.release();
