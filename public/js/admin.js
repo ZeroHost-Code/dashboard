@@ -1,5 +1,11 @@
 function initIcons() { if (window.lucide) lucide.createIcons(); }
 
+function escapeHtml(str) {
+  if (typeof str !== 'string') return '';
+  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;' };
+  return str.replace(/[&<>"']/g, m => map[m]);
+}
+
 const ADMIN_STORAGE_KEY = 'zh_admin_token';
 
 const adminState = {
@@ -396,11 +402,11 @@ async function renderAdminServers() {
 
       return ahtml`
         <tr>
-          <td><strong>${s.name}</strong></td>
-          <td>${ownerName}</td>
-          <td><span class="server-detail-tag">${eggName}</span></td>
-          <td><span class="server-detail-tag">${allocStr}</span></td>
-          <td><span class="server-card-status ${statusClass}">${statusLabel}</span></td>
+          <td><strong>${escapeHtml(s.name)}</strong></td>
+          <td>${escapeHtml(ownerName)}</td>
+          <td><span class="server-detail-tag">${escapeHtml(eggName)}</span></td>
+          <td><span class="server-detail-tag">${escapeHtml(allocStr)}</span></td>
+          <td><span class="server-card-status ${statusClass}">${escapeHtml(statusLabel)}</span></td>
           <td>
             <a class="btn btn-ghost btn-sm" href="/admin/server/${s.id}" onclick="event.preventDefault();adminNavigateTo('server/${s.id}')">Details</a>
           </td>
@@ -443,7 +449,7 @@ async function renderAdminServerDetail(serverId) {
           Back to Servers
         </a>
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-          <h1 class="page-title" style="margin-bottom:0">${s.name}</h1>
+          <h1 class="page-title" style="margin-bottom:0">${escapeHtml(s.name)}</h1>
           <span class="server-card-status ${statusClass}" style="font-size:0.8rem">${statusLabel}</span>
         </div>
       </div>
@@ -460,8 +466,8 @@ async function renderAdminServerDetail(serverId) {
             <h2 class="card-title" style="margin-bottom:16px">Server Info</h2>
             <div class="detail-list">
               <div class="detail-item"><span class="detail-label">Owner</span><span class="detail-value">${s.owner?.username || 'Unknown'} (${s.owner?.email || 'N/A'})</span></div>
-              <div class="detail-item"><span class="detail-label">Egg</span><span class="detail-value">${eggName}</span></div>
-              <div class="detail-item"><span class="detail-label">Allocation</span><span class="detail-value">${allocStr}</span></div>
+              <div class="detail-item"><span class="detail-label">Egg</span><span class="detail-value">${escapeHtml(eggName)}</span></div>
+              <div class="detail-item"><span class="detail-label">Allocation</span><span class="detail-value">${escapeHtml(allocStr)}</span></div>
               <div class="detail-item"><span class="detail-label">Identifier</span><span class="detail-value" style="font-family:monospace">${s.identifier}</span></div>
               <div class="detail-item"><span class="detail-label">Memory</span><span class="detail-value">${s.limits.memory > 0 ? s.limits.memory + ' MB' : '∞'}</span></div>
               <div class="detail-item"><span class="detail-label">CPU</span><span class="detail-value">${s.limits.cpu}%</span></div>
@@ -975,8 +981,8 @@ async function renderAdminUsers() {
     tbody.innerHTML = data.users.map(u => ahtml`
       <tr>
         <td>${u.id}</td>
-        <td><strong>${u.username}</strong></td>
-        <td>${u.email}</td>
+        <td><strong>${escapeHtml(u.username)}</strong></td>
+        <td>${escapeHtml(u.email)}</td>
         <td>${u.is_admin ? '<span class="server-card-status status-active" style="font-size:0.75rem">Admin</span>' : '<span class="server-card-status status-installing" style="font-size:0.75rem">User</span>'}</td>
         <td>${u.server_count}</td>
         <td>${formatDateWithTooltip(u.created_at)}</td>
@@ -1014,7 +1020,7 @@ async function renderAdminUserDetail(userId) {
           Back to Users
         </a>
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-          <h1 class="page-title" style="margin-bottom:0">${u.username}</h1>
+          <h1 class="page-title" style="margin-bottom:0">${escapeHtml(u.username)}</h1>
           ${u.restricted ? '<span class="server-card-status status-suspended" style="font-size:0.75rem">Restricted</span>' : '<span class="server-card-status status-active" style="font-size:0.75rem">Active</span>'}
           ${u.auth_restricted ? '<span class="server-card-status status-suspended" style="font-size:0.75rem">Auth Restricted</span>' : ''}
         </div>

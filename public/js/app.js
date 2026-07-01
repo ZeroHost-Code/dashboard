@@ -145,6 +145,12 @@ window.handleAvatarError = function(img) {
   }
 };
 
+function escapeHtml(str) {
+  if (typeof str !== 'string') return '';
+  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;' };
+  return str.replace(/[&<>"']/g, m => map[m]);
+}
+
 function html(strings, ...values) {
   return strings.reduce((acc, str, i) => acc + str + (values[i] ?? ''), '');
 }
@@ -253,12 +259,12 @@ function showNotifDetailModal(notif) {
   overlay.innerHTML = html`
     <div class="notif-view-modal-content" onclick="event.stopPropagation()">
       <div class="notif-view-modal-header">
-        <h3>${notif.title}</h3>
+        <h3>${escapeHtml(notif.title)}</h3>
         <button class="notif-view-modal-close" id="notif-view-modal-close-btn">
           <i data-lucide="x" style="width:20px;height:20px"></i>
         </button>
       </div>
-      <div class="notif-view-modal-body">${notif.message}</div>
+      <div class="notif-view-modal-body">${escapeHtml(notif.message)}</div>
     </div>
   `;
   document.body.appendChild(overlay);
@@ -291,8 +297,8 @@ function renderNotifications() {
     <div class="notif-item ${n.is_read ? '' : 'notif-unread'}" data-id="${n.id}">
       <div class="notif-item-icon notif-${n.type}">${NOTIF_ICONS[n.type] || NOTIF_ICONS.info}</div>
       <div class="notif-item-body">
-        <div class="notif-item-title">${n.title}</div>
-        <div class="notif-item-msg">${n.message}</div>
+        <div class="notif-item-title">${escapeHtml(n.title)}</div>
+        <div class="notif-item-msg">${escapeHtml(n.message)}</div>
         <div class="notif-item-time">${timeAgo(n.created_at)}</div>
       </div>
       ${n.is_read ? '' : '<div class="notif-dot"></div>'}
@@ -1188,8 +1194,8 @@ async function renderLog(pageNum) {
           <div class="activity-item">
             <div class="activity-icon activity-icon-${a.action}">${activityIcons[a.action] || ''}</div>
             <div class="activity-content">
-              <div class="activity-action">${getActionLabel(a.action)}</div>
-              <div class="activity-details">${a.details || ''}</div>
+              <div class="activity-action">${escapeHtml(getActionLabel(a.action))}</div>
+              <div class="activity-details">${escapeHtml(a.details || '')}</div>
             </div>
             <div class="activity-time">${formatRelativeTime(a.created_at)}</div>
           </div>
@@ -1233,7 +1239,7 @@ function renderServerCard(s) {
   return html`
     <div class="server-card">
       <div class="server-card-top" style="cursor:pointer" onclick="navigateTo('server/${s.id}')">
-        <span class="server-card-name">${s.name}</span>
+        <span class="server-card-name">${escapeHtml(s.name)}</span>
         <span class="server-card-status ${statusClass}">${statusLabel}</span>
       </div>
       <div class="server-card-details" style="cursor:pointer" onclick="navigateTo('server/${s.id}')">
@@ -1276,7 +1282,7 @@ function renderServerRow(s) {
   const allocStr = alloc ? `${alloc.alias || alloc.nodeFqdn || alloc.ip}:${alloc.port}` : (s.nodeFqdn || `Node #${s.node}`);
   return html`
     <tr>
-      <td><strong><a href="/server/${s.id}" onclick="event.preventDefault();navigateTo('server/${s.id}')" style="color:inherit;text-decoration:none">${s.name}</a></strong></td>
+      <td><strong><a href="/server/${s.id}" onclick="event.preventDefault();navigateTo('server/${s.id}')" style="color:inherit;text-decoration:none">${escapeHtml(s.name)}</a></strong></td>
       <td><span class="server-detail-tag">${eggName}</span></td>
       <td><span class="server-detail-tag">${allocStr}</span></td>
       <td>
