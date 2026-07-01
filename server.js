@@ -103,8 +103,18 @@ const apiLimiter = rateLimit({
   trustProxy: trustProxy ? 1 : 0,
 });
 
+const activityLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: { error: 'Too many requests' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  trustProxy: trustProxy ? 1 : 0,
+});
+
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
+app.use('/api/activity', activityLimiter);
 app.use('/api', apiLimiter);
 
 app.use('/api/auth', authRoutes);
