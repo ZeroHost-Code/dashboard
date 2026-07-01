@@ -48,11 +48,17 @@ async function isVpnOrProxy(ip) {
   }
 }
 
+const MAX_EMAIL_LENGTH = 254;
+const MAX_USERNAME_LENGTH = 32;
+const MAX_PASSWORD_LENGTH = 128;
+
 function validateEmail(email) {
+  if (typeof email !== 'string' || email.length > MAX_EMAIL_LENGTH) return false;
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 function validateUsername(username) {
+  if (typeof username !== 'string' || username.length > MAX_USERNAME_LENGTH) return false;
   return /^[a-zA-Z0-9_-]{3,32}$/.test(username);
 }
 
@@ -63,6 +69,10 @@ router.post('/register', async (req, res) => {
 
     if (!email || !username || !password) {
       return res.status(400).json({ error: 'Email, username and password are required' });
+    }
+
+    if (typeof email !== 'string' || typeof username !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Invalid input types' });
     }
 
     if (!rgpdConsent) {
@@ -77,8 +87,8 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Username must be 3-32 chars (letters, numbers, underscore, hyphen)' });
     }
 
-    if (password.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    if (password.length < 8 || password.length > MAX_PASSWORD_LENGTH) {
+      return res.status(400).json({ error: 'Password must be between 8 and 128 characters' });
     }
 
     if (!await verifyCap(capToken)) {
@@ -252,8 +262,8 @@ router.post('/change-password', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Current password and new password are required' });
     }
 
-    if (newPassword.length < 8) {
-      return res.status(400).json({ error: 'New password must be at least 8 characters' });
+    if (newPassword.length < 8 || newPassword.length > MAX_PASSWORD_LENGTH) {
+      return res.status(400).json({ error: 'New password must be between 8 and 128 characters' });
     }
 
     const users = await query('SELECT * FROM users WHERE ptero_user_id = ?', [pteroId]);
