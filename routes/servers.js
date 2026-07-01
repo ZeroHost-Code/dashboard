@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { authenticateToken } from '../middleware/auth.js';
 import {
   getServersByUser,
@@ -18,6 +19,22 @@ import { logActivity } from '../services/activity.js';
 import { createNotification } from '../services/notification.js';
 
 const router = Router();
+
+const createServerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  message: { error: 'Server creation limit reached. Max 3 per hour.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const renameLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many rename requests. Max 10 per hour.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 router.get('/list', authenticateToken, async (req, res) => {
   try {
@@ -107,7 +124,7 @@ router.get('/eggs', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/create', authenticateToken, async (req, res) => {
+router.post('/create', authenticateToken, createServerLimiter, async (req, res) => {
   try {
     const { name, nestId, eggId, environment, capToken } = req.body;
     const pteroId = req.user.pteroId;
@@ -117,12 +134,20 @@ router.post('/create', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Your account is restricted. Server creation is disabled.' });
     }
 
+    if (typeof name !== 'string') {
+      return res.status(400).json({ error: 'Server name must be a string' });
+    }
+
     if (!name || !nestId || !eggId) {
       return res.status(400).json({ error: 'Name, nest ID and egg ID are required' });
     }
 
     if (name.length < 1 || name.length > 255) {
       return res.status(400).json({ error: 'Server name must be between 1 and 255 characters' });
+    }
+
+    if (!/^[a-zA-Z0-9 _.-]+$/.test(name)) {
+      return res.status(400).json({ error: 'Server name contains invalid characters' });
     }
 
     if (!await verifyCap(capToken)) {
@@ -292,7 +317,7 @@ router.post('/renew/:id', authenticateToken, async (req, res) => {
   }
 });
 
-router.patch('/:id', authenticateToken, async (req, res) => {
+router.patch('/:id', authenticateToken, renameLimiter, async (req, res) => {
   try {
     const { name } = req.body;
     const serverId = parseInt(req.params.id, 10);
@@ -301,11 +326,14 @@ router.patch('/:id', authenticateToken, async (req, res) => {
     }
     const pteroId = req.user.pteroId;
 
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+    if (typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({ error: 'Server name is required' });
     }
-    if (name.length > 255) {
+    if (name.trim().length > 255) {
       return res.status(400).json({ error: 'Server name must be 255 characters or less' });
+    }
+    if (!/^[a-zA-Z0-9 _.-]+$/.test(name.trim())) {
+      return res.status(400).json({ error: 'Server name contains invalid characters' });
     }
 
     const servers = await getServersByUser(pteroId);
@@ -452,6 +480,11 @@ router.post('/power/:identifier', authenticateToken, async (req, res) => {
     const { signal } = req.body;
     const userId = req.user.userId;
 
+    const VALID_SIGNALS = ['start', 'stop', 'restart', 'kill'];
+    if (!signal || typeof signal !== 'string' || !VALID_SIGNALS.includes(signal)) {
+      return res.status(400).json({ error: 'Invalid power signal. Valid signals: start, stop, restart, kill' });
+    }
+
     const users = await query('SELECT ptero_client_api_key FROM users WHERE id = ?', [userId]);
     if (!users[0]?.ptero_client_api_key) {
       return res.status(400).json({ error: 'No Pyrodactyl API key configured' });
@@ -499,6 +532,10 @@ router.put('/client-api-key', authenticateToken, async (req, res) => {
 
     if (!apiKey || typeof apiKey !== 'string') {
       return res.status(400).json({ error: 'API key is required' });
+    }
+
+    if (apiKey.trim().length > 255) {
+      return res.status(400).json({ error: 'API key must be 255 characters or less' });
     }
 
     await query('UPDATE users SET ptero_client_api_key = ? WHERE id = ?', [apiKey.trim(), userId]);
