@@ -3,7 +3,7 @@ import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 import { readdir, writeFile, unlink, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
-import { join, dirname, extname } from 'path';
+import { join, dirname, extname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { query } from '../config/db.js';
 import { generateToken, authenticateToken } from '../middleware/auth.js';
@@ -457,6 +457,11 @@ router.post('/upload-avatar', authenticateToken, async (req, res) => {
     }
 
     const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+
+    if (!MIME_TYPES[ext]) {
+      return res.status(400).json({ error: 'Unsupported image format' });
+    }
+
     const data = Buffer.from(matches[2], 'base64');
 
     if (data.length > 2 * 1024 * 1024) {
@@ -475,7 +480,12 @@ router.post('/upload-avatar', authenticateToken, async (req, res) => {
     }
 
     const filename = `avatar_${req.user.userId}.${ext}`;
-    await writeFile(join(UPLOAD_DIR, filename), data);
+    const filePath = join(UPLOAD_DIR, filename);
+    const resolvedPath = resolve(filePath);
+    if (!resolvedPath.startsWith(resolve(UPLOAD_DIR))) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    await writeFile(resolvedPath, data);
 
     await query('UPDATE users SET avatar = ? WHERE id = ?', [filename, req.user.userId]);
 
@@ -524,11 +534,16 @@ router.get('/avatar/:userId', async (req, res) => {
       return res.status(404).json({ error: 'No avatar found' });
     }
 
+    const resolvedPath = resolve(join(UPLOAD_DIR, avatarFile));
+    if (!resolvedPath.startsWith(UPLOAD_DIR)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
     const mimeType = MIME_TYPES[extname(avatarFile).toLowerCase().slice(1)] || 'application/octet-stream';
 
     res.set('Content-Type', mimeType);
     res.set('Cache-Control', 'private, max-age=3600');
-    res.sendFile(join(UPLOAD_DIR, avatarFile));
+    res.sendFile(resolvedPath);
   } catch (err) {
     if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Invalid or expired token' });
