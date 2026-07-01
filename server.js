@@ -282,7 +282,8 @@ app.get('*', (req, res) => {
 
 app.use((err, req, res, _next) => {
   console.error(`[${req.requestId}] Unhandled error:`, err);
-  res.status(500).json({ error: 'Internal server error', requestId: req.requestId });
+  const message = process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message;
+  res.status(err.status || 500).json({ error: message, requestId: req.requestId });
 });
 
 migrate().then(() => {
