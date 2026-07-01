@@ -333,4 +333,17 @@ process.on('uncaughtException', (err) => {
   console.error('Uncaught exception:', err);
 });
 
+process.on('warning', (warning) => {
+  if (warning.name === 'MaxListenersExceededWarning') {
+    console.error('Memory leak detected:', warning.message);
+  }
+});
+
+setInterval(() => {
+  const mem = process.memoryUsage();
+  if (mem.heapUsed > 500 * 1024 * 1024) {
+    console.error(`High memory usage warning: ${Math.round(mem.heapUsed / 1024 / 1024)}MB heap used`);
+  }
+}, 60000);
+
 
