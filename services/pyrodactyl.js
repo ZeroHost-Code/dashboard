@@ -5,6 +5,17 @@ const CACHE_TTL = 5 * 60 * 1000;
 const CACHE_MAX_SIZE = 50;
 const nodeCache = new Map();
 let cacheCleanupTimer = null;
+const pteroErrors = [];
+const PTERO_ERROR_WINDOW = 60000;
+const PTERO_ERROR_THRESHOLD = 10;
+
+function isPteroCircuitOpen() {
+  const now = Date.now();
+  const recent = pteroErrors.filter(t => now - t < PTERO_ERROR_WINDOW);
+  pteroErrors.length = 0;
+  recent.forEach(t => pteroErrors.push(t));
+  return recent.length >= PTERO_ERROR_THRESHOLD;
+}
 
 async function fetchWithTimeout(url, options = {}, timeout = FETCH_TIMEOUT) {
   const controller = new AbortController();
@@ -43,13 +54,29 @@ function startCacheCleanup() {
 startCacheCleanup();
 
 async function pteroFetch(path, options = {}) {
+  if (isPteroCircuitOpen()) {
+    throw new Error('Pterodactyl API circuit breaker open - too many recent errors');
+  }
+
   const url = `${PTERO_URL}/api/application${path}`;
   const maxRetries = 3;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    const res = await fetchWithTimeout(url, {
-      ...options,
-      headers: { ...headers, ...options.headers },
-    });
+    let res;
+    try {
+      res = await fetchWithTimeout(url, {
+        ...options,
+        headers: { ...headers, ...options.headers },
+      });
+    } catch (err) {
+      pteroErrors.push(Date.now());
+      if (attempt < maxRetries) {
+        const wait = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
+        console.warn(`pteroFetch network error (${err.message}), retry ${attempt}/${maxRetries} after ${wait}ms`);
+        await new Promise(r => setTimeout(r, wait));
+        continue;
+      }
+      throw err;
+    }
     if (res.status === 204) return null;
     if (res.status === 429 && attempt < maxRetries) {
       const wait = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
@@ -57,12 +84,12 @@ async function pteroFetch(path, options = {}) {
       await new Promise(r => setTimeout(r, wait));
       continue;
     }
-    const data = await res.json();
     if (!res.ok) {
-      const detail = data?.errors?.[0]?.detail || JSON.stringify(data);
-      throw new Error(detail);
+      pteroErrors.push(Date.now());
+      const text = await res.text();
+      throw new Error(`Pterodactyl API error ${res.status}: ${text.slice(0, 200)}`);
     }
-    return data;
+    return await res.json();
   }
 }
 
