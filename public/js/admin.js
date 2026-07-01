@@ -115,7 +115,7 @@ function renderAdminLogin() {
     <div class="auth-page">
       <div class="auth-card">
         <div class="auth-logo">
-          <img src="https://img.zero-host.org/assets/picto.png?t=1781280015614" alt="ZeroHost" />
+          <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
           <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span> <span style="font-size:0.7rem;color:var(--accent-1);font-weight:600;margin-left:4px;border:1px solid var(--accent-1);padding:2px 8px;border-radius:4px">Admin</span></span>
         </div>
         <h1 class="auth-title">Admin Panel</h1>
@@ -192,7 +192,7 @@ function renderAdminLayout() {
       <nav class="admin-navbar">
         <div class="admin-navbar-left">
           <a href="/" class="sidebar-logo" style="text-decoration:none">
-            <img src="https://img.zero-host.org/assets/picto.png?t=1781280015614" alt="ZeroHost" />
+            <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
             <span class="sidebar-logo-text">Zero<span style="color:var(--accent-3)">Host</span></span>
           </a>
           <span class="admin-badge">Admin</span>

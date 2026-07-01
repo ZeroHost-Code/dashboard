@@ -432,7 +432,7 @@ function renderLoginPage() {
     <div class="auth-page">
       <div class="auth-card">
         <div class="auth-logo">
-          <img src="https://img.zero-host.org/assets/picto.png?t=1781280015614" alt="ZeroHost" />
+          <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
           <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span></span>
         </div>
         <h1 class="auth-title">Welcome back</h1>
@@ -472,7 +472,7 @@ function renderRegisterPage() {
     <div class="auth-page">
       <div class="auth-card">
         <div class="auth-logo">
-          <img src="https://img.zero-host.org/assets/picto.png?t=1781280015614" alt="ZeroHost" />
+          <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
           <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span></span>
         </div>
         <h1 class="auth-title">Create account</h1>
@@ -675,7 +675,7 @@ async function renderDashboard() {
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
           <a href="#" class="sidebar-logo" id="sidebar-logo-link">
-            <img src="https://img.zero-host.org/assets/picto.png?t=1781280015614" alt="ZeroHost" />
+            <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
             <span class="sidebar-logo-text">Zero<span style="color:var(--accent-3)">Host</span></span>
           </a>
         </div>
