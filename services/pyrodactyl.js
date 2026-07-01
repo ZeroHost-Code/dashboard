@@ -5,32 +5,9 @@ const CACHE_TTL = 5 * 60 * 1000;
 const CACHE_MAX_SIZE = 50;
 const nodeCache = new Map();
 let cacheCleanupTimer = null;
-let pteroErrorCount = 0;
-let pteroFirstErrorTime = 0;
-let circuitBreakerOpen = false;
-const PTERO_ERROR_THRESHOLD = 20;
-const PTERO_ERROR_WINDOW = 60000;
-const CIRCUIT_RETRY_TIMEOUT = 30000;
 
-function recordPteroError() {
-  const now = Date.now();
-  if (pteroErrorCount === 0) pteroFirstErrorTime = now;
-  if (now - pteroFirstErrorTime > PTERO_ERROR_WINDOW) {
-    pteroErrorCount = 1;
-    pteroFirstErrorTime = now;
-    circuitBreakerOpen = false;
-    return;
-  }
-  pteroErrorCount++;
-  if (pteroErrorCount >= PTERO_ERROR_THRESHOLD) {
-    circuitBreakerOpen = true;
-    console.warn(`Pterodactyl API circuit breaker opened (${pteroErrorCount} errors in ${PTERO_ERROR_WINDOW/1000}s)`);
-    setTimeout(() => {
-      circuitBreakerOpen = false;
-      pteroErrorCount = 0;
-      console.warn('Pterodactyl API circuit breaker reset (retry timeout elapsed)');
-    }, CIRCUIT_RETRY_TIMEOUT);
-  }
+function recordPteroError(errMsg) {
+  console.warn(`Pterodactyl API error: ${errMsg}`);
 }
 
 async function fetchWithTimeout(url, options = {}, timeout = FETCH_TIMEOUT) {
@@ -70,10 +47,6 @@ function startCacheCleanup() {
 startCacheCleanup();
 
 async function pteroFetch(path, options = {}) {
-  if (circuitBreakerOpen) {
-    throw new Error('Pterodactyl API circuit breaker open - too many recent errors');
-  }
-
   const url = `${PTERO_URL}/api/application${path}`;
   const maxRetries = 3;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -84,7 +57,7 @@ async function pteroFetch(path, options = {}) {
         headers: { ...headers, ...options.headers },
       });
     } catch (err) {
-      recordPteroError();
+      recordPteroError(err.message);
       if (attempt < maxRetries) {
         const wait = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
         console.warn(`pteroFetch network error (${err.message}), retry ${attempt}/${maxRetries} after ${wait}ms`);
@@ -101,7 +74,7 @@ async function pteroFetch(path, options = {}) {
       continue;
     }
     if (!res.ok) {
-      recordPteroError();
+      recordPteroError(`${res.status} ${res.statusText}`);
       const text = await res.text();
       throw new Error(`Pterodactyl API error ${res.status}: ${text.slice(0, 200)}`);
     }
