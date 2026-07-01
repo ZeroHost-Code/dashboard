@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 import { authenticateToken } from '../middleware/auth.js';
@@ -13,6 +14,14 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const PTERO_URL = process.env.PTERO_URL;
 const PANEL_DB_NAME = process.env.PANEL_DB_NAME || 'panel';
 
+const adminLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many admin login attempts, try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 function requireAdmin(req, res, next) {
   if (!req.user?.isAdmin) {
     return res.status(403).json({ error: 'Admin access required' });
@@ -20,7 +29,7 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-router.post('/login', async (req, res) => {
+router.post('/login', adminLoginLimiter, async (req, res) => {
   try {
     const { email, password, capToken } = req.body;
     if (!email || !password) {
@@ -431,7 +440,15 @@ router.post('/users/:id/notify', authenticateToken, requireAdmin, async (req, re
   }
 });
 
-router.post('/notify-all', authenticateToken, requireAdmin, async (req, res) => {
+const notifyAllLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { error: 'Too many notify-all requests. Limit: 5 per hour.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+router.post('/notify-all', authenticateToken, requireAdmin, notifyAllLimiter, async (req, res) => {
   try {
     const { title, message, type } = req.body;
     if (!title || !title.trim()) {
