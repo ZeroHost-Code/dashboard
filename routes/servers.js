@@ -36,6 +36,22 @@ const renameLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const renewLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { error: 'Too many renew requests. Max 5 per hour.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const reinstallLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000,
+  max: 2,
+  message: { error: 'Too many reinstall requests. Max 2 per day.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 router.get('/list', authenticateToken, async (req, res) => {
   try {
     const pteroId = req.user.pteroId;
@@ -247,7 +263,7 @@ router.get('/details/:id', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/renew/:id', authenticateToken, async (req, res) => {
+router.post('/renew/:id', authenticateToken, renewLimiter, async (req, res) => {
   try {
     const serverId = parseInt(req.params.id, 10);
     if (isNaN(serverId)) {
@@ -352,7 +368,7 @@ router.patch('/:id', authenticateToken, renameLimiter, async (req, res) => {
   }
 });
 
-router.post('/:id/reinstall', authenticateToken, async (req, res) => {
+router.post('/:id/reinstall', authenticateToken, reinstallLimiter, async (req, res) => {
   try {
     const serverId = parseInt(req.params.id, 10);
     if (isNaN(serverId)) {
