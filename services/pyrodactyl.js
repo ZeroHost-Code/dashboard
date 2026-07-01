@@ -5,16 +5,32 @@ const CACHE_TTL = 5 * 60 * 1000;
 const CACHE_MAX_SIZE = 50;
 const nodeCache = new Map();
 let cacheCleanupTimer = null;
-const pteroErrors = [];
+let pteroErrorCount = 0;
+let pteroFirstErrorTime = 0;
+let circuitBreakerOpen = false;
+const PTERO_ERROR_THRESHOLD = 20;
 const PTERO_ERROR_WINDOW = 60000;
-const PTERO_ERROR_THRESHOLD = 10;
+const CIRCUIT_RETRY_TIMEOUT = 30000;
 
-function isPteroCircuitOpen() {
+function recordPteroError() {
   const now = Date.now();
-  const recent = pteroErrors.filter(t => now - t < PTERO_ERROR_WINDOW);
-  pteroErrors.length = 0;
-  recent.forEach(t => pteroErrors.push(t));
-  return recent.length >= PTERO_ERROR_THRESHOLD;
+  if (pteroErrorCount === 0) pteroFirstErrorTime = now;
+  if (now - pteroFirstErrorTime > PTERO_ERROR_WINDOW) {
+    pteroErrorCount = 1;
+    pteroFirstErrorTime = now;
+    circuitBreakerOpen = false;
+    return;
+  }
+  pteroErrorCount++;
+  if (pteroErrorCount >= PTERO_ERROR_THRESHOLD) {
+    circuitBreakerOpen = true;
+    console.warn(`Pterodactyl API circuit breaker opened (${pteroErrorCount} errors in ${PTERO_ERROR_WINDOW/1000}s)`);
+    setTimeout(() => {
+      circuitBreakerOpen = false;
+      pteroErrorCount = 0;
+      console.warn('Pterodactyl API circuit breaker reset (retry timeout elapsed)');
+    }, CIRCUIT_RETRY_TIMEOUT);
+  }
 }
 
 async function fetchWithTimeout(url, options = {}, timeout = FETCH_TIMEOUT) {
@@ -54,7 +70,7 @@ function startCacheCleanup() {
 startCacheCleanup();
 
 async function pteroFetch(path, options = {}) {
-  if (isPteroCircuitOpen()) {
+  if (circuitBreakerOpen) {
     throw new Error('Pterodactyl API circuit breaker open - too many recent errors');
   }
 
@@ -68,7 +84,7 @@ async function pteroFetch(path, options = {}) {
         headers: { ...headers, ...options.headers },
       });
     } catch (err) {
-      pteroErrors.push(Date.now());
+      recordPteroError();
       if (attempt < maxRetries) {
         const wait = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
         console.warn(`pteroFetch network error (${err.message}), retry ${attempt}/${maxRetries} after ${wait}ms`);
@@ -85,7 +101,7 @@ async function pteroFetch(path, options = {}) {
       continue;
     }
     if (!res.ok) {
-      pteroErrors.push(Date.now());
+      recordPteroError();
       const text = await res.text();
       throw new Error(`Pterodactyl API error ${res.status}: ${text.slice(0, 200)}`);
     }
