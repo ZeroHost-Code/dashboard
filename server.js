@@ -255,7 +255,20 @@ app.get('/api/health', async (req, res) => {
   try {
     await query('SELECT 1');
     const poolStats = await getPoolStatus();
-    res.json({ status: 'ok', db: 'connected', pool: poolStats, timestamp: new Date().toISOString(), requestId: req.requestId });
+    const memUsage = process.memoryUsage();
+    res.json({
+      status: 'ok',
+      db: 'connected',
+      pool: poolStats,
+      memory: {
+        rss: Math.round(memUsage.rss / 1024 / 1024) + 'MB',
+        heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024) + 'MB',
+        heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024) + 'MB',
+      },
+      uptime: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString(),
+      requestId: req.requestId,
+    });
   } catch {
     res.status(503).json({ status: 'error', db: 'disconnected', timestamp: new Date().toISOString(), requestId: req.requestId });
   }
