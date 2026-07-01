@@ -17,6 +17,7 @@ const pool = mariadb.createPool({
   acquireTimeout: 10000,
   idleTimeout: 30000,
   insertIdAsNumber: true,
+  pingTimeout: 5000,
 });
 
 export async function closePool() {
@@ -24,6 +25,17 @@ export async function closePool() {
     await pool.end();
   } catch (err) {
     console.error('Error closing pool:', err.message);
+  }
+}
+
+export async function getPoolStatus() {
+  try {
+    const active = pool.activeConnections();
+    const total = pool.totalConnections();
+    const idle = pool.idleConnections();
+    return { active, total, idle };
+  } catch {
+    return { active: -1, total: -1, idle: -1 };
   }
 }
 

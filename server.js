@@ -21,7 +21,7 @@ import adminRoutes from './routes/admin.js';
 import notificationRoutes from './routes/notifications.js';
 import { startScheduler, stopScheduler } from './services/scheduler.js';
 import { migrate } from './config/migrate.js';
-import { query, closePool } from './config/db.js';
+import { query, closePool, getPoolStatus } from './config/db.js';
 import { getRecentActivity } from './services/activity.js';
 
 const app = express();
@@ -155,7 +155,8 @@ app.get('/api/activity', async (req, res) => {
 app.get('/api/health', async (req, res) => {
   try {
     await query('SELECT 1');
-    res.json({ status: 'ok', db: 'connected', timestamp: new Date().toISOString(), requestId: req.requestId });
+    const poolStats = await getPoolStatus();
+    res.json({ status: 'ok', db: 'connected', pool: poolStats, timestamp: new Date().toISOString(), requestId: req.requestId });
   } catch {
     res.status(503).json({ status: 'error', db: 'disconnected', timestamp: new Date().toISOString(), requestId: req.requestId });
   }
