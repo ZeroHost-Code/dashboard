@@ -12,7 +12,7 @@ import { createNotification } from '../services/notification.js';
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET;
 const PTERO_URL = process.env.PTERO_URL;
-const PANEL_DB_NAME = process.env.PANEL_DB_NAME || 'panel';
+const PANEL_DB_NAME = (process.env.PANEL_DB_NAME || 'panel').replace(/[^a-zA-Z0-9_]/g, '');
 
 const adminLoginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

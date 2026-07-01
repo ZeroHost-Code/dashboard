@@ -48,6 +48,7 @@ async function getPort() {
 }
 
 const PORT = process.env.PORT || await getPort();
+const SHUTDOWN_TIMEOUT = parseInt(process.env.SHUTDOWN_TIMEOUT, 10) || 10000;
 
 const trustProxy = process.env.NODE_ENV === 'production';
 
@@ -317,7 +318,7 @@ migrate().then(() => {
     setTimeout(() => {
       console.error('Forced shutdown after timeout');
       process.exit(1);
-    }, 10000);
+    }, SHUTDOWN_TIMEOUT);
   }
 
   process.on('SIGTERM', () => shutdown('SIGTERM'));
