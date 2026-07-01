@@ -637,6 +637,15 @@ router.post('/settings/nests', authenticateToken, requireAdmin, async (req, res)
   try {
     const { pteroNestId, name } = req.body;
     if (!pteroNestId) return res.status(400).json({ error: 'Nest ID is required' });
+    if (typeof pteroNestId !== 'number' || isNaN(pteroNestId)) {
+      return res.status(400).json({ error: 'Nest ID must be a valid number' });
+    }
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      return res.status(400).json({ error: 'Nest name is required' });
+    }
+    if (name.trim().length > 255) {
+      return res.status(400).json({ error: 'Nest name must be 255 characters or less' });
+    }
 
     const pteroNests = await getPteroNests();
     const nest = pteroNests.find(n => n.id === pteroNestId);
@@ -716,7 +725,9 @@ router.get('/settings/eggs/:nestId/:eggId', authenticateToken, requireAdmin, asy
 
 router.put('/settings/eggs/:nestId/:eggId', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { nestId, eggId } = req.params;
+    const nestId = parseInt(req.params.nestId, 10);
+    const eggId = parseInt(req.params.eggId, 10);
+    if (isNaN(nestId) || isNaN(eggId)) return res.status(400).json({ error: 'Invalid nest or egg ID' });
     const { cpu_limit, memory_limit, disk_limit } = req.body;
 
     const sanitized = {
