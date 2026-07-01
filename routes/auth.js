@@ -330,6 +330,10 @@ router.post('/change-password', authenticateToken, sensitiveLimiter, async (req,
       return res.status(400).json({ error: 'Current password and new password are required' });
     }
 
+    if (typeof currentPassword !== 'string' || typeof newPassword !== 'string') {
+      return res.status(400).json({ error: 'Invalid input types' });
+    }
+
     if (newPassword.length < 8 || newPassword.length > MAX_PASSWORD_LENGTH) {
       return res.status(400).json({ error: 'New password must be between 8 and 128 characters' });
     }
@@ -377,6 +381,10 @@ router.post('/change-email', authenticateToken, sensitiveLimiter, async (req, re
 
     if (!newEmail || !password) {
       return res.status(400).json({ error: 'New email and password are required' });
+    }
+
+    if (typeof newEmail !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Invalid input types' });
     }
 
     if (!validateEmail(newEmail)) {
