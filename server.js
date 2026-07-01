@@ -138,6 +138,12 @@ app.use((err, req, res, next) => {
 });
 app.use(cookieParser(process.env.COOKIE_SECRET));
 
+app.use((req, res, next) => {
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  next();
+});
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
