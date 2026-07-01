@@ -13,6 +13,7 @@ import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
 import path from 'path';
+import crypto from 'crypto';
 
 import authRoutes from './routes/auth.js';
 import serverRoutes from './routes/servers.js';
@@ -39,6 +40,12 @@ const PORT = process.env.PORT || await getPort();
 const trustProxy = process.env.NODE_ENV === 'production';
 
 app.set('trust proxy', trustProxy ? 1 : 0);
+
+app.use((req, res, next) => {
+  req.requestId = crypto.randomUUID();
+  res.setHeader('X-Request-Id', req.requestId);
+  next();
+});
 
 app.use(helmet({
   contentSecurityPolicy: {
@@ -130,7 +137,7 @@ app.get('/api/activity', async (req, res) => {
     if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
-    console.error('Activity route error:', err.message, err.stack?.split('\n')[1]);
+    console.error(`[${req.requestId}] Activity route error:`, err.message, err.stack?.split('\n')[1]);
     res.status(500).json({ error: 'Failed to fetch activities' });
   }
 });
@@ -138,9 +145,9 @@ app.get('/api/activity', async (req, res) => {
 app.get('/api/health', async (req, res) => {
   try {
     await query('SELECT 1');
-    res.json({ status: 'ok', db: 'connected', timestamp: new Date().toISOString() });
+    res.json({ status: 'ok', db: 'connected', timestamp: new Date().toISOString(), requestId: req.requestId });
   } catch {
-    res.status(503).json({ status: 'error', db: 'disconnected', timestamp: new Date().toISOString() });
+    res.status(503).json({ status: 'error', db: 'disconnected', timestamp: new Date().toISOString(), requestId: req.requestId });
   }
 });
 
@@ -164,8 +171,8 @@ app.get('*', (req, res) => {
 });
 
 app.use((err, req, res, _next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ error: 'Internal server error' });
+  console.error(`[${req.requestId}] Unhandled error:`, err);
+  res.status(500).json({ error: 'Internal server error', requestId: req.requestId });
 });
 
 migrate().then(() => {
