@@ -470,14 +470,6 @@ router.post('/users/:id/notify', authenticateToken, requireAdmin, async (req, re
   }
 });
 
-const notifyAllLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 5,
-  message: { error: 'Too many notify-all requests. Limit: 5 per hour.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
 router.post('/notify-all', authenticateToken, requireAdmin, notifyAllLimiter, async (req, res) => {
   try {
     const { title, message, type } = req.body;
