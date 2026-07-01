@@ -4,6 +4,7 @@ const FETCH_TIMEOUT = 15000;
 const CACHE_TTL = 5 * 60 * 1000;
 const CACHE_MAX_SIZE = 50;
 const nodeCache = new Map();
+let cacheCleanupTimer = null;
 
 async function fetchWithTimeout(url, options = {}, timeout = FETCH_TIMEOUT) {
   const controller = new AbortController();
@@ -21,6 +22,25 @@ const headers = {
   'Accept': 'application/json',
   'Content-Type': 'application/json',
 };
+
+function startCacheCleanup() {
+  if (cacheCleanupTimer) return;
+  cacheCleanupTimer = setInterval(() => {
+    const cutoff = Date.now() - CACHE_TTL;
+    let cleaned = 0;
+    for (const [id, entry] of nodeCache) {
+      if (entry.ts < cutoff) {
+        nodeCache.delete(id);
+        cleaned++;
+      }
+    }
+    if (cleaned > 0) {
+      console.log(`Cleaned ${cleaned} stale cache entries (${nodeCache.size} remaining)`);
+    }
+  }, CACHE_TTL);
+}
+
+startCacheCleanup();
 
 async function pteroFetch(path, options = {}) {
   const url = `${PTERO_URL}/api/application${path}`;
@@ -108,7 +128,8 @@ export async function getAllServers() {
   let page = 1;
   let hasMore = true;
 
-  while (hasMore) {
+  const MAX_PAGES = 20;
+  while (hasMore && page <= MAX_PAGES) {
     const data = await pteroFetch(`/servers?page=${page}&per_page=50`);
     const servers = data.data.map(s => s.attributes);
     allServers = allServers.concat(servers);
@@ -143,7 +164,8 @@ export async function getServersByUser(userId) {
   let page = 1;
   let hasMore = true;
 
-  while (hasMore) {
+  const MAX_PAGES = 20;
+  while (hasMore && page <= MAX_PAGES) {
     const data = await pteroFetch(`/servers?page=${page}&per_page=50`);
     const servers = data.data.map(s => s.attributes).filter(s => s.user === userId);
     allServers = allServers.concat(servers);
@@ -275,7 +297,8 @@ export async function getPergoServerIdsByEgg(nestId, eggId) {
   const ids = [];
   let page = 1;
   let hasMore = true;
-  while (hasMore) {
+  const MAX_PAGES = 20;
+  while (hasMore && page <= MAX_PAGES) {
     const data = await pteroFetch(`/servers?page=${page}&per_page=100`);
     const servers = data.data.map(s => s.attributes);
     for (const s of servers) {
