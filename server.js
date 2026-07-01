@@ -130,6 +130,16 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use((req, res, next) => {
+  if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.path.startsWith('/api/')) {
+    const ct = req.headers['content-type'] || '';
+    if (!ct.startsWith('application/json') && !ct.startsWith('application/x-www-form-urlencoded') && !ct.startsWith('multipart/form-data')) {
+      return res.status(415).json({ error: 'Unsupported content type. Use application/json.', requestId: req.requestId });
+    }
+  }
+  next();
+});
+
 app.use((err, req, res, next) => {
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
     return res.status(400).json({ error: 'Invalid JSON in request body', requestId: req.requestId });
