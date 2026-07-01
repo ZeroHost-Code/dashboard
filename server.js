@@ -56,6 +56,31 @@ app.set('trust proxy', trustProxy ? 1 : 0);
 app.use((req, res, next) => {
   req.requestId = crypto.randomUUID();
   res.setHeader('X-Request-Id', req.requestId);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  next();
+});
+
+const activeRequests = new Map();
+
+app.use((req, res, next) => {
+  const ip = req.ip || req.socket.remoteAddress || '0.0.0.0';
+  const count = (activeRequests.get(ip) || 0) + 1;
+  if (count > 20) {
+    return res.status(429).json({ error: 'Too many concurrent requests' });
+  }
+  activeRequests.set(ip, count);
+  res.on('finish', () => {
+    const c = activeRequests.get(ip);
+    if (c && c <= 1) activeRequests.delete(ip);
+    else if (c) activeRequests.set(ip, c - 1);
+  });
+  next();
+});
+
+app.use((req, res, next) => {
+  res.setTimeout(30000, () => {
+    res.status(503).json({ error: 'Request timeout', requestId: req.requestId });
+  });
   next();
 });
 
@@ -72,6 +97,7 @@ app.use(helmet({
       workerSrc: ["'self'", "blob:"],
       frameSrc: ["https://cap.zero-host.org"],
       objectSrc: ["'none'"],
+      upgradeInsecureRequests: [],
     },
   },
   hsts: {
