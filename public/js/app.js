@@ -942,7 +942,37 @@ function navigateTo(page) {
 
     if (basePage === 'overview') renderOverview();
     else if (basePage === 'servers') renderServers();
-    else if (basePage === 'create') renderCreateServer();
+    else if (basePage === 'create') {
+      const el = $('#page-create');
+      el.innerHTML = html`
+        <div class="page-header" style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <h1 class="page-title">Create Server</h1>
+            <p class="page-subtitle">Deploy a new server in minutes</p>
+          </div>
+        </div>
+        <div id="create-wizard"></div>
+      `;
+      createState.selectedNest = null;
+      createState.selectedEgg = null;
+      createState.selectedDockerImage = null;
+      createState.serverName = '';
+      createState.step = 0;
+      (async () => {
+        try {
+          const data = await api('/servers/nests');
+          createState.nests = data.nests;
+          renderWizardStep(0);
+        } catch (err) {
+          $('#create-wizard').innerHTML = html`
+            <div class="card" style="max-width:600px;text-align:center;padding:48px">
+              <p style="color:var(--accent-red);margin:0 0 16px">Failed to load data: ${escapeHtml(err.message)}</p>
+              <button class="btn btn-primary" onclick="navigateTo('create')">Retry</button>
+            </div>
+          `;
+        }
+      })();
+    }
     else if (basePage === 'pyrodactyl') renderPyrodactyl();
     else if (basePage === 'account') {
       if (param === 'edit') renderAccountEdit();
@@ -1010,7 +1040,37 @@ window.addEventListener('popstate', () => {
 
     if (basePage === 'overview') renderOverview();
     else if (basePage === 'servers') renderServers();
-    else if (basePage === 'create') renderCreateServer();
+    else if (basePage === 'create') {
+      const el = $('#page-create');
+      el.innerHTML = html`
+        <div class="page-header" style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <h1 class="page-title">Create Server</h1>
+            <p class="page-subtitle">Deploy a new server in minutes</p>
+          </div>
+        </div>
+        <div id="create-wizard"></div>
+      `;
+      createState.selectedNest = null;
+      createState.selectedEgg = null;
+      createState.selectedDockerImage = null;
+      createState.serverName = '';
+      createState.step = 0;
+      (async () => {
+        try {
+          const data = await api('/servers/nests');
+          createState.nests = data.nests;
+          renderWizardStep(0);
+        } catch (err) {
+          $('#create-wizard').innerHTML = html`
+            <div class="card" style="max-width:600px;text-align:center;padding:48px">
+              <p style="color:var(--accent-red);margin:0 0 16px">Failed to load data: ${escapeHtml(err.message)}</p>
+              <button class="btn btn-primary" onclick="navigateTo('create')">Retry</button>
+            </div>
+          `;
+        }
+      })();
+    }
     else if (basePage === 'pyrodactyl') renderPyrodactyl();
     else if (basePage === 'account') {
       if (param === 'edit') renderAccountEdit();
@@ -1419,56 +1479,11 @@ const createState = {
   step: 0,
 };
 
-async function renderCreateServer() {
-  const el = $('#page-create');
-  el.innerHTML = html`
-    <div class="page-header" style="display:flex;align-items:center;justify-content:space-between">
-      <div>
-        <h1 class="page-title">Create Server</h1>
-        <p class="page-subtitle">Deploy a new server in minutes</p>
-      </div>
-      <div class="wizard-progress-indicator" id="wizard-step-indicator">
-        <div class="wizard-step-indicator-small ${createState.step === 0 ? 'active' : 'completed'}">
-          <div class="wizard-step-circle-small"><i data-lucide="layout-grid" style="width:10px;height:10px"></i></div>
-        </div>
-        <div class="wizard-step-indicator-small ${createState.step === 1 ? 'active' : 'completed'}">
-          <div class="wizard-step-circle-small"><i data-lucide="egg" style="width:10px;height:10px"></i></div>
-        </div>
-        <div class="wizard-step-indicator-small ${createState.step === 2 ? 'active' : 'completed'}">
-          <div class="wizard-step-circle-small"><i data-lucide="type" style="width:10px;height:10px"></i></div>
-        </div>
-        <div class="wizard-step-indicator-small ${createState.step === 3 ? 'active' : 'completed'}">
-          <div class="wizard-step-circle-small"><i data-lucide="file-text" style="width:10px;height:10px"></i></div>
-        </div>
-      </div>
-    </div>
-    <div id="create-wizard"></div>
-  `;
-
-  createState.selectedNest = null;
-  createState.selectedEgg = null;
-  createState.selectedDockerImage = null;
-  createState.serverName = '';
-  createState.step = 0;
-
-  try {
-    const data = await api('/servers/nests');
-    createState.nests = data.nests;
-    renderWizardStep(0);
-  } catch (err) {
-    $('#create-wizard').innerHTML = html`
-      <div class="card" style="max-width:600px;text-align:center;padding:48px">
-        <p style="color:var(--accent-red);margin:0 0 16px">Failed to load data: ${escapeHtml(err.message)}</p>
-        <button class="btn btn-primary" onclick="renderCreateServer()">Retry</button>
-      </div>
-    `;
-  }
-}
-
 function renderWizardStep(step, direction) {
   const prevStep = createState.step;
   createState.step = step;
   const container = $('#create-wizard');
+  const headerEl = document.querySelector('#page-create .page-header');
   const steps = [
     { label: 'Nest', icon: 'layout-grid' },
     { label: 'Egg', icon: 'egg' },
@@ -1492,11 +1507,20 @@ function renderWizardStep(step, direction) {
 
   const slideClass = direction === 'next' ? 'slide-left' : direction === 'back' ? 'slide-right' : '';
 
-  container.innerHTML = html`
+  const progressHtml = html`
     <div class="wizard-progress">
       <div class="wizard-progress-track" style="transform:translateX(${step * 25}%)"></div>
       ${stepsHtml}
     </div>
+  `;
+
+  if (headerEl) {
+    const existing = headerEl.querySelector('.wizard-progress');
+    if (existing) existing.remove();
+    headerEl.insertAdjacentHTML('beforeend', progressHtml);
+  }
+
+  container.innerHTML = html`
     <div class="wizard-content-wrapper">
       <div class="wizard-content ${slideClass}">${contentHtml}</div>
     </div>
