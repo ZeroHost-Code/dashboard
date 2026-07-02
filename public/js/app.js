@@ -1438,7 +1438,13 @@ async function renderCreateServer() {
         </div>
         <div class="form-group" id="docker-image-group" style="display:none">
           <label>Docker Image</label>
-          <div id="docker-image-options"></div>
+          <div class="custom-select" id="custom-docker-select">
+            <button type="button" class="custom-select-trigger" id="custom-docker-trigger">
+              <span id="custom-docker-label">Select a Docker image...</span>
+              <i data-lucide="chevron-down" class="custom-select-arrow" style="width:12px;height:12px"></i>
+            </button>
+            <div class="custom-select-dropdown" id="custom-docker-dropdown"></div>
+          </div>
         </div>
         <div class="card" style="margin-top:20px;margin-bottom:24px;background:var(--bg-secondary)">
           <div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px">Default resources</div>
@@ -1466,6 +1472,7 @@ async function renderCreateServer() {
   document.addEventListener('click', function closeSelect(e) {
     if (!e.target.closest('.custom-select')) {
       $('#custom-egg-dropdown')?.classList.remove('open');
+      $('#custom-docker-dropdown')?.classList.remove('open');
     }
   });
   $('#create-server-form').addEventListener('submit', handleCreateServer);
@@ -1510,26 +1517,35 @@ function handleEggChange() {
   const [eggId, nestId] = eggVal.split(',').map(Number);
   const egg = eggCache.find(e => e.eggId === eggId && e.nestId === nestId);
   const group = $('#docker-image-group');
-  const optionsEl = $('#docker-image-options');
+  const dropdown = $('#custom-docker-dropdown');
+  const trigger = $('#custom-docker-trigger');
+  const label = $('#custom-docker-label');
   if (!egg || !egg.dockerImages || Object.keys(egg.dockerImages).length <= 1) {
     group.style.display = 'none';
     return;
   }
   const entries = Object.entries(egg.dockerImages);
   let html = '';
-  for (const [image, label] of entries) {
-    html += `
-      <label class="docker-option">
-        <input type="radio" name="docker-image" value="${image}" />
-        <span class="docker-option-label">${label}</span>
-        <span class="docker-option-image">${image}</span>
-      </label>
-    `;
+  let firstKey = '';
+  for (const [image, displayName] of entries) {
+    if (!firstKey) firstKey = image;
+    html += `<div class="custom-select-option" data-value="${image}">${displayName}</div>`;
   }
-  optionsEl.innerHTML = html;
-  optionsEl.querySelector('input[type="radio"]').checked = true;
+  dropdown.innerHTML = html;
+  trigger.dataset.value = firstKey;
+  label.textContent = entries[0][1];
+  dropdown.querySelectorAll('.custom-select-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      label.textContent = opt.textContent;
+      trigger.dataset.value = opt.dataset.value;
+      dropdown.classList.remove('open');
+    });
+  });
+  trigger.addEventListener('click', e => {
+    e.stopPropagation();
+    dropdown.classList.toggle('open');
+  });
   group.style.display = 'block';
-  if (window.initIcons) initIcons();
 }
 
 async function handleCreateServer(e) {
@@ -1555,7 +1571,7 @@ async function handleCreateServer(e) {
 
   const [eggId, nestId] = eggVal.split(',').map(Number);
   const environment = {};
-  const dockerImage = document.querySelector('input[name="docker-image"]:checked')?.value || '';
+  const dockerImage = $('#custom-docker-trigger')?.dataset?.value || '';
 
   try {
     const capToken = document.querySelector('[name="cap-token"]')?.value || '';
