@@ -1436,6 +1436,10 @@ async function renderCreateServer() {
             <div class="custom-select-dropdown" id="custom-egg-dropdown"></div>
           </div>
         </div>
+        <div class="form-group" id="docker-image-group" style="display:none">
+          <label>Docker Image</label>
+          <div id="docker-image-options"></div>
+        </div>
         <div class="card" style="margin-top:20px;margin-bottom:24px;background:var(--bg-secondary)">
           <div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px">Default resources</div>
           <div style="display:flex;gap:16px;flex-wrap:wrap">
@@ -1500,7 +1504,33 @@ async function renderCreateServer() {
   initIcons();
 }
 
-function handleEggChange() {}
+function handleEggChange() {
+  const eggVal = $('#custom-egg-trigger').dataset.value;
+  if (!eggVal) return;
+  const [eggId, nestId] = eggVal.split(',').map(Number);
+  const egg = eggCache.find(e => e.eggId === eggId && e.nestId === nestId);
+  const group = $('#docker-image-group');
+  const optionsEl = $('#docker-image-options');
+  if (!egg || !egg.dockerImages || Object.keys(egg.dockerImages).length <= 1) {
+    group.style.display = 'none';
+    return;
+  }
+  const entries = Object.entries(egg.dockerImages);
+  let html = '';
+  for (const [image, label] of entries) {
+    html += `
+      <label class="docker-option">
+        <input type="radio" name="docker-image" value="${image}" />
+        <span class="docker-option-label">${label}</span>
+        <span class="docker-option-image">${image}</span>
+      </label>
+    `;
+  }
+  optionsEl.innerHTML = html;
+  optionsEl.querySelector('input[type="radio"]').checked = true;
+  group.style.display = 'block';
+  if (window.initIcons) initIcons();
+}
 
 async function handleCreateServer(e) {
   e.preventDefault();
@@ -1525,12 +1555,13 @@ async function handleCreateServer(e) {
 
   const [eggId, nestId] = eggVal.split(',').map(Number);
   const environment = {};
+  const dockerImage = document.querySelector('input[name="docker-image"]:checked')?.value || '';
 
   try {
     const capToken = document.querySelector('[name="cap-token"]')?.value || '';
     await api('/servers/create', {
       method: 'POST',
-      body: JSON.stringify({ name, nestId, eggId, environment, capToken }),
+      body: JSON.stringify({ name, nestId, eggId, environment, capToken, dockerImage }),
     });
     showToast(`Server "${name}" created successfully!`, 'success');
     navigateTo('servers');
