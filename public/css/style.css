@@ -2403,51 +2403,9 @@ tbody tr:hover {
 }
 
 /* ─── Create Wizard ─── */
-.wizard-progress-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.wizard-step-indicator-small {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-tertiary);
-  opacity: 0.5;
-  transition: var(--transition);
-}
-
-.wizard-step-indicator-small.active {
-  background: var(--accent-1);
-  opacity: 1;
-}
-
-.wizard-step-indicator-small.completed {
-  background: var(--accent-green);
-  opacity: 1;
-}
-
-.wizard-step-circle-small {
-  width: 10px;
-  height: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.wizard-step-circle-small i {
-  color: white;
-  opacity: 0.9;
-}
-
 .wizard-progress {
   display: flex;
   gap: 4px;
-  margin-bottom: 32px;
   max-width: 600px;
   background: var(--bg-secondary);
   border-radius: var(--radius-lg);
@@ -2504,60 +2462,27 @@ tbody tr:hover {
   max-width: 800px;
 }
 
-.wizard-progress-track {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  background: var(--accent-1);
-  border-radius: calc(var(--radius-lg) - 4px);
-  transition: transform 0.3s var(--transition);
+.wizard-content-wrapper {
+  overflow: hidden;
+  position: relative;
 }
 
-.wizard-step-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  padding: 8px 12px;
-  border-radius: var(--radius-md);
-  background: transparent;
-  transition: var(--transition);
-  opacity: 0.5;
+.wizard-content.slide-left {
+  animation: slideLeft 0.3s ease;
 }
 
-.wizard-step-indicator.active {
-  background: var(--accent-1);
-  opacity: 1;
+.wizard-content.slide-right {
+  animation: slideRight 0.3s ease;
 }
 
-.wizard-step-indicator.active .wizard-step-circle {
-  background: rgba(255,255,255,0.2);
+@keyframes slideLeft {
+  from { transform: translateX(20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
 }
 
-.wizard-step-indicator.completed {
-  opacity: 0.8;
-}
-
-.wizard-step-indicator.completed .wizard-step-circle {
-  background: var(--accent-green);
-}
-
-.wizard-step-circle {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-tertiary);
-  flex-shrink: 0;
-}
-
-.wizard-step-label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  white-space: nowrap;
+@keyframes slideRight {
+  from { transform: translateX(-20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
 }
 
 .wizard-progress-track {
@@ -2569,47 +2494,6 @@ tbody tr:hover {
   border-radius: calc(var(--radius-lg) - 4px);
   transition: transform 0.3s var(--transition);
 }
-
-.wizard-step-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  padding: 8px 12px;
-  border-radius: var(--radius-md);
-  background: transparent;
-  transition: var(--transition);
-  opacity: 0.5;
-}
-
-.wizard-step-indicator.active {
-  background: var(--accent-1);
-  opacity: 1;
-}
-
-.wizard-step-indicator.active .wizard-step-circle {
-  background: rgba(255,255,255,0.2);
-}
-
-.wizard-step-indicator.completed {
-  opacity: 0.8;
-}
-
-.wizard-step-indicator.completed .wizard-step-circle {
-  background: var(--accent-green);
-}
-
-.wizard-step-circle {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-tertiary);
-  flex-shrink: 0;
-}
-
 .wizard-step-title {
   font-size: 1.25rem;
   font-weight: 700;
@@ -2637,7 +2521,7 @@ tbody tr:hover {
 /* Nest Cards Grid */
 .nest-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(5, 1fr);
   gap: 16px;
 }
 
