@@ -2459,7 +2459,7 @@ tbody tr:hover {
 }
 
 .wizard-content {
-  max-width: 800px;
+  width: 100%;
 }
 
 .wizard-content-wrapper {
