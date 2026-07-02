@@ -1529,11 +1529,13 @@ function handleEggChange() {
   let firstKey = '';
   for (const [image, displayName] of entries) {
     if (!firstKey) firstKey = image;
-    html += `<div class="custom-select-option" data-value="${image}">${displayName}</div>`;
+    const shortName = displayName || image.split('/').pop().split(':').pop() || image;
+    html += `<div class="custom-select-option" data-value="${image}">${shortName}</div>`;
   }
   dropdown.innerHTML = html;
   trigger.dataset.value = firstKey;
-  label.textContent = entries[0][1];
+  const firstShort = entries[0][1] || entries[0][0].split('/').pop().split(':').pop() || entries[0][0];
+  label.textContent = firstShort;
   dropdown.querySelectorAll('.custom-select-option').forEach(opt => {
     opt.addEventListener('click', () => {
       label.textContent = opt.textContent;
