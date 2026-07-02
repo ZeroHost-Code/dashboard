@@ -1422,9 +1422,25 @@ const createState = {
 async function renderCreateServer() {
   const el = $('#page-create');
   el.innerHTML = html`
-    <div class="page-header">
-      <h1 class="page-title">Create Server</h1>
-      <p class="page-subtitle">Deploy a new server in minutes</p>
+    <div class="page-header" style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <h1 class="page-title">Create Server</h1>
+        <p class="page-subtitle">Deploy a new server in minutes</p>
+      </div>
+      <div class="wizard-progress-indicator" id="wizard-step-indicator">
+        <div class="wizard-step-indicator-small ${createState.step === 0 ? 'active' : 'completed'}">
+          <div class="wizard-step-circle-small"><i data-lucide="layout-grid" style="width:10px;height:10px"></i></div>
+        </div>
+        <div class="wizard-step-indicator-small ${createState.step === 1 ? 'active' : 'completed'}">
+          <div class="wizard-step-circle-small"><i data-lucide="egg" style="width:10px;height:10px"></i></div>
+        </div>
+        <div class="wizard-step-indicator-small ${createState.step === 2 ? 'active' : 'completed'}">
+          <div class="wizard-step-circle-small"><i data-lucide="type" style="width:10px;height:10px"></i></div>
+        </div>
+        <div class="wizard-step-indicator-small ${createState.step === 3 ? 'active' : 'completed'}">
+          <div class="wizard-step-circle-small"><i data-lucide="file-text" style="width:10px;height:10px"></i></div>
+        </div>
+      </div>
     </div>
     <div id="create-wizard"></div>
   `;
@@ -1449,7 +1465,8 @@ async function renderCreateServer() {
   }
 }
 
-function renderWizardStep(step) {
+function renderWizardStep(step, direction) {
+  const prevStep = createState.step;
   createState.step = step;
   const container = $('#create-wizard');
   const steps = [
@@ -1473,9 +1490,16 @@ function renderWizardStep(step) {
   else if (step === 2) contentHtml = renderNameStep();
   else if (step === 3) contentHtml = renderSummaryStep();
 
+  const slideClass = direction === 'next' ? 'slide-left' : direction === 'back' ? 'slide-right' : '';
+
   container.innerHTML = html`
-    <div class="wizard-progress">${stepsHtml}</div>
-    <div class="wizard-content">${contentHtml}</div>
+    <div class="wizard-progress">
+      <div class="wizard-progress-track" style="transform:translateX(${step * 25}%)"></div>
+      ${stepsHtml}
+    </div>
+    <div class="wizard-content-wrapper">
+      <div class="wizard-content ${slideClass}">${contentHtml}</div>
+    </div>
   `;
 
   initIcons();
