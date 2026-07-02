@@ -1646,7 +1646,12 @@ function renderSummaryStep() {
   if (egg && createState.selectedDockerImage) {
     const images = Object.entries(egg.dockerImages || {});
     const found = images.find(([img]) => img === createState.selectedDockerImage);
-    dockerLabel = found ? (found[1] || found[0].split('/').pop().split(':').pop() || found[0]) : createState.selectedDockerImage;
+    if (found) {
+      dockerLabel = found[1] || found[0].split('/').pop().split(':').pop() || found[0];
+    } else {
+      const raw = createState.selectedDockerImage;
+      dockerLabel = raw.split('/').pop().split(':').pop() || raw || 'Default';
+    }
   }
 
   return html`
