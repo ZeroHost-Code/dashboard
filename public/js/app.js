@@ -1588,7 +1588,7 @@ function renderEggStep() {
           <div class="wizard-step-title" style="font-size:1rem">Docker Image</div>
           <p class="wizard-step-desc">Choose a Docker image for this egg</p>
           <div class="docker-grid">
-            ${images.map(([image, displayName]) => {
+            ${images.map(([displayName, image]) => {
               const shortName = displayName || image.split('/').pop().split(':').pop() || image;
               return html`
                 <div class="docker-card ${createState.selectedDockerImage === image ? 'selected' : ''}" data-docker="${image}">
@@ -1645,9 +1645,9 @@ function renderSummaryStep() {
   let dockerLabel = 'Default';
   if (egg && createState.selectedDockerImage) {
     const images = Object.entries(egg.dockerImages || {});
-    const found = images.find(([img]) => img === createState.selectedDockerImage);
+    const found = images.find(([, img]) => img === createState.selectedDockerImage);
     if (found) {
-      dockerLabel = found[1] || found[0].split('/').pop().split(':').pop() || found[0];
+      dockerLabel = found[0] || createState.selectedDockerImage.split('/').pop().split(':').pop() || createState.selectedDockerImage;
     } else {
       const raw = createState.selectedDockerImage;
       dockerLabel = raw.split('/').pop().split(':').pop() || raw || 'Default';
@@ -1751,7 +1751,7 @@ function attachWizardListeners(step) {
         if (!createState.selectedEgg) return;
         const images = Object.entries(createState.selectedEgg.dockerImages || {});
         if (images.length === 1) {
-          createState.selectedDockerImage = images[0][0];
+          createState.selectedDockerImage = images[0][1];
         } else if (images.length > 1 && !createState.selectedDockerImage) {
           showToast('Please select a Docker image', 'error');
           return;

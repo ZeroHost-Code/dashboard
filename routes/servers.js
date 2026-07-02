@@ -232,9 +232,16 @@ router.post('/create', authenticateToken, createServerLimiter, async (req, res) 
     }
 
     const egg = await getEgg(nestId, eggId);
-    const dockerImage = reqDockerImage && egg.docker_images && egg.docker_images[reqDockerImage]
-      ? reqDockerImage
-      : (Object.values(egg.docker_images)[0] || Object.keys(egg.docker_images)[0]);
+    let dockerImage;
+    if (reqDockerImage && egg.docker_images) {
+      if (egg.docker_images[reqDockerImage]) {
+        dockerImage = egg.docker_images[reqDockerImage];
+      } else {
+        dockerImage = reqDockerImage;
+      }
+    } else {
+      dockerImage = Object.values(egg.docker_images || {})[0] || Object.keys(egg.docker_images || {})[0];
+    }
 
     const eggVars = await query(`SELECT env_variable, default_value FROM ${PANEL_DB_NAME}.egg_variables WHERE egg_id = ?`, [eggId]);
 
