@@ -115,6 +115,54 @@ router.get('/list', authenticateToken, async (req, res) => {
   }
 });
 
+router.get('/nests', authenticateToken, async (req, res) => {
+  try {
+    const dbNests = await query('SELECT ptero_nest_id, name, logo, description FROM nests');
+    const nestIds = dbNests.map(n => n.ptero_nest_id);
+
+    const eggs = await getAllEggs(nestIds);
+    const nestMap = {};
+    for (const n of dbNests) {
+      nestMap[n.ptero_nest_id] = n;
+    }
+
+    const eggResources = await query('SELECT ptero_nest_id, ptero_egg_id, logo FROM egg_resources');
+    const eggLogoMap = {};
+    for (const r of eggResources) {
+      eggLogoMap[`${r.ptero_nest_id}-${r.ptero_egg_id}`] = r.logo;
+    }
+
+    const result = [];
+    const nestEggs = {};
+    for (const { nest, egg } of eggs) {
+      if (!nestEggs[nest]) nestEggs[nest] = [];
+      const key = `${nest}-${egg.id}`;
+      nestEggs[nest].push({
+        eggId: egg.id,
+        name: egg.name,
+        description: egg.description || '',
+        dockerImages: egg.docker_images || {},
+        logo: eggLogoMap[key] || null,
+      });
+    }
+
+    for (const n of dbNests) {
+      result.push({
+        pteroNestId: n.ptero_nest_id,
+        name: n.name,
+        logo: n.logo || null,
+        description: n.description || '',
+        eggs: nestEggs[n.ptero_nest_id] || [],
+      });
+    }
+
+    res.json({ nests: result });
+  } catch (err) {
+    console.error('Get nests error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch nests: ' + err.message });
+  }
+});
+
 router.get('/eggs', authenticateToken, async (req, res) => {
   try {
     const dbNests = await query('SELECT ptero_nest_id, name FROM nests');

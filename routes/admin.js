@@ -593,7 +593,7 @@ router.get('/settings/nests', authenticateToken, requireAdmin, async (req, res) 
     const nests = await query('SELECT * FROM nests ORDER BY name ASC');
     res.json({ nests });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch nests' });
+    res.status(500).json({ error: 'Failed to fetch nests: ' + err.message });
   }
 });
 
@@ -642,13 +642,20 @@ router.post('/settings/nests', authenticateToken, requireAdmin, async (req, res)
 router.put('/settings/nests/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const { name } = req.body;
-    if (!name || typeof name !== 'string') return res.status(400).json({ error: 'Name is required' });
-    if (name.trim().length > 255) return res.status(400).json({ error: 'Name must be 255 characters or less' });
-    await query('UPDATE nests SET name = ? WHERE id = ?', [name.trim(), id]);
+    const { name, logo, description } = req.body;
+    if (name !== undefined && (typeof name !== 'string' || name.trim().length === 0)) return res.status(400).json({ error: 'Name cannot be empty' });
+    if (name && name.trim().length > 255) return res.status(400).json({ error: 'Name must be 255 characters or less' });
+    const updates = [];
+    const params = [];
+    if (name !== undefined) { updates.push('name = ?'); params.push(name.trim()); }
+    if (logo !== undefined) { updates.push('logo = ?'); params.push(logo || null); }
+    if (description !== undefined) { updates.push('description = ?'); params.push(description || null); }
+    if (updates.length === 0) return res.status(400).json({ error: 'No fields to update' });
+    params.push(id);
+    await query(`UPDATE nests SET ${updates.join(', ')} WHERE id = ?`, params);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to rename nest' });
+    res.status(500).json({ error: 'Failed to update nest: ' + err.message });
   }
 });
 
@@ -688,10 +695,10 @@ router.get('/settings/nests/:nestId/eggs', authenticateToken, requireAdmin, asyn
 router.get('/settings/eggs/:nestId/:eggId', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { nestId, eggId } = req.params;
-    const [resources] = await query('SELECT * FROM egg_resources WHERE ptero_nest_id = ? AND ptero_egg_id = ?', [nestId, eggId]);
+    const [resources] = await query('SELECT * FROM egg_resources WHERE ptero_nest_id = ? AND ptero_egg_id = ?', [parseInt(nestId, 10), parseInt(eggId, 10)]);
     let eggDetails = null;
     try {
-      eggDetails = await getEgg(nestId, eggId);
+      eggDetails = await getEgg(parseInt(nestId, 10), parseInt(eggId, 10));
     } catch {}
     res.json({ resources: resources || null, egg: eggDetails });
   } catch (err) {
@@ -704,12 +711,13 @@ router.put('/settings/eggs/:nestId/:eggId', authenticateToken, requireAdmin, asy
     const nestId = parseInt(req.params.nestId, 10);
     const eggId = parseInt(req.params.eggId, 10);
     if (isNaN(nestId) || isNaN(eggId)) return res.status(400).json({ error: 'Invalid nest or egg ID' });
-    const { cpu_limit, memory_limit, disk_limit } = req.body;
+    const { cpu_limit, memory_limit, disk_limit, logo } = req.body;
 
     const sanitized = {
       cpu_limit: (cpu_limit != null && !isNaN(Number(cpu_limit))) ? Number(cpu_limit) : null,
       memory_limit: (memory_limit != null && !isNaN(Number(memory_limit))) ? Number(memory_limit) : null,
       disk_limit: (disk_limit != null && !isNaN(Number(disk_limit))) ? Number(disk_limit) : null,
+      logo: logo !== undefined ? (logo || null) : undefined,
     };
 
     if (sanitized.cpu_limit != null && sanitized.cpu_limit < 0) return res.status(400).json({ error: 'CPU limit cannot be negative' });
@@ -718,15 +726,20 @@ router.put('/settings/eggs/:nestId/:eggId', authenticateToken, requireAdmin, asy
 
     const [existing] = await query('SELECT id FROM egg_resources WHERE ptero_nest_id = ? AND ptero_egg_id = ?', [nestId, eggId]);
     if (existing) {
-      await query('UPDATE egg_resources SET cpu_limit = ?, memory_limit = ?, disk_limit = ? WHERE id = ?',
-        [sanitized.cpu_limit, sanitized.memory_limit, sanitized.disk_limit, existing.id]);
+      const updates = ['cpu_limit = ?', 'memory_limit = ?', 'disk_limit = ?'];
+      const vals = [sanitized.cpu_limit, sanitized.memory_limit, sanitized.disk_limit];
+      if (sanitized.logo !== undefined) { updates.push('logo = ?'); vals.push(sanitized.logo); }
+      vals.push(existing.id);
+      await query(`UPDATE egg_resources SET ${updates.join(', ')} WHERE id = ?`, vals);
     } else {
-      await query('INSERT INTO egg_resources (ptero_nest_id, ptero_egg_id, cpu_limit, memory_limit, disk_limit) VALUES (?, ?, ?, ?, ?)',
-        [nestId, eggId, sanitized.cpu_limit, sanitized.memory_limit, sanitized.disk_limit]);
+      const cols = ['ptero_nest_id', 'ptero_egg_id', 'cpu_limit', 'memory_limit', 'disk_limit'];
+      const vals = [nestId, eggId, sanitized.cpu_limit, sanitized.memory_limit, sanitized.disk_limit];
+      if (sanitized.logo !== undefined) { cols.push('logo'); vals.push(sanitized.logo); }
+      await query(`INSERT INTO egg_resources (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`, vals);
     }
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to save egg settings' });
+    res.status(500).json({ error: 'Failed to save egg settings: ' + err.message });
   }
 });
 

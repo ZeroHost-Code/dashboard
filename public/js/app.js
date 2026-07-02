@@ -1409,185 +1409,376 @@ async function renderServers() {
   initIcons();
 }
 
-// ===== CREATE SERVER =====
-let eggCache = [];
+// ===== CREATE SERVER (Wizard) =====
+const createState = {
+  nests: [],
+  selectedNest: null,
+  selectedEgg: null,
+  selectedDockerImage: null,
+  serverName: '',
+  step: 0,
+};
 
 async function renderCreateServer() {
   const el = $('#page-create');
   el.innerHTML = html`
     <div class="page-header">
       <h1 class="page-title">Create Server</h1>
-      <p class="page-subtitle">Deploy a new server in seconds</p>
+      <p class="page-subtitle">Deploy a new server in minutes</p>
     </div>
-    <div class="card" style="max-width: 560px;">
-      <form id="create-server-form">
-        <div class="auth-error" id="create-error"></div>
-        <div class="form-group">
-          <label for="create-name">Server Name</label>
-          <input type="text" id="create-name" placeholder="My Awesome Server" required />
-        </div>
-        <div class="form-group">
-          <label>Egg Type</label>
-          <div class="custom-select" id="custom-egg-select">
-            <button type="button" class="custom-select-trigger" id="custom-egg-trigger">
-              <span id="custom-egg-label">Select an egg...</span>
-              <i data-lucide="chevron-down" class="custom-select-arrow" style="width:12px;height:12px"></i>
-            </button>
-            <div class="custom-select-dropdown" id="custom-egg-dropdown"></div>
-          </div>
-        </div>
-        <div class="form-group" id="docker-image-group" style="display:none">
-          <label>Docker Image</label>
-          <div class="custom-select" id="custom-docker-select">
-            <button type="button" class="custom-select-trigger" id="custom-docker-trigger">
-              <span id="custom-docker-label">Select a Docker image...</span>
-              <i data-lucide="chevron-down" class="custom-select-arrow" style="width:12px;height:12px"></i>
-            </button>
-            <div class="custom-select-dropdown" id="custom-docker-dropdown"></div>
-          </div>
-        </div>
-        <div class="card" style="margin-top:20px;margin-bottom:24px;background:var(--bg-secondary)">
-          <div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px">Default resources</div>
-          <div style="display:flex;gap:16px;flex-wrap:wrap">
-            <span class="server-detail-tag">512 MB RAM</span>
-            <span class="server-detail-tag">50% CPU</span>
-            <span class="server-detail-tag">3 GB Disk</span>
-          </div>
-        </div>
-        <div style="width:100%">
-          <cap-widget data-cap-api-endpoint="https://cap.zero-host.org/f6c8171b08/" theme="dark"></cap-widget>
-        </div>
-        <button type="submit" class="btn btn-primary btn-full" id="create-btn" style="margin-top:16px">
-          <i data-lucide="plus" style="width:18px;height:18px"></i>
-          Create Server
-        </button>
-      </form>
-    </div>
+    <div id="create-wizard"></div>
   `;
 
-  $('#custom-egg-trigger').addEventListener('click', e => {
-    e.stopPropagation();
-    $('#custom-egg-dropdown').classList.toggle('open');
-  });
-  document.addEventListener('click', function closeSelect(e) {
-    if (!e.target.closest('.custom-select')) {
-      $('#custom-egg-dropdown')?.classList.remove('open');
-      $('#custom-docker-dropdown')?.classList.remove('open');
-    }
-  });
-  $('#create-server-form').addEventListener('submit', handleCreateServer);
+  createState.selectedNest = null;
+  createState.selectedEgg = null;
+  createState.selectedDockerImage = null;
+  createState.serverName = '';
+  createState.step = 0;
 
   try {
-    const data = await api('/servers/eggs');
-    eggCache = data.eggs;
-    const dropdown = $('#custom-egg-dropdown');
-    const grouped = {};
-    for (const e of data.eggs) {
-      if (!grouped[e.nestId]) grouped[e.nestId] = { name: e.nestName, eggs: [] };
-      grouped[e.nestId].eggs.push(e);
-    }
-    let htmlStr = '';
-    for (const nestId of Object.keys(grouped).sort()) {
-      htmlStr += `<div class="custom-select-category">${grouped[nestId].name || `Nest ${nestId}`}</div>`;
-      for (const e of grouped[nestId].eggs) {
-        htmlStr += `<div class="custom-select-option" data-value="${e.eggId},${e.nestId}">${e.name}</div>`;
-      }
-    }
-    dropdown.innerHTML = htmlStr;
-    dropdown.querySelectorAll('.custom-select-option').forEach(opt => {
-      opt.addEventListener('click', () => {
-        $('#custom-egg-label').textContent = opt.textContent;
-        $('#custom-egg-trigger').dataset.value = opt.dataset.value;
-        dropdown.classList.remove('open');
-        handleEggChange();
-      });
-    });
+    const data = await api('/servers/nests');
+    createState.nests = data.nests;
+    renderWizardStep(0);
   } catch (err) {
-    $('#custom-egg-label').textContent = 'Failed to load eggs';
-    $('#custom-egg-trigger').disabled = true;
-    showToast('Could not load eggs: ' + err.message, 'error');
+    $('#create-wizard').innerHTML = html`
+      <div class="card" style="max-width:600px;text-align:center;padding:48px">
+        <p style="color:var(--accent-red);margin:0 0 16px">Failed to load data: ${escapeHtml(err.message)}</p>
+        <button class="btn btn-primary" onclick="renderCreateServer()">Retry</button>
+      </div>
+    `;
   }
+}
+
+function renderWizardStep(step) {
+  createState.step = step;
+  const container = $('#create-wizard');
+  const steps = [
+    { label: 'Nest', icon: 'layout-grid' },
+    { label: 'Egg', icon: 'egg' },
+    { label: 'Name', icon: 'type' },
+    { label: 'Summary', icon: 'file-text' },
+  ];
+
+  const totalSteps = steps.length;
+  const stepsHtml = steps.map((s, i) => html`
+    <div class="wizard-step-indicator ${i < step ? 'completed' : i === step ? 'active' : ''}" data-index="${i}">
+      <div class="wizard-step-circle"><i data-lucide="${s.icon}" style="width:14px;height:14px"></i></div>
+      <span class="wizard-step-label">${s.label}</span>
+    </div>
+  `).join('');
+
+  let contentHtml = '';
+  if (step === 0) contentHtml = renderNestStep();
+  else if (step === 1) contentHtml = renderEggStep();
+  else if (step === 2) contentHtml = renderNameStep();
+  else if (step === 3) contentHtml = renderSummaryStep();
+
+  container.innerHTML = html`
+    <div class="wizard-progress">${stepsHtml}</div>
+    <div class="wizard-content">${contentHtml}</div>
+  `;
 
   initIcons();
+  attachWizardListeners(step);
 }
 
-function handleEggChange() {
-  const eggVal = $('#custom-egg-trigger').dataset.value;
-  if (!eggVal) return;
-  const [eggId, nestId] = eggVal.split(',').map(Number);
-  const egg = eggCache.find(e => e.eggId === eggId && e.nestId === nestId);
-  const group = $('#docker-image-group');
-  const dropdown = $('#custom-docker-dropdown');
-  const trigger = $('#custom-docker-trigger');
-  const label = $('#custom-docker-label');
-  if (!egg || !egg.dockerImages || Object.keys(egg.dockerImages).length <= 1) {
-    group.style.display = 'none';
-    return;
+function renderNestStep() {
+  if (createState.nests.length === 0) {
+    return html`<div class="card" style="text-align:center;padding:48px"><p style="color:var(--text-secondary)">No nests available.</p></div>`;
   }
-  const entries = Object.entries(egg.dockerImages);
-  let html = '';
-  let firstKey = '';
-  for (const [image, displayName] of entries) {
-    if (!firstKey) firstKey = image;
-    const shortName = displayName || image.split('/').pop().split(':').pop() || image;
-    html += `<div class="custom-select-option" data-value="${image}">${shortName}</div>`;
+  return html`
+    <div class="wizard-step-title">Choose a Nest</div>
+    <p class="wizard-step-desc">Select the type of server you want to create</p>
+    <div class="nest-grid">
+      ${createState.nests.map(n => html`
+        <div class="nest-card ${createState.selectedNest?.pteroNestId === n.pteroNestId ? 'selected' : ''}" data-nest-id="${n.pteroNestId}">
+          <div class="nest-card-logo">
+            ${n.logo ? html`<img src="${n.logo}" alt="" />` : html`<i data-lucide="box" style="width:40px;height:40px;color:var(--text-secondary)"></i>`}
+          </div>
+          <div class="nest-card-name">${escapeHtml(n.name)}</div>
+          ${n.description ? html`<div class="nest-card-desc">${escapeHtml(n.description)}</div>` : ''}
+        </div>
+      `).join('')}
+    </div>
+    <div class="wizard-actions">
+      <button class="btn btn-primary" id="wizard-next-btn" ${createState.selectedNest ? '' : 'disabled'}>
+        Next <i data-lucide="arrow-right" style="width:16px;height:16px"></i>
+      </button>
+    </div>
+  `;
+}
+
+function renderEggStep() {
+  const nest = createState.selectedNest;
+  if (!nest || !nest.eggs || nest.eggs.length === 0) {
+    return html`<div class="card" style="text-align:center;padding:48px"><p style="color:var(--text-secondary)">No eggs available in this nest.</p></div>`;
   }
-  dropdown.innerHTML = html;
-  trigger.dataset.value = firstKey;
-  const firstShort = entries[0][1] || entries[0][0].split('/').pop().split(':').pop() || entries[0][0];
-  label.textContent = firstShort;
-  dropdown.querySelectorAll('.custom-select-option').forEach(opt => {
-    opt.addEventListener('click', () => {
-      label.textContent = opt.textContent;
-      trigger.dataset.value = opt.dataset.value;
-      dropdown.classList.remove('open');
+
+  const eggCards = nest.eggs.map(e => {
+    const dockerImages = e.dockerImages || {};
+    const images = Object.entries(dockerImages);
+    return html`
+      <div class="egg-card ${createState.selectedEgg?.eggId === e.eggId ? 'selected' : ''}" data-egg-id="${e.eggId}">
+        <div class="egg-card-logo">
+          ${e.logo ? html`<img src="${e.logo}" alt="" />` : html`<i data-lucide="egg" style="width:32px;height:32px;color:var(--text-secondary)"></i>`}
+        </div>
+        <div class="egg-card-info">
+          <div class="egg-card-name">${escapeHtml(e.name)}</div>
+          ${e.description ? html`<div class="egg-card-desc">${escapeHtml(e.description)}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  let dockerSection = '';
+  const selEgg = createState.selectedEgg;
+  if (selEgg) {
+    const images = Object.entries(selEgg.dockerImages || {});
+    if (images.length > 1) {
+      dockerSection = html`
+        <div class="wizard-subsection" style="margin-top:24px">
+          <div class="wizard-step-title" style="font-size:1rem">Docker Image</div>
+          <p class="wizard-step-desc">Choose a Docker image for this egg</p>
+          <div class="docker-grid">
+            ${images.map(([image, displayName]) => {
+              const shortName = displayName || image.split('/').pop().split(':').pop() || image;
+              return html`
+                <div class="docker-card ${createState.selectedDockerImage === image ? 'selected' : ''}" data-docker="${image}">
+                  <i data-lucide="container" style="width:24px;height:24px"></i>
+                  <span>${escapeHtml(shortName)}</span>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  return html`
+    <div class="wizard-step-title">Choose an Egg</div>
+    <p class="wizard-step-desc">Select the software or game you want to run</p>
+    <div class="egg-grid">${eggCards}</div>
+    ${dockerSection}
+    <div class="wizard-actions">
+      <button class="btn btn-ghost" id="wizard-back-btn"><i data-lucide="arrow-left" style="width:16px;height:16px"></i> Back</button>
+      <button class="btn btn-primary" id="wizard-next-btn" ${createState.selectedEgg ? '' : 'disabled'}>
+        Next <i data-lucide="arrow-right" style="width:16px;height:16px"></i>
+      </button>
+    </div>
+  `;
+}
+
+function renderNameStep() {
+  return html`
+    <div class="wizard-step-title">Name Your Server</div>
+    <p class="wizard-step-desc">Give your server a memorable name</p>
+    <div class="card" style="max-width:480px">
+      <div class="form-group">
+        <label for="create-name-input">Server Name</label>
+        <input type="text" id="create-name-input" placeholder="My Awesome Server" value="${escapeHtml(createState.serverName)}" maxlength="255" style="width:100%" />
+      </div>
+      <div style="margin-top:8px;color:var(--text-secondary);font-size:0.82rem">
+        Allowed: letters, numbers, spaces, dots, dashes, underscores
+      </div>
+    </div>
+    <div class="wizard-actions">
+      <button class="btn btn-ghost" id="wizard-back-btn"><i data-lucide="arrow-left" style="width:16px;height:16px"></i> Back</button>
+      <button class="btn btn-primary" id="wizard-next-btn" disabled>
+        Next <i data-lucide="arrow-right" style="width:16px;height:16px"></i>
+      </button>
+    </div>
+  `;
+}
+
+function renderSummaryStep() {
+  const nest = createState.selectedNest;
+  const egg = createState.selectedEgg;
+  let dockerLabel = 'Default';
+  if (egg && createState.selectedDockerImage) {
+    const images = Object.entries(egg.dockerImages || {});
+    const found = images.find(([img]) => img === createState.selectedDockerImage);
+    dockerLabel = found ? (found[1] || found[0].split('/').pop().split(':').pop() || found[0]) : createState.selectedDockerImage;
+  }
+
+  return html`
+    <div class="wizard-step-title">Summary</div>
+    <p class="wizard-step-desc">Review your choices before creating the server</p>
+    <div class="summary-card">
+      <div class="summary-row">
+        <span class="summary-label">Nest</span>
+        <span class="summary-value">${escapeHtml(nest?.name || '—')}</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Egg</span>
+        <span class="summary-value">${escapeHtml(egg?.name || '—')}</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Docker Image</span>
+        <span class="summary-value">${escapeHtml(dockerLabel)}</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Server Name</span>
+        <span class="summary-value">${escapeHtml(createState.serverName)}</span>
+      </div>
+    </div>
+    <div class="card" style="margin-top:20px;max-width:480px">
+      <div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px">Default Resources</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <span class="server-detail-tag">512 MB RAM</span>
+        <span class="server-detail-tag">50% CPU</span>
+        <span class="server-detail-tag">3 GB Disk</span>
+      </div>
+    </div>
+    <div style="margin:20px 0;width:100%">
+      <cap-widget data-cap-api-endpoint="https://cap.zero-host.org/f6c8171b08/" theme="dark"></cap-widget>
+    </div>
+    <div class="wizard-actions">
+      <button class="btn btn-ghost" id="wizard-back-btn"><i data-lucide="arrow-left" style="width:16px;height:16px"></i> Back</button>
+      <button class="btn btn-primary" id="wizard-create-btn">
+        <i data-lucide="plus" style="width:16px;height:16px"></i> Create Server
+      </button>
+    </div>
+  `;
+}
+
+function attachWizardListeners(step) {
+  const backBtn = $('#wizard-back-btn');
+  const nextBtn = $('#wizard-next-btn');
+  const createBtn = $('#wizard-create-btn');
+
+  if (backBtn) {
+    backBtn.addEventListener('click', () => renderWizardStep(step - 1));
+  }
+
+  if (step === 0) {
+    const cards = document.querySelectorAll('.nest-card');
+    cards.forEach(c => {
+      c.addEventListener('click', () => {
+        cards.forEach(c2 => c2.classList.remove('selected'));
+        c.classList.add('selected');
+        const nestId = parseInt(c.dataset.nestId, 10);
+        createState.selectedNest = createState.nests.find(n => n.pteroNestId === nestId) || null;
+        createState.selectedEgg = null;
+        createState.selectedDockerImage = null;
+        const next = $('#wizard-next-btn');
+        if (next) next.disabled = false;
+      });
     });
-  });
-  trigger.addEventListener('click', e => {
-    e.stopPropagation();
-    dropdown.classList.toggle('open');
-  });
-  group.style.display = 'block';
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => renderWizardStep(1));
+    }
+  }
+
+  if (step === 1) {
+    const eggCards = document.querySelectorAll('.egg-card');
+    eggCards.forEach(c => {
+      c.addEventListener('click', () => {
+        eggCards.forEach(c2 => c2.classList.remove('selected'));
+        c.classList.add('selected');
+        const eggId = parseInt(c.dataset.eggId, 10);
+        const nest = createState.selectedNest;
+        createState.selectedEgg = nest?.eggs.find(e => e.eggId === eggId) || null;
+        createState.selectedDockerImage = null;
+        renderWizardStep(1);
+      });
+    });
+
+    const dockerCards = document.querySelectorAll('.docker-card');
+    dockerCards.forEach(c => {
+      c.addEventListener('click', () => {
+        dockerCards.forEach(c2 => c2.classList.remove('selected'));
+        c.classList.add('selected');
+        createState.selectedDockerImage = c.dataset.docker;
+      });
+    });
+
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => {
+        if (!createState.selectedEgg) return;
+        const images = Object.entries(createState.selectedEgg.dockerImages || {});
+        if (images.length === 1) {
+          createState.selectedDockerImage = images[0][0];
+        } else if (images.length > 1 && !createState.selectedDockerImage) {
+          showToast('Please select a Docker image', 'error');
+          return;
+        } else if (images.length > 1 && createState.selectedDockerImage) {
+          // already selected
+        }
+        renderWizardStep(2);
+      });
+    }
+  }
+
+  if (step === 2) {
+    const input = $('#create-name-input');
+    if (input) {
+      input.focus();
+      input.addEventListener('input', () => {
+        const val = input.value.trim();
+        createState.serverName = val;
+        const next = $('#wizard-next-btn');
+        if (next) {
+          next.disabled = !isValidServerName(val);
+        }
+      });
+      // Trigger initial validation
+      if (createState.serverName) {
+        input.value = createState.serverName;
+        const next = $('#wizard-next-btn');
+        if (next) next.disabled = !isValidServerName(createState.serverName);
+      }
+    }
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => {
+        const name = createState.serverName;
+        if (!name) { showToast('Please enter a server name', 'error'); return; }
+        if (!isValidServerName(name)) { showToast('Server name contains invalid characters', 'error'); return; }
+        renderWizardStep(3);
+      });
+    }
+  }
+
+  if (step === 3 && createBtn) {
+    createBtn.addEventListener('click', handleWizardCreate);
+  }
 }
 
-async function handleCreateServer(e) {
-  e.preventDefault();
-  const btn = $('#create-btn');
+function isValidServerName(name) {
+  return name && name.length >= 1 && name.length <= 255 && /^[a-zA-Z0-9 _.-]+$/.test(name);
+}
+
+async function handleWizardCreate() {
+  const btn = $('#wizard-create-btn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Creating...';
 
-  const name = $('#create-name').value.trim();
-  const eggVal = $('#custom-egg-trigger').dataset.value;
-  if (!name || !eggVal) {
-    showToast('Please fill in all fields', 'error');
-    btn.disabled = false;
-    btn.innerHTML = 'Create Server';
-    return;
-  }
-  if (name.length < 1 || name.length > 255) {
-    showToast('Server name must be between 1 and 255 characters', 'error');
+  const name = createState.serverName;
+  const nest = createState.selectedNest;
+  const egg = createState.selectedEgg;
+  if (!name || !nest || !egg) {
+    showToast('Missing required selections', 'error');
     btn.disabled = false;
     btn.innerHTML = 'Create Server';
     return;
   }
 
-  const [eggId, nestId] = eggVal.split(',').map(Number);
   const environment = {};
-  const dockerImage = $('#custom-docker-trigger')?.dataset?.value || '';
+  const dockerImage = createState.selectedDockerImage || '';
 
   try {
     const capToken = document.querySelector('[name="cap-token"]')?.value || '';
     await api('/servers/create', {
       method: 'POST',
-      body: JSON.stringify({ name, nestId, eggId, environment, capToken, dockerImage }),
+      body: JSON.stringify({ name, nestId: nest.pteroNestId, eggId: egg.eggId, environment, capToken, dockerImage }),
     });
     showToast(`Server "${name}" created successfully!`, 'success');
     navigateTo('servers');
   } catch (err) {
     showToast(err.message, 'error');
-  } finally {
     btn.disabled = false;
-    btn.innerHTML = 'Create Server';
+    btn.innerHTML = '<i data-lucide="plus" style="width:16px;height:16px"></i> Create Server';
+    initIcons();
   }
 }
 

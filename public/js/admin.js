@@ -1371,13 +1371,15 @@ async function renderAdminEggsSettings() {
         <thead>
           <tr>
             <th>Local ID</th>
+            <th>Logo</th>
             <th>Name</th>
+            <th>Description</th>
             <th>Panel Nest ID</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody id="admin-nests-tbody">
-          <tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
+          <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -1398,10 +1400,12 @@ async function renderAdminEggsSettings() {
     tbody.innerHTML = data.nests.map(n => ahtml`
       <tr>
         <td>${n.id}</td>
+        <td>${n.logo ? `<img src="${n.logo}" alt="" style="width:32px;height:32px;object-fit:contain;border-radius:4px">` : '<span style="color:var(--text-secondary);font-size:0.75rem">—</span>'}</td>
         <td><a href="/admin/settings/eggs/${n.ptero_nest_id}" onclick="event.preventDefault();adminNavigateTo('settings/eggs/${n.ptero_nest_id}')" style="font-weight:600;cursor:pointer">${n.name}</a></td>
+        <td style="color:var(--text-secondary);font-size:0.85rem;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.description || '—'}</td>
         <td><span class="server-detail-tag">${n.ptero_nest_id}</span></td>
         <td style="display:flex;gap:6px">
-          <button class="btn btn-ghost btn-sm btn-rename-nest" data-id="${n.id}" data-name="${n.name}" style="width:auto">Rename</button>
+          <button class="btn btn-ghost btn-sm btn-rename-nest" data-id="${n.id}" data-name="${n.name}" data-logo="${n.logo || ''}" data-description="${(n.description || '').replace(/"/g, '&quot;')}" style="width:auto">Edit</button>
           <button class="btn btn-danger btn-sm btn-delete-nest" data-id="${n.id}" data-name="${n.name}" style="width:auto">Delete</button>
         </td>
       </tr>
@@ -1409,7 +1413,7 @@ async function renderAdminEggsSettings() {
 
     tbody.querySelectorAll('.btn-rename-nest').forEach(btn => {
       btn.addEventListener('click', () => {
-        showRenameNestModal(btn.dataset.id, btn.dataset.name);
+        showRenameNestModal(btn.dataset.id, btn.dataset.name, btn.dataset.logo, btn.dataset.description);
       });
     });
     tbody.querySelectorAll('.btn-delete-nest').forEach(btn => {
@@ -1443,6 +1447,7 @@ async function renderAdminNestEggs(nestId) {
         <thead>
           <tr>
             <th>ID</th>
+            <th>Logo</th>
             <th>Name</th>
             <th>Description</th>
             <th>Resources</th>
@@ -1450,7 +1455,7 @@ async function renderAdminNestEggs(nestId) {
           </tr>
         </thead>
         <tbody id="admin-eggs-tbody">
-          <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
+          <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -1462,7 +1467,7 @@ async function renderAdminNestEggs(nestId) {
     if (!tbody) return;
 
     if (data.eggs.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary)">No eggs found in this nest.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary)">No eggs found in this nest.</td></tr>';
       return;
     }
 
@@ -1474,6 +1479,7 @@ async function renderAdminNestEggs(nestId) {
       return ahtml`
         <tr>
           <td>${e.id}</td>
+          <td>${res?.logo ? `<img src="${res.logo}" alt="" style="width:28px;height:28px;object-fit:contain;border-radius:4px">` : '<span style="color:var(--text-secondary);font-size:0.75rem">—</span>'}</td>
           <td><strong>${e.name}</strong></td>
           <td style="color:var(--text-secondary);font-size:0.85rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.description || '—'}</td>
           <td><span class="server-detail-tag" style="font-size:0.75rem">${resStr}</span></td>
@@ -1485,7 +1491,7 @@ async function renderAdminNestEggs(nestId) {
     }).join('');
   } catch (err) {
     const tbody = $a('#admin-eggs-tbody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
   }
   initIcons();
 }
@@ -1505,12 +1511,19 @@ async function renderAdminEggSettings(nestId, eggId) {
       <h1 class="page-title" style="margin-bottom:0">Egg Resources</h1>
       <p class="page-subtitle" id="admin-egg-name">Loading...</p>
     </div>
-    <div class="card" style="max-width:480px">
+    <div class="card" style="max-width:520px">
       <form id="admin-egg-resources-form">
         <div id="admin-egg-resources-error" class="auth-error" style="margin-bottom:16px"></div>
         <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:20px">
-          Set custom resource limits for this egg. Leave empty to use defaults.
+          Set custom resource limits and a logo for this egg.
         </p>
+        <div class="form-group">
+          <label for="egg-logo">Logo URL</label>
+          <input type="text" id="egg-logo" placeholder="https://example.com/egg-logo.png" style="width:100%" />
+          <div id="egg-logo-preview" style="margin-top:8px;display:none">
+            <img src="" alt="" style="max-width:48px;max-height:48px;object-fit:contain;border-radius:4px;border:1px solid var(--border)" />
+          </div>
+        </div>
         <div class="form-group">
           <label for="egg-cpu">CPU Limit (%)</label>
           <input type="number" id="egg-cpu" min="0" placeholder="e.g. 50" style="width:100%" />
@@ -1539,6 +1552,11 @@ async function renderAdminEggSettings(nestId, eggId) {
     if (data.egg) nameEl.textContent = data.egg.name + ` (Egg #${eggId})`;
 
     if (data.resources) {
+      if (data.resources.logo != null) {
+        $a('#egg-logo').value = data.resources.logo;
+        const preview = $a('#egg-logo-preview');
+        if (preview) { preview.style.display = 'block'; preview.querySelector('img').src = data.resources.logo; }
+      }
       if (data.resources.cpu_limit != null) $a('#egg-cpu').value = data.resources.cpu_limit;
       if (data.resources.memory_limit != null) $a('#egg-memory').value = data.resources.memory_limit;
       if (data.resources.disk_limit != null) $a('#egg-disk').value = data.resources.disk_limit;
@@ -1548,6 +1566,18 @@ async function renderAdminEggSettings(nestId, eggId) {
     if (errEl) { errEl.textContent = err.message; errEl.classList.add('show'); }
   }
 
+  $a('#egg-logo')?.addEventListener('input', () => {
+    const preview = $a('#egg-logo-preview');
+    const img = preview?.querySelector('img');
+    const val = $a('#egg-logo').value;
+    if (val) {
+      if (preview) preview.style.display = 'block';
+      if (img) img.src = val;
+    } else {
+      if (preview) preview.style.display = 'none';
+    }
+  });
+
   $a('#admin-egg-resources-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = $a('#btn-save-egg-resources');
@@ -1556,6 +1586,7 @@ async function renderAdminEggSettings(nestId, eggId) {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Saving...';
 
+    const logo = $a('#egg-logo').value.trim() || null;
     const cpu = $a('#egg-cpu').value;
     const memory = $a('#egg-memory').value;
     const disk = $a('#egg-disk').value;
@@ -1564,6 +1595,7 @@ async function renderAdminEggSettings(nestId, eggId) {
       await adminApi(`/settings/eggs/${nestId}/${eggId}`, {
         method: 'PUT',
         body: JSON.stringify({
+          logo,
           cpu_limit: cpu !== '' ? parseInt(cpu, 10) : null,
           memory_limit: memory !== '' ? parseInt(memory, 10) : null,
           disk_limit: disk !== '' ? parseInt(disk, 10) : null,
@@ -1585,8 +1617,10 @@ async function renderAdminEggSettings(nestId, eggId) {
     try {
       await adminApi(`/settings/eggs/${nestId}/${eggId}`, {
         method: 'PUT',
-        body: JSON.stringify({ cpu_limit: null, memory_limit: null, disk_limit: null }),
+        body: JSON.stringify({ logo: null, cpu_limit: null, memory_limit: null, disk_limit: null }),
       });
+      $a('#egg-logo').value = '';
+      $a('#egg-logo-preview').style.display = 'none';
       $a('#egg-cpu').value = '';
       $a('#egg-memory').value = '';
       $a('#egg-disk').value = '';
@@ -1706,7 +1740,7 @@ async function showAddNestsModal() {
         try {
           await adminApi('/settings/nests', {
             method: 'POST',
-            body: JSON.stringify({ pteroNestId: parseInt(cb.value, 10) }),
+            body: JSON.stringify({ pteroNestId: parseInt(cb.value, 10), name: cb.dataset.name }),
           });
           added++;
         } catch (err) {
@@ -1736,18 +1770,29 @@ async function showAddNestsModal() {
   }
 }
 
-// ─── Rename Nest Modal ──────────────────────────────────
-function showRenameNestModal(nestId, currentName) {
+// ─── Edit Nest Modal ─────────────────────────────────────
+function showRenameNestModal(nestId, currentName, currentLogo, currentDescription) {
   const content = $a('#admin-modal-content');
   const overlay = $a('#admin-modal-overlay');
   if (!content || !overlay) return;
 
   content.innerHTML = ahtml`
     <div>
-      <h3 style="margin:0 0 16px 0;color:var(--text-primary)">Rename Nest</h3>
+      <h3 style="margin:0 0 16px 0;color:var(--text-primary)">Edit Nest</h3>
       <div class="form-group" style="margin-bottom:16px">
         <label for="modal-rename-nest-name">Display Name</label>
         <input type="text" id="modal-rename-nest-name" value="${currentName}" style="width:100%" />
+      </div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label for="modal-edit-nest-logo">Logo URL</label>
+        <input type="text" id="modal-edit-nest-logo" value="${currentLogo || ''}" placeholder="https://example.com/logo.png" style="width:100%" />
+        <div id="modal-nest-logo-preview" style="margin-top:8px;${currentLogo ? '' : 'display:none'}">
+          <img src="${currentLogo || ''}" alt="" style="max-width:64px;max-height:64px;object-fit:contain;border-radius:4px;border:1px solid var(--border)" />
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label for="modal-edit-nest-description">Description</label>
+        <textarea id="modal-edit-nest-description" rows="3" placeholder="Brief description of this nest" style="width:100%;resize:vertical">${currentDescription || ''}</textarea>
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-primary btn-full" id="btn-confirm-rename-nest" style="justify-content:center">Save</button>
@@ -1758,8 +1803,22 @@ function showRenameNestModal(nestId, currentName) {
   `;
   overlay.style.display = 'flex';
 
+  const logoInput = $a('#modal-edit-nest-logo');
+  logoInput?.addEventListener('input', () => {
+    const preview = $a('#modal-nest-logo-preview');
+    const img = preview?.querySelector('img');
+    if (logoInput.value) {
+      if (preview) preview.style.display = 'block';
+      if (img) img.src = logoInput.value;
+    } else {
+      if (preview) preview.style.display = 'none';
+    }
+  });
+
   $a('#btn-confirm-rename-nest')?.addEventListener('click', async () => {
     const name = $a('#modal-rename-nest-name').value.trim();
+    const logo = $a('#modal-edit-nest-logo').value.trim() || null;
+    const description = $a('#modal-edit-nest-description').value.trim() || null;
     if (!name) {
       const err = $a('#rename-nest-error');
       if (err) { err.textContent = 'Name is required'; err.style.display = 'block'; }
@@ -1773,7 +1832,7 @@ function showRenameNestModal(nestId, currentName) {
     try {
       await adminApi(`/settings/nests/${nestId}`, {
         method: 'PUT',
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, logo, description }),
       });
       closeAdminModal();
       renderAdminEggsSettings();
