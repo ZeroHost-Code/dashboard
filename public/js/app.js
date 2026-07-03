@@ -152,6 +152,34 @@ function base64UrlFromBuffer(buf) {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+function bufferFromBase64Url(str) {
+  str = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (str.length % 4) str += '=';
+  const binary = atob(str);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+function prepareWebAuthnOptions(opts) {
+  const o = JSON.parse(JSON.stringify(opts));
+  if (o.challenge) o.challenge = bufferFromBase64Url(o.challenge);
+  if (o.user?.id) o.user.id = bufferFromBase64Url(o.user.id);
+  if (o.excludeCredentials) {
+    o.excludeCredentials = o.excludeCredentials.map(c => ({
+      ...c,
+      id: typeof c.id === 'string' ? bufferFromBase64Url(c.id) : c.id,
+    }));
+  }
+  if (o.allowCredentials) {
+    o.allowCredentials = o.allowCredentials.map(c => ({
+      ...c,
+      id: typeof c.id === 'string' ? bufferFromBase64Url(c.id) : c.id,
+    }));
+  }
+  return o;
+}
+
 function serializeCredential(cred) {
   const res = {};
   for (const key of Object.keys(cred)) {
@@ -630,7 +658,7 @@ async function handlePasskeyLogin() {
     });
 
     const credential = await navigator.credentials.get({
-      publicKey: beginData.options,
+      publicKey: prepareWebAuthnOptions(beginData.options),
     });
 
     const completeData = await api('/auth/passkeys/login/complete', {
@@ -2372,7 +2400,7 @@ async function handleRegisterPasskey() {
     });
 
     const credential = await navigator.credentials.create({
-      publicKey: beginData.options,
+      publicKey: prepareWebAuthnOptions(beginData.options),
     });
 
     await api('/auth/passkeys/register/complete', {
