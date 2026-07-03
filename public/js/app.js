@@ -104,7 +104,7 @@ function md5(s) {
   const K = [0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3];
   s = unescape(encodeURIComponent(s));
   const len = s.length;
-  const msg = []; for(let i=0;i<len*2;i+=2) msg.push((s.charCodeAt(i/2)>>(8-(i%2)*8))&0xFF);
+  const msg = []; for(let i=0;i<len;i++) msg.push(s.charCodeAt(i));
   const bitLen = len * 8;
   msg.push(0x80);
   while((msg.length+8)%64!=0) msg.push(0);
