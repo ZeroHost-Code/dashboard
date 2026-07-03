@@ -147,7 +147,7 @@ router.post('/register', async (req, res) => {
     }
 
     const ipCount = await query('SELECT COUNT(DISTINCT user_id) AS cnt FROM user_ips WHERE ip_address = ?', [ip]);
-    if (ipCount[0].cnt >= 2) {
+    if (ipCount[0].cnt >= 1) {
       recordLoginAttempt(ip, false);
       return res.status(403).json({ error: 'Too many accounts registered from this IP address.' });
     }
