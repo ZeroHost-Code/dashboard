@@ -127,7 +127,7 @@ router.post('/passkeys/login/begin', async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    const users = await query('SELECT id, email, username FROM users WHERE email = ?', [email]);
+    const users = await query('SELECT id, email, username, auth_restricted FROM users WHERE email = ?', [email]);
     if (!users.length) {
       return res.status(404).json({ error: 'No account found with this email' });
     }
