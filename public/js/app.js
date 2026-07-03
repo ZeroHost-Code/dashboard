@@ -1583,20 +1583,23 @@ function renderEggStep() {
   if (selEgg) {
     const images = Object.entries(selEgg.dockerImages || {});
     if (images.length > 1) {
+      const optionsHtml = images.map(([displayName, image]) => {
+        const shortName = displayName || image.split('/').pop().split(':').pop() || image;
+        return `<div class="custom-select-option" data-value="${escapeHtml(image)}">${escapeHtml(shortName)}</div>`;
+      }).join('');
+      const currentLabel = createState.selectedDockerImage
+        ? (images.find(([, img]) => img === createState.selectedDockerImage)?.[0] || createState.selectedDockerImage.split('/').pop().split(':').pop())
+        : 'Select an image';
       dockerSection = html`
         <div class="wizard-subsection" style="margin-top:24px">
           <div class="wizard-step-title" style="font-size:1rem">Docker Image</div>
           <p class="wizard-step-desc">Choose a Docker image for this egg</p>
-          <div class="docker-grid">
-            ${images.map(([displayName, image]) => {
-              const shortName = displayName || image.split('/').pop().split(':').pop() || image;
-              return html`
-                <div class="docker-card ${createState.selectedDockerImage === image ? 'selected' : ''}" data-docker="${image}">
-                  <i data-lucide="container" style="width:24px;height:24px"></i>
-                  <span>${escapeHtml(shortName)}</span>
-                </div>
-              `;
-            }).join('')}
+          <div class="custom-select" id="docker-select">
+            <div class="custom-select-trigger" tabindex="0">
+              <span class="custom-select-label">${escapeHtml(currentLabel)}</span>
+              <i data-lucide="chevron-down" class="custom-select-arrow" style="width:16px;height:16px"></i>
+            </div>
+            <div class="custom-select-dropdown">${optionsHtml}</div>
           </div>
         </div>
       `;
@@ -1737,14 +1740,30 @@ function attachWizardListeners(step) {
       });
     });
 
-    const dockerCards = document.querySelectorAll('.docker-card');
-    dockerCards.forEach(c => {
-      c.addEventListener('click', () => {
-        dockerCards.forEach(c2 => c2.classList.remove('selected'));
-        c.classList.add('selected');
-        createState.selectedDockerImage = c.dataset.docker;
+    const dockerSelect = document.querySelector('#docker-select');
+    if (dockerSelect) {
+      const trigger = dockerSelect.querySelector('.custom-select-trigger');
+      const label = dockerSelect.querySelector('.custom-select-label');
+
+      trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.querySelectorAll('.custom-select.open').forEach(s => s.classList.remove('open'));
+        dockerSelect.classList.add('open');
       });
-    });
+
+      dockerSelect.querySelectorAll('.custom-select-option').forEach(opt => {
+        opt.addEventListener('click', (e) => {
+          e.stopPropagation();
+          createState.selectedDockerImage = opt.dataset.value;
+          label.textContent = opt.textContent;
+          dockerSelect.classList.remove('open');
+        });
+      });
+
+      document.addEventListener('click', () => {
+        dockerSelect.classList.remove('open');
+      });
+    }
 
     if (nextBtn) {
       nextBtn.addEventListener('click', () => {
