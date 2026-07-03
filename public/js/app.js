@@ -1687,7 +1687,7 @@ function renderSummaryStep() {
         <span class="server-detail-tag">${egg?.disk_limit != null ? (egg.disk_limit / 1024).toFixed(1) + ' GB' : '3 GB'} Disk</span>
       </div>
     </div>
-    <div style="margin:20px 0;width:100%">
+    <div style="margin:20px 0;max-width:480px;width:100%">
       <cap-widget data-cap-api-endpoint="https://cap.zero-host.org/f6c8171b08/" theme="dark"></cap-widget>
     </div>
     <div class="wizard-actions">
