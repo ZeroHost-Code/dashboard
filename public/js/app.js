@@ -2511,6 +2511,9 @@ async function handleChangeEmail(e) {
     $('#acc-new-email').value = '';
     $('#acc-email-pw').value = '';
     showToast('Email updated successfully', 'success');
+
+    const sidebarImg = document.querySelector('#avatar-container img');
+    if (sidebarImg) sidebarImg.src = gravatarUrl(state.user.email, 32);
   } catch (err) {
     showToast(err.message, 'error');
   } finally {
