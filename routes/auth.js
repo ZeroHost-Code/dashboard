@@ -197,6 +197,9 @@ router.post('/register', async (req, res) => {
       email,
       username,
       pteroId: pteroUser.id,
+      isAdmin: false,
+      restricted: false,
+      tokenVersion: 0,
     });
 
     res.cookie('token', token, {
@@ -290,6 +293,7 @@ router.post('/login', async (req, res) => {
       username: user.username,
       pteroId: user.ptero_user_id,
       isAdmin: !!user.is_admin,
+      restricted: !!user.restricted,
       tokenVersion: user.token_version,
     });
 
@@ -429,6 +433,8 @@ router.post('/change-email', authenticateToken, sensitiveLimiter, async (req, re
       username: user.username,
       pteroId: user.ptero_user_id,
       isAdmin: !!user.is_admin,
+      restricted: !!user.restricted,
+      tokenVersion: user.token_version,
     });
 
     res.json({
@@ -574,28 +580,14 @@ router.post('/upload-avatar', authenticateToken, sensitiveLimiter, async (req, r
   }
 });
 
-router.get('/avatar/:userId', async (req, res) => {
+router.get('/avatar/:userId', authenticateToken, async (req, res) => {
   try {
     const requestedId = parseInt(req.params.userId, 10);
     if (isNaN(requestedId)) {
       return res.status(400).json({ error: 'Invalid user ID' });
     }
 
-    let token = null;
-    const authHeader = req.headers['authorization'];
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.split(' ')[1];
-    } else if (req.cookies && req.cookies.token) {
-      token = req.cookies.token;
-    }
-
-    if (!token) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    if (decoded.userId !== requestedId) {
+    if (req.user.userId !== requestedId) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -621,9 +613,6 @@ router.get('/avatar/:userId', async (req, res) => {
     res.set('Cache-Control', 'private, max-age=3600');
     res.sendFile(resolvedPath);
   } catch (err) {
-    if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
-      return res.status(401).json({ error: 'Invalid or expired token' });
-    }
     console.error('Avatar serve error:', err.message);
     res.status(500).json({ error: 'Failed to serve avatar' });
   }

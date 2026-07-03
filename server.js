@@ -23,7 +23,6 @@ import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
-import jwt from 'jsonwebtoken';
 import path from 'path';
 import crypto from 'crypto';
 
@@ -35,6 +34,7 @@ import { startScheduler, stopScheduler } from './services/scheduler.js';
 import { migrate } from './config/migrate.js';
 import { query, closePool, getPoolStatus } from './config/db.js';
 import { getRecentActivity } from './services/activity.js';
+import { authenticateToken } from './middleware/auth.js';
 
 const app = express();
 
@@ -141,6 +141,18 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    const host = req.headers['host'] || '';
+    if (host && host !== 'localhost:3000' && !host.endsWith('.zero-host.org') && !host.endsWith('.vercel.app')) {
+      if (process.env.NODE_ENV === 'production' && !host.endsWith('.zero-host.org')) {
+        return res.status(403).json({ error: 'Invalid host header', requestId: req.requestId });
+      }
+    }
+  }
+  next();
+});
+
 app.use((err, req, res, next) => {
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
     return res.status(400).json({ error: 'Invalid JSON in request body', requestId: req.requestId });
@@ -223,16 +235,9 @@ app.use('/api/servers', serverRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
 
-app.get('/api/activity', async (req, res) => {
+app.get('/api/activity', authenticateToken, async (req, res) => {
   try {
-    const authHeader = req.headers['authorization'];
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const userId = decoded.userId;
+    const userId = req.user.userId;
 
     const limit = Math.max(1, Math.min(parseInt(req.query.limit, 10) || 20, 50));
     const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
@@ -245,9 +250,6 @@ app.get('/api/activity', async (req, res) => {
       limit,
     });
   } catch (err) {
-    if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
-      return res.status(401).json({ error: 'Invalid or expired token' });
-    }
     console.error(`[${req.requestId}] Activity route error:`, err.message, err.stack?.split('\n')[1]);
     res.status(500).json({ error: 'Failed to fetch activities' });
   }

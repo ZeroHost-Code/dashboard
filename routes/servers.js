@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requireNotRestricted, requireOwnership } from '../middleware/auth.js';
 import {
   getServersByUser,
   getServerById,
@@ -200,15 +200,10 @@ router.get('/eggs', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/create', authenticateToken, createServerLimiter, async (req, res) => {
+router.post('/create', authenticateToken, requireNotRestricted, createServerLimiter, async (req, res) => {
   try {
     const { name, nestId, eggId, environment, capToken, dockerImage: reqDockerImage } = req.body;
     const pteroId = req.user.pteroId;
-
-    const userCheck = await query('SELECT restricted FROM users WHERE id = ?', [req.user.userId]);
-    if (userCheck.length > 0 && userCheck[0].restricted) {
-      return res.status(403).json({ error: 'Your account is restricted. Server creation is disabled.' });
-    }
 
     if (typeof name !== 'string') {
       return res.status(400).json({ error: 'Server name must be a string' });
@@ -295,7 +290,7 @@ router.post('/create', authenticateToken, createServerLimiter, async (req, res) 
   }
 });
 
-router.get('/details/:id', authenticateToken, async (req, res) => {
+router.get('/details/:id', authenticateToken, requireOwnership('server_meta', 'ptero_server_id', 'id'), async (req, res) => {
   try {
     const serverId = parseInt(req.params.id, 10);
     if (isNaN(serverId)) {
@@ -332,17 +327,11 @@ router.get('/details/:id', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/renew/:id', authenticateToken, renewLimiter, async (req, res) => {
+router.post('/renew/:id', authenticateToken, requireNotRestricted, requireOwnership('server_meta', 'ptero_server_id', 'id'), renewLimiter, async (req, res) => {
   try {
     const serverId = parseInt(req.params.id, 10);
     if (isNaN(serverId)) {
       return res.status(400).json({ error: 'Invalid server ID' });
-    }
-    const pteroId = req.user.pteroId;
-
-    const userCheck = await query('SELECT restricted FROM users WHERE id = ?', [req.user.userId]);
-    if (userCheck.length > 0 && userCheck[0].restricted) {
-      return res.status(403).json({ error: 'Your account is restricted. Renewal is disabled.' });
     }
 
     const meta = await query('SELECT * FROM server_meta WHERE ptero_server_id = ?', [serverId]);
@@ -355,13 +344,6 @@ router.post('/renew/:id', authenticateToken, renewLimiter, async (req, res) => {
     // Block renewal if suspended by an admin
     if (row.suspended_by === 'admin') {
       return res.status(403).json({ error: 'Suspended by an Administrator. Please contact support.' });
-    }
-
-    // Verify the server belongs to this user
-    const servers = await getServersByUser(pteroId);
-    const owned = servers.find(s => s.id === serverId);
-    if (!owned) {
-      return res.status(403).json({ error: 'Server does not belong to you' });
     }
 
     // Check if within renewal window (7 days before expiration)
@@ -402,14 +384,13 @@ router.post('/renew/:id', authenticateToken, renewLimiter, async (req, res) => {
   }
 });
 
-router.patch('/:id', authenticateToken, renameLimiter, async (req, res) => {
+router.patch('/:id', authenticateToken, requireNotRestricted, requireOwnership('server_meta', 'ptero_server_id', 'id'), renameLimiter, async (req, res) => {
   try {
     const { name } = req.body;
     const serverId = parseInt(req.params.id, 10);
     if (isNaN(serverId)) {
       return res.status(400).json({ error: 'Invalid server ID' });
     }
-    const pteroId = req.user.pteroId;
 
     if (typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({ error: 'Server name is required' });
@@ -419,12 +400,6 @@ router.patch('/:id', authenticateToken, renameLimiter, async (req, res) => {
     }
     if (!/^[a-zA-Z0-9 _.-]+$/.test(name.trim())) {
       return res.status(400).json({ error: 'Server name contains invalid characters' });
-    }
-
-    const servers = await getServersByUser(pteroId);
-    const owned = servers.find(s => s.id === serverId);
-    if (!owned) {
-      return res.status(403).json({ error: 'Server does not belong to you' });
     }
 
     await renamePteroServer(serverId, name.trim());
@@ -437,18 +412,11 @@ router.patch('/:id', authenticateToken, renameLimiter, async (req, res) => {
   }
 });
 
-router.post('/:id/reinstall', authenticateToken, reinstallLimiter, async (req, res) => {
+router.post('/:id/reinstall', authenticateToken, requireNotRestricted, requireOwnership('server_meta', 'ptero_server_id', 'id'), reinstallLimiter, async (req, res) => {
   try {
     const serverId = parseInt(req.params.id, 10);
     if (isNaN(serverId)) {
       return res.status(400).json({ error: 'Invalid server ID' });
-    }
-    const pteroId = req.user.pteroId;
-
-    const servers = await getServersByUser(pteroId);
-    const owned = servers.find(s => s.id === serverId);
-    if (!owned) {
-      return res.status(403).json({ error: 'Server does not belong to you' });
     }
 
     await reinstallPteroServer(serverId);
@@ -461,7 +429,7 @@ router.post('/:id/reinstall', authenticateToken, reinstallLimiter, async (req, r
   }
 });
 
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', authenticateToken, requireNotRestricted, requireOwnership('server_meta', 'ptero_server_id', 'id'), async (req, res) => {
   try {
     const serverId = parseInt(req.params.id, 10);
     if (isNaN(serverId)) {
@@ -489,8 +457,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 router.get('/overview', authenticateToken, async (req, res) => {
   try {
     const pteroId = req.user.pteroId;
-    const userRow = await query('SELECT restricted FROM users WHERE id = ?', [req.user.userId]);
-    const restricted = userRow.length > 0 && !!userRow[0].restricted;
+    const restricted = req.user.restricted;
 
     let servers = [];
     try {

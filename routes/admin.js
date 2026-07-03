@@ -2,7 +2,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requireAdmin } from '../middleware/auth.js';
 import { query } from '../config/db.js';
 import { getAllServers, getServerById, getEgg, getPteroNests, getPteroNestEggs, suspendPteroServer, unsuspendPteroServer, deletePteroServer, deletePteroUser, updatePteroServerBuild, getPergoServerIdsByEgg } from '../services/pyrodactyl.js';
 import { verifyCap } from '../config/cap.js';
@@ -21,13 +21,6 @@ const adminLoginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-
-function requireAdmin(req, res, next) {
-  if (!req.user?.isAdmin) {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
-  next();
-}
 
 router.post('/login', adminLoginLimiter, async (req, res) => {
   try {
@@ -63,7 +56,7 @@ router.post('/login', adminLoginLimiter, async (req, res) => {
     }
 
     const token = jwt.sign(
-      { userId: user.id, email: user.email, username: user.username, pteroId: user.ptero_user_id, isAdmin: true, tokenVersion: user.token_version },
+      { userId: user.id, email: user.email, username: user.username, pteroId: user.ptero_user_id, isAdmin: true, restricted: false, tokenVersion: user.token_version },
       JWT_SECRET,
       { expiresIn: '2h', algorithm: 'HS256' }
     );
