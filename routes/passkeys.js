@@ -120,7 +120,7 @@ router.post('/passkeys/register/complete', authenticateToken, async (req, res) =
       'INSERT INTO passkeys (user_id, credential_id, public_key, counter, transports, name) VALUES (?, ?, ?, ?, ?, ?)',
       [
         userId,
-        isoBase64URL.fromBuffer(credential.id),
+        credential.id,
         isoBase64URL.fromBuffer(credential.publicKey),
         credential.counter,
         (credential.transports || []).join(','),
