@@ -2513,6 +2513,10 @@ tbody tr:hover {
   margin-top: 28px;
 }
 
+#wizard-next-btn {
+  margin-left: auto;
+}
+
 .wizard-subsection {
   border-top: 1px solid var(--border);
   padding-top: 20px;
