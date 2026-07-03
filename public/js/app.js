@@ -1592,7 +1592,7 @@ function renderEggStep() {
         ? (images.find(([, img]) => img === createState.selectedDockerImage)?.[0] || createState.selectedDockerImage.split('/').pop().split(':').pop())
         : 'Select an image';
       dockerSection = html`
-        <div class="wizard-subsection" style="margin-top:24px">
+        <div class="wizard-subsection" style="margin-top:24px;max-width:480px">
           <div class="wizard-step-title" style="font-size:1rem">Docker Image</div>
           <p class="wizard-step-desc">Choose a Docker image for this egg</p>
           <div class="custom-select" id="docker-select">
@@ -1634,7 +1634,7 @@ function renderNameStep() {
         Allowed: letters, numbers, spaces, dots, dashes, underscores
       </div>
     </div>
-    <div class="wizard-actions">
+    <div class="wizard-actions" style="max-width:480px">
       <button class="btn btn-ghost" id="wizard-back-btn"><i data-lucide="arrow-left" style="width:16px;height:16px"></i> Back</button>
       <button class="btn btn-primary" id="wizard-next-btn" disabled>
         Next <i data-lucide="arrow-right" style="width:16px;height:16px"></i>
