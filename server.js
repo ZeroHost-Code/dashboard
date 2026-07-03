@@ -27,6 +27,7 @@ import path from 'path';
 import crypto from 'crypto';
 
 import authRoutes from './routes/auth.js';
+import passkeyRoutes from './routes/passkeys.js';
 import serverRoutes from './routes/servers.js';
 import adminRoutes from './routes/admin.js';
 import notificationRoutes from './routes/notifications.js';
@@ -231,6 +232,7 @@ setInterval(() => {
 }, 60000);
 
 app.use('/api/auth', authRoutes);
+app.use('/api/auth', passkeyRoutes);
 app.use('/api/servers', serverRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);

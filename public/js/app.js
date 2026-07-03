@@ -145,6 +145,49 @@ window.handleAvatarError = function(img) {
   }
 };
 
+function base64UrlFromBuffer(buf) {
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function serializeCredential(cred) {
+  const res = {};
+  for (const key of Object.keys(cred)) {
+    if (key === 'response') {
+      res.response = {};
+      for (const rKey of Object.keys(cred.response)) {
+        const val = cred.response[rKey];
+        if (val instanceof ArrayBuffer || val instanceof Uint8Array) {
+          res.response[rKey] = base64UrlFromBuffer(val);
+        } else if (typeof val === 'function') {
+          continue;
+        } else {
+          res.response[rKey] = val;
+        }
+      }
+      if (cred.response.transports && !res.response.transports) {
+        res.response.transports = cred.response.transports;
+      }
+      if (typeof cred.response.getTransports === 'function') {
+        res.response.transports = cred.response.getTransports();
+      }
+    } else if (key === 'rawId') {
+      res.rawId = base64UrlFromBuffer(cred.rawId);
+    } else if (key === 'id') {
+      res.id = cred.id;
+    } else if (key === 'type') {
+      res.type = cred.type;
+    } else if (key === 'clientExtensionResults') {
+      res.clientExtensionResults = cred.clientExtensionResults || {};
+    } else if (typeof cred[key] !== 'function') {
+      res[key] = cred[key];
+    }
+  }
+  return res;
+}
+
 function escapeHtml(str) {
   if (typeof str !== 'string') return '';
   const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;' };
@@ -456,7 +499,13 @@ function renderLoginPage() {
           <button type="submit" class="btn btn-primary btn-full" id="login-btn">
             Sign In
           </button>
-
+          <div style="position:relative;margin:12px 0;text-align:center">
+            <span style="background:var(--card-bg);padding:0 12px;color:var(--text-muted);font-size:0.8rem">or</span>
+          </div>
+          <button type="button" class="btn btn-ghost btn-full" id="passkey-login-btn" style="border:1px solid var(--border)">
+            <i data-lucide="fingerprint" style="width:16px;height:16px"></i>
+            Sign in with Passkey
+          </button>
         </form>
         <div class="auth-footer">
           Don't have an account? <a href="/signup" id="go-register">Create one</a>
@@ -466,6 +515,7 @@ function renderLoginPage() {
   `;
 
   $('#login-form').addEventListener('submit', handleLogin);
+  $('#passkey-login-btn').addEventListener('click', handlePasskeyLogin);
   $('#go-register').addEventListener('click', (e) => {
     e.preventDefault();
     navigateTo('signup');
@@ -553,6 +603,59 @@ async function handleLogin(e) {
   } finally {
     btn.disabled = false;
     btn.innerHTML = 'Sign In';
+  }
+}
+
+async function handlePasskeyLogin() {
+  const btn = $('#passkey-login-btn');
+  const errorEl = $('#login-form .auth-error');
+  if (errorEl) errorEl.classList.remove('show');
+
+  const email = $('#login-email').value.trim();
+  if (!email) {
+    if (errorEl) {
+      errorEl.textContent = 'Enter your email first, then click Sign in with Passkey.';
+      errorEl.classList.add('show');
+    }
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  try {
+    const beginData = await api('/auth/passkeys/login/begin', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+
+    const credential = await navigator.credentials.get({
+      publicKey: beginData.options,
+    });
+
+    const completeData = await api('/auth/passkeys/login/complete', {
+      method: 'POST',
+      body: JSON.stringify({
+        userId: beginData.userId,
+        response: serializeCredential(credential),
+      }),
+    });
+
+    state.token = completeData.token;
+    state.user = completeData.user;
+    localStorage.setItem('zh_token', completeData.token);
+    localStorage.setItem('zh_user', JSON.stringify(completeData.user));
+    history.replaceState({ page: 'overview' }, '', '/');
+    renderDashboard();
+  } catch (err) {
+    if (errorEl) {
+      errorEl.textContent = err.message;
+      errorEl.classList.add('show');
+    }
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="fingerprint" style="width:16px;height:16px"></i> Sign in with Passkey';
+    initIcons();
   }
 }
 
@@ -2045,12 +2148,31 @@ function renderAccountEdit() {
           <div id="api-key-status" style="margin-top:8px;font-size:0.82rem;color:var(--text-muted)"></div>
         </div>
       </div>
+
+      <div class="card">
+        <h2 class="card-title" style="margin-bottom:20px">Passkeys</h2>
+        <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin-bottom:16px">
+          Passkeys let you sign in without a password using your device's built-in authentication
+          (fingerprint, face recognition, or PIN).
+        </p>
+        <div id="passkey-section-content">
+          <div id="passkey-list" style="margin-bottom:16px">
+            <p style="color:var(--text-muted);font-size:0.85rem">Loading...</p>
+          </div>
+          <button class="btn btn-primary btn-full" id="register-passkey-btn">
+            <i data-lucide="fingerprint" style="width:16px;height:16px"></i>
+            Register a New Passkey
+          </button>
+          <div id="passkey-status" style="margin-top:8px;font-size:0.82rem;color:var(--text-muted)"></div>
+        </div>
+      </div>
     </div>
   `;
 
   $('#change-email-form').addEventListener('submit', handleChangeEmail);
   $('#change-password-form').addEventListener('submit', handleChangePassword);
   $('#api-key-form').addEventListener('submit', handleSaveApiKey);
+  $('#register-passkey-btn').addEventListener('click', handleRegisterPasskey);
 
   $('#avatar-choose-btn').addEventListener('click', () => {
     $('#avatar-file-input').click();
@@ -2089,6 +2211,7 @@ function renderAccountEdit() {
   $('#avatar-upload-btn').addEventListener('click', handleAvatarUpload);
 
   checkApiKeyStatus();
+  loadPasskeys();
   initIcons();
 }
 
@@ -2203,6 +2326,92 @@ function renderApiKeyForm() {
     <div id="api-key-status" style="margin-top:8px;font-size:0.82rem;color:var(--text-muted)"></div>
   `;
   $('#api-key-form').addEventListener('submit', handleSaveApiKey);
+}
+
+async function loadPasskeys() {
+  try {
+    const data = await api('/auth/passkeys');
+    const list = $('#passkey-list');
+    if (!list) return;
+    if (!data.passkeys.length) {
+      list.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem">No passkeys registered yet.</p>';
+      return;
+    }
+    list.innerHTML = data.passkeys.map(p => html`
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg-secondary);border-radius:var(--radius-sm);margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <i data-lucide="fingerprint" style="width:18px;height:18px;color:var(--accent-1)"></i>
+          <div>
+            <div style="font-size:0.9rem;font-weight:500">${p.name || 'Passkey'}</div>
+            <div style="font-size:0.75rem;color:var(--text-muted)">${formatDate(p.created_at)}</div>
+          </div>
+        </div>
+        <button class="btn btn-danger btn-sm" data-passkey-id="${p.id}" style="width:auto;padding:6px 12px;font-size:0.8rem">Delete</button>
+      </div>
+    `).join('');
+    list.querySelectorAll('[data-passkey-id]').forEach(btn => {
+      btn.addEventListener('click', () => handleDeletePasskey(btn.dataset.passkeyId));
+    });
+    initIcons();
+  } catch (err) {
+    const list = $('#passkey-list');
+    if (list) list.innerHTML = `<p style="color:var(--accent-red);font-size:0.85rem">Failed to load passkeys: ${err.message}</p>`;
+  }
+}
+
+async function handleRegisterPasskey() {
+  const btn = $('#register-passkey-btn');
+  const status = $('#passkey-status');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  status.textContent = '';
+
+  try {
+    const beginData = await api('/auth/passkeys/register/begin', {
+      method: 'POST',
+    });
+
+    const credential = await navigator.credentials.create({
+      publicKey: beginData.options,
+    });
+
+    await api('/auth/passkeys/register/complete', {
+      method: 'POST',
+      body: JSON.stringify({ response: serializeCredential(credential) }),
+    });
+
+    showToast('Passkey registered successfully', 'success');
+    status.textContent = 'Passkey registered!';
+    status.style.color = 'var(--accent-green)';
+    loadPasskeys();
+  } catch (err) {
+    status.textContent = err.message;
+    status.style.color = 'var(--accent-red)';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="fingerprint" style="width:16px;height:16px"></i> Register a New Passkey';
+    initIcons();
+  }
+}
+
+async function handleDeletePasskey(id) {
+  if (!confirm('Delete this passkey? You will no longer be able to use it to sign in.')) return;
+  try {
+    await api(`/auth/passkeys/${id}`, { method: 'DELETE' });
+    showToast('Passkey deleted', 'info');
+    loadPasskeys();
+  } catch (err) {
+    const status = $('#passkey-status');
+    if (status) {
+      status.textContent = err.message;
+      status.style.color = 'var(--accent-red)';
+    }
+  }
+}
+
+function formatDate(d) {
+  if (!d) return 'N/A';
+  return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function handleModifyApiKey() {

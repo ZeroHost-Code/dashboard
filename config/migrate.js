@@ -86,6 +86,18 @@ const tables = {
       { name: 'created_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
     ],
   },
+  passkeys: {
+    columns: [
+      { name: 'id', def: 'INT AUTO_INCREMENT PRIMARY KEY' },
+      { name: 'user_id', def: 'INT NOT NULL' },
+      { name: 'credential_id', def: 'VARCHAR(512) NOT NULL' },
+      { name: 'public_key', def: 'TEXT NOT NULL' },
+      { name: 'counter', def: 'INT NOT NULL DEFAULT 0' },
+      { name: 'transports', def: 'VARCHAR(255) DEFAULT NULL' },
+      { name: 'name', def: 'VARCHAR(255) DEFAULT NULL' },
+      { name: 'created_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
+    ],
+  },
 
 };
 
@@ -117,6 +129,9 @@ const constraints = [
   { table: 'activity_log', sql: 'ALTER TABLE activity_log ADD CONSTRAINT fk_activity_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE', name: 'fk_activity_user' },
   { table: 'server_meta', sql: 'ALTER TABLE server_meta ADD INDEX idx_ptero_server (ptero_server_id)', name: 'idx_ptero_server' },
   { table: 'server_meta', sql: 'ALTER TABLE server_meta ADD CONSTRAINT fk_server_meta_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE', name: 'fk_server_meta_user' },
+  { table: 'passkeys', sql: 'ALTER TABLE passkeys ADD INDEX idx_passkey_user (user_id)', name: 'idx_passkey_user' },
+  { table: 'passkeys', sql: 'ALTER TABLE passkeys ADD INDEX idx_passkey_credential (credential_id(255))', name: 'idx_passkey_credential' },
+  { table: 'passkeys', sql: 'ALTER TABLE passkeys ADD CONSTRAINT fk_passkey_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE', name: 'fk_passkey_user' },
 ];
 
 export async function migrate() {
