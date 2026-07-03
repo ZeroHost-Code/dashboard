@@ -14,8 +14,18 @@ import { logActivity } from '../services/activity.js';
 const router = Router();
 
 const RP_NAME = 'ZeroHost';
-const RP_ID = process.env.WEBAUTHN_RP_ID || 'localhost';
-const ORIGIN = process.env.WEBAUTHN_ORIGIN || 'http://localhost:3000';
+
+function getWebAuthnConfig(req) {
+  if (process.env.WEBAUTHN_ORIGIN && process.env.WEBAUTHN_RP_ID) {
+    return { origin: process.env.WEBAUTHN_ORIGIN, rpID: process.env.WEBAUTHN_RP_ID };
+  }
+  const host = req.headers.host || 'localhost:3000';
+  const proto = req.headers['x-forwarded-proto'] || (req.socket?.encrypted ? 'https' : 'http');
+  return {
+    origin: `${proto}://${host}`,
+    rpID: host.split(':')[0],
+  };
+}
 
 const challengeMap = new Map();
 
@@ -28,7 +38,7 @@ function getClientIp(req) {
 router.post('/passkeys/register/begin', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
-    const userEmail = req.user.email;
+    const { rpID, origin } = getWebAuthnConfig(req);
     const user = await query(
       'SELECT id, email, username FROM users WHERE id = ?',
       [userId]
@@ -50,7 +60,7 @@ router.post('/passkeys/register/begin', authenticateToken, async (req, res) => {
 
     const options = await generateRegistrationOptions({
       rpName: RP_NAME,
-      rpID: RP_ID,
+      rpID,
       userName: user[0].email,
       userDisplayName: user[0].username,
       attestationType: 'none',
@@ -86,11 +96,12 @@ router.post('/passkeys/register/complete', authenticateToken, async (req, res) =
 
     challengeMap.delete(userId);
 
+    const { rpID, origin } = getWebAuthnConfig(req);
     const verification = await verifyRegistrationResponse({
       response,
       expectedChallenge: expectedChallenge.challenge,
-      expectedOrigin: ORIGIN,
-      expectedRPID: RP_ID,
+      expectedOrigin: origin,
+      expectedRPID: rpID,
     });
 
     if (!verification.verified || !verification.registrationInfo) {
@@ -152,8 +163,9 @@ router.post('/passkeys/login/begin', async (req, res) => {
       transports: k.transports ? k.transports.split(',') : ['internal'],
     }));
 
+    const { rpID } = getWebAuthnConfig(req);
     const options = await generateAuthenticationOptions({
-      rpID: RP_ID,
+      rpID,
       allowCredentials,
       userVerification: 'preferred',
     });
@@ -200,11 +212,12 @@ router.post('/passkeys/login/complete', async (req, res) => {
       return res.status(400).json({ error: 'Passkey not found' });
     }
 
+    const { rpID, origin } = getWebAuthnConfig(req);
     const verification = await verifyAuthenticationResponse({
       response,
       expectedChallenge: expectedChallenge.challenge,
-      expectedOrigin: ORIGIN,
-      expectedRPID: RP_ID,
+      expectedOrigin: origin,
+      expectedRPID: rpID,
       credential: {
         id: isoBase64URL.toBuffer(passkey.credential_id),
         publicKey: isoBase64URL.toBuffer(passkey.public_key),
