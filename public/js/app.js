@@ -130,21 +130,6 @@ function gravatarUrl(email, size = 32) {
   return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=identicon`;
 }
 
-function avatarUrl(userId) {
-  return `${API_BASE}/api/auth/avatar/${userId}`;
-}
-
-window.handleAvatarError = function(img) {
-  if (!img.dataset.fallbackTried) {
-    img.dataset.fallbackTried = 'gravatar';
-    img.src = gravatarUrl(state.user?.email, 32);
-  } else {
-    img.style.display = 'none';
-    const fallback = document.getElementById('avatar-fallback');
-    if (fallback) fallback.style.display = 'flex';
-  }
-};
-
 function base64UrlFromBuffer(buf) {
   const bytes = new Uint8Array(buf);
   let binary = '';
@@ -887,7 +872,7 @@ async function renderDashboard() {
         <div class="sidebar-footer">
           <div class="user-info" id="sidebar-user-info" style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer">
             <div style="display:flex;align-items:center;gap:10px">
-              <div class="user-avatar" id="avatar-container"><img src="${avatarUrl(state.user?.id)}" alt="" width="32" height="32" style="border-radius:50%;width:32px;height:32px;object-fit:cover" onerror="handleAvatarError(this)"/><span id="avatar-fallback" style="display:none">${state.user?.username?.[0]?.toUpperCase() || 'U'}</span></div>
+              <div class="user-avatar" id="avatar-container"><img src="${gravatarUrl(state.user?.email, 32)}" alt="" width="32" height="32" style="border-radius:50%;width:32px;height:32px;object-fit:cover"/></div>
               <div>
                 <div class="user-name">${state.user?.username || 'User'}</div>
                 <div class="user-email">${state.user?.email || ''}</div>
@@ -2138,21 +2123,15 @@ function renderAccountEdit() {
     <div class="account-grid">
       <div class="card">
         <h2 class="card-title" style="margin-bottom:20px">Profile Picture</h2>
-        <div class="avatar-upload">
-          <div class="avatar-upload-preview">
-            <img id="avatar-preview-img" src="${avatarUrl(state.user?.id)}" alt="" onerror="this.style.display='none';document.getElementById('avatar-preview-placeholder').style.display='flex'" onload="document.getElementById('avatar-preview-placeholder').style.display='none'" />
-            <div class="avatar-upload-placeholder" id="avatar-preview-placeholder">${state.user?.username?.[0]?.toUpperCase() || 'U'}</div>
-          </div>
-          <div class="avatar-upload-info">
-            <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin-bottom:12px">
-              Upload a profile picture. Supported formats: PNG, JPEG, GIF, WebP. Max size: 2MB.
-            </p>
-            <input type="file" id="avatar-file-input" accept="image/png,image/jpeg,image/gif,image/webp" hidden />
-            <div style="display:flex;gap:8px">
-              <button class="btn btn-primary" id="avatar-choose-btn">Choose Image</button>
-              <button class="btn btn-primary" id="avatar-upload-btn" disabled style="display:none">Upload</button>
-            </div>
-            <div id="avatar-status" style="margin-top:8px;font-size:0.82rem;color:var(--text-muted)"></div>
+        <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin-bottom:12px">
+          Your profile picture is provided by <a href="https://gravatar.com" target="_blank">Gravatar</a>.
+          To change it, update your avatar on <a href="https://gravatar.com" target="_blank">gravatar.com</a> using this account's email address.
+        </p>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
+          <img src="${gravatarUrl(state.user?.email, 64)}" alt="" width="64" height="64" style="border-radius:8px;width:64px;height:64px;object-fit:cover" />
+          <div>
+            <div style="font-weight:500">${state.user?.email || ''}</div>
+            <div style="font-size:0.82rem;color:var(--text-muted)">Gravatar</div>
           </div>
         </div>
       </div>
@@ -2234,81 +2213,9 @@ function renderAccountEdit() {
   $('#api-key-form').addEventListener('submit', handleSaveApiKey);
   $('#register-passkey-btn').addEventListener('click', handleRegisterPasskey);
 
-  $('#avatar-choose-btn').addEventListener('click', () => {
-    $('#avatar-file-input').click();
-  });
-
-  $('#avatar-file-input').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const validTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
-      $('#avatar-status').textContent = 'Invalid file type. Please use PNG, JPEG, GIF, or WebP.';
-      $('#avatar-status').style.color = 'var(--accent-red)';
-      return;
-    }
-
-    if (file.size > 2 * 1024 * 1024) {
-      $('#avatar-status').textContent = 'File too large. Maximum size is 2MB.';
-      $('#avatar-status').style.color = 'var(--accent-red)';
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      $('#avatar-preview-img').src = ev.target.result;
-      $('#avatar-preview-img').style.display = 'block';
-      $('#avatar-preview-placeholder').style.display = 'none';
-      $('#avatar-upload-btn').style.display = 'inline-flex';
-      $('#avatar-upload-btn').disabled = false;
-      $('#avatar-status').textContent = 'Click "Upload" to save your new profile picture.';
-      $('#avatar-status').style.color = 'var(--text-muted)';
-    };
-    reader.readAsDataURL(file);
-  });
-
-  $('#avatar-upload-btn').addEventListener('click', handleAvatarUpload);
-
   checkApiKeyStatus();
   loadPasskeys();
   initIcons();
-}
-
-async function handleAvatarUpload() {
-  const btn = $('#avatar-upload-btn');
-  const status = $('#avatar-status');
-  const img = $('#avatar-preview-img');
-
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>';
-  status.textContent = '';
-
-  try {
-    const data = await api('/auth/upload-avatar', {
-      method: 'POST',
-      body: JSON.stringify({ image: img.src }),
-    });
-    showToast('Profile picture updated successfully', 'success');
-    status.textContent = 'Profile picture updated!';
-    status.style.color = 'var(--accent-green)';
-    btn.style.display = 'none';
-
-    const sidebarImg = document.querySelector('#avatar-container img');
-    if (sidebarImg) {
-      sidebarImg.src = avatarUrl(state.user.id);
-      sidebarImg.dataset.fallbackTried = '';
-      sidebarImg.style.display = '';
-      const fallback = document.getElementById('avatar-fallback');
-      if (fallback) fallback.style.display = 'none';
-    }
-  } catch (err) {
-    status.textContent = err.message;
-    status.style.color = 'var(--accent-red)';
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = 'Upload';
-  }
 }
 
 async function handleSaveApiKey(e) {

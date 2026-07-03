@@ -2,18 +2,12 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
-import { readdir, writeFile, unlink, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
-import { join, dirname, extname, resolve } from 'path';
-import { fileURLToPath } from 'url';
+
 import { query } from '../config/db.js';
 import { generateToken, authenticateToken } from '../middleware/auth.js';
 import { createPteroUser, updatePteroPassword, updatePteroEmail, deletePteroUser, getServersByUser, deletePteroServer } from '../services/pyrodactyl.js';
 import { verifyCap } from '../config/cap.js';
 import { logActivity } from '../services/activity.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const UPLOAD_DIR = join(__dirname, '..', 'uploads', 'avatars');
 
 const router = Router();
 
@@ -55,8 +49,6 @@ setInterval(() => {
     if (entry.firstAttempt < cutoff) loginAttempts.delete(ip);
   }
 }, 60 * 1000);
-
-const MIME_TYPES = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp' };
 
 const sensitiveLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -500,20 +492,6 @@ router.post('/delete-account', authenticateToken, sensitiveLimiter, async (req, 
       }
     }
 
-    // Clean up avatar file
-    try {
-      if (existsSync(UPLOAD_DIR)) {
-        const files = await readdir(UPLOAD_DIR);
-        for (const file of files) {
-          if (file.startsWith(`avatar_${user.id}.`)) {
-            await unlink(join(UPLOAD_DIR, file));
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Failed to clean up avatar:', err.message);
-    }
-
     await logActivity(user.id, 'account_deleted', 'Deleted account');
 
     // Delete from local DB (cascades to user_ips)
@@ -523,98 +501,6 @@ router.post('/delete-account', authenticateToken, sensitiveLimiter, async (req, 
   } catch (err) {
     console.error('Delete account error:', err.message);
     res.status(500).json({ error: 'Failed to delete account' });
-  }
-});
-
-router.post('/upload-avatar', authenticateToken, sensitiveLimiter, async (req, res) => {
-  try {
-    const { image } = req.body;
-    if (!image) {
-      return res.status(400).json({ error: 'No image provided' });
-    }
-
-    const matches = image.match(/^data:image\/(png|jpeg|jpg|gif|webp);base64,(.+)$/);
-    if (!matches) {
-      return res.status(400).json({ error: 'Invalid image format. Use PNG, JPEG, GIF, or WebP.' });
-    }
-
-    const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
-
-    if (!MIME_TYPES[ext]) {
-      return res.status(400).json({ error: 'Unsupported image format' });
-    }
-
-    const data = Buffer.from(matches[2], 'base64');
-
-    if (data.length > 2 * 1024 * 1024) {
-      return res.status(400).json({ error: 'Image too large. Maximum size is 2MB.' });
-    }
-
-    if (!existsSync(UPLOAD_DIR)) {
-      await mkdir(UPLOAD_DIR, { recursive: true });
-    }
-
-    const files = await readdir(UPLOAD_DIR);
-    for (const file of files) {
-      if (file.startsWith(`avatar_${req.user.userId}.`)) {
-        await unlink(join(UPLOAD_DIR, file));
-      }
-    }
-
-    const filename = `avatar_${req.user.userId}.${ext}`;
-    const filePath = join(UPLOAD_DIR, filename);
-    const resolvedPath = resolve(filePath);
-    if (!resolvedPath.startsWith(resolve(UPLOAD_DIR))) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-    await writeFile(resolvedPath, data);
-
-    await query('UPDATE users SET avatar = ? WHERE id = ?', [filename, req.user.userId]);
-
-    await logActivity(req.user.userId, 'avatar_updated', 'Updated profile picture');
-
-    res.json({ message: 'Avatar updated successfully' });
-  } catch (err) {
-    console.error('Upload avatar error:', err.message);
-    res.status(500).json({ error: 'Failed to upload avatar' });
-  }
-});
-
-router.get('/avatar/:userId', authenticateToken, async (req, res) => {
-  try {
-    const requestedId = parseInt(req.params.userId, 10);
-    if (isNaN(requestedId)) {
-      return res.status(400).json({ error: 'Invalid user ID' });
-    }
-
-    if (req.user.userId !== requestedId) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-
-    if (!existsSync(UPLOAD_DIR)) {
-      return res.status(404).json({ error: 'No avatar found' });
-    }
-
-    const files = await readdir(UPLOAD_DIR);
-    const avatarFile = files.find(f => f.startsWith(`avatar_${requestedId}.`));
-
-    if (!avatarFile) {
-      return res.status(404).json({ error: 'No avatar found' });
-    }
-
-    const resolvedPath = resolve(join(UPLOAD_DIR, avatarFile));
-    if (!resolvedPath.startsWith(UPLOAD_DIR)) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-
-    const mimeType = MIME_TYPES[extname(avatarFile).toLowerCase().slice(1)] || 'application/octet-stream';
-
-    res.set('Content-Type', mimeType);
-    res.set('Cache-Control', 'private, max-age=3600');
-    res.sendFile(resolvedPath);
-  } catch (err) {
-    console.error('Avatar serve error:', err.message);
-    res.status(500).json({ error: 'Failed to serve avatar' });
   }
 });
 
