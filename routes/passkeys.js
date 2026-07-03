@@ -55,7 +55,7 @@ router.post('/passkeys/register/begin', authenticateToken, async (req, res) => {
       userDisplayName: user[0].username,
       attestationType: 'none',
       excludeCredentials,
-      userId: isoBase64URL.fromString(String(userId)),
+      userId: new TextEncoder().encode(String(userId)),
     });
 
     challengeMap.set(userId, {
