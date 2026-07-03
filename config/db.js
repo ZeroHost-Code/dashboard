@@ -17,18 +17,50 @@ const pool = mariadb.createPool({
   acquireTimeout: 10000,
   idleTimeout: 30000,
   insertIdAsNumber: true,
+  pingTimeout: 5000,
 });
+
+export async function closePool() {
+  try {
+    await pool.end();
+  } catch (err) {
+    console.error('Error closing pool:', err.message);
+  }
+}
+
+export async function getPoolStatus() {
+  try {
+    const active = pool.activeConnections();
+    const total = pool.totalConnections();
+    const idle = pool.idleConnections();
+    return { active, total, idle };
+  } catch {
+    return { active: -1, total: -1, idle: -1 };
+  }
+}
 
 export async function query(sql, params = []) {
   let lastErr;
   for (let attempt = 1; attempt <= 3; attempt++) {
     let conn;
+    let queryTimeout;
     try {
       conn = await pool.getConnection();
-      const rows = await conn.query(sql, params);
+      const timeoutPromise = new Promise((_, reject) => {
+        queryTimeout = setTimeout(() => reject(new Error('Query timeout after 30000ms')), 30000);
+      });
+      let rows = await Promise.race([
+        conn.query(sql, params),
+        timeoutPromise,
+      ]);
+      clearTimeout(queryTimeout);
+      if (Array.isArray(rows) && rows.length > 10000) {
+        console.warn(`Large result set detected: ${rows.length} rows for query: ${sql.slice(0, 100)}`);
+      }
       return rows;
     } catch (err) {
       lastErr = err;
+      clearTimeout(queryTimeout);
       if (err.code === 'ECONNRESET' || err.code === 'PROTOCOL_CONNECTION_LOST' || err.message?.includes('timeout')) {
         console.error(`DB query attempt ${attempt}/3 failed:`, err.message);
         if (attempt < 3) await new Promise(r => setTimeout(r, 100 * attempt));

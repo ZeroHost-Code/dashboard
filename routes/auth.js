@@ -1,9 +1,10 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 import { readdir, writeFile, unlink, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
-import { join, dirname, extname } from 'path';
+import { join, dirname, extname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { query } from '../config/db.js';
 import { generateToken, authenticateToken } from '../middleware/auth.js';
@@ -16,7 +17,54 @@ const UPLOAD_DIR = join(__dirname, '..', 'uploads', 'avatars');
 
 const router = Router();
 
+const loginAttempts = new Map();
+
+function getLoginDelay(ip) {
+  const now = Date.now();
+  const entry = loginAttempts.get(ip);
+  if (!entry) return 0;
+  const sinceFirst = now - entry.firstAttempt;
+  if (sinceFirst > 15 * 60 * 1000) {
+    loginAttempts.delete(ip);
+    return 0;
+  }
+  if (entry.count <= 3) return 0;
+  if (entry.count <= 5) return 1000;
+  if (entry.count <= 8) return 3000;
+  if (entry.count <= 12) return 5000;
+  return 10000;
+}
+
+function recordLoginAttempt(ip, success) {
+  if (success) {
+    loginAttempts.delete(ip);
+    return;
+  }
+  const now = Date.now();
+  const entry = loginAttempts.get(ip);
+  if (entry) {
+    entry.count++;
+  } else {
+    loginAttempts.set(ip, { count: 1, firstAttempt: now });
+  }
+}
+
+setInterval(() => {
+  const cutoff = Date.now() - 15 * 60 * 1000;
+  for (const [ip, entry] of loginAttempts) {
+    if (entry.firstAttempt < cutoff) loginAttempts.delete(ip);
+  }
+}, 60 * 1000);
+
 const MIME_TYPES = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp' };
+
+const sensitiveLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: 'Too many sensitive operations, try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 function getClientIp(req) {
   const forwarded = req.headers['x-forwarded-for'];
@@ -48,11 +96,17 @@ async function isVpnOrProxy(ip) {
   }
 }
 
+const MAX_EMAIL_LENGTH = 254;
+const MAX_USERNAME_LENGTH = 32;
+const MAX_PASSWORD_LENGTH = 128;
+
 function validateEmail(email) {
+  if (typeof email !== 'string' || email.length > MAX_EMAIL_LENGTH) return false;
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 function validateUsername(username) {
+  if (typeof username !== 'string' || username.length > MAX_USERNAME_LENGTH) return false;
   return /^[a-zA-Z0-9_-]{3,32}$/.test(username);
 }
 
@@ -61,8 +115,18 @@ router.post('/register', async (req, res) => {
   try {
     const { email, username, password, capToken, rgpdConsent } = req.body;
 
+    const ip = getClientIp(req);
+    const delay = getLoginDelay(ip);
+    if (delay > 0) {
+      await new Promise(r => setTimeout(r, delay));
+    }
+
     if (!email || !username || !password) {
       return res.status(400).json({ error: 'Email, username and password are required' });
+    }
+
+    if (typeof email !== 'string' || typeof username !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Invalid input types' });
     }
 
     if (!rgpdConsent) {
@@ -77,15 +141,14 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Username must be 3-32 chars (letters, numbers, underscore, hyphen)' });
     }
 
-    if (password.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    if (password.length < 8 || password.length > MAX_PASSWORD_LENGTH) {
+      return res.status(400).json({ error: 'Password must be between 8 and 128 characters' });
     }
 
     if (!await verifyCap(capToken)) {
+      recordLoginAttempt(ip, false);
       return res.status(400).json({ error: 'Please complete the security check' });
     }
-
-    const ip = getClientIp(req);
 
     if (await isVpnOrProxy(ip)) {
       return res.status(403).json({ error: 'VPNs and proxies are not allowed. Please disable them to register.' });
@@ -93,11 +156,13 @@ router.post('/register', async (req, res) => {
 
     const ipCount = await query('SELECT COUNT(DISTINCT user_id) AS cnt FROM user_ips WHERE ip_address = ?', [ip]);
     if (ipCount[0].cnt >= 2) {
+      recordLoginAttempt(ip, false);
       return res.status(403).json({ error: 'Too many accounts registered from this IP address.' });
     }
 
     const existing = await query('SELECT id FROM users WHERE email = ? OR username = ?', [email, username]);
     if (existing.length > 0) {
+      recordLoginAttempt(ip, false);
       return res.status(409).json({ error: 'Email or username already exists' });
     }
 
@@ -143,6 +208,8 @@ router.post('/register', async (req, res) => {
 
     await logActivity(localUserId, 'account_registered', 'Created account');
 
+    recordLoginAttempt(ip, true);
+
     res.status(201).json({
       token,
       user: {
@@ -177,19 +244,27 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
+    const ip = getClientIp(req);
+    const delay = getLoginDelay(ip);
+    if (delay > 0) {
+      await new Promise(r => setTimeout(r, delay));
+    }
+
     // Cap verification
     if (!await verifyCap(capToken)) {
+      recordLoginAttempt(ip, false);
       return res.status(400).json({ error: 'Please complete the security check' });
     }
 
     // VPN / Proxy detection
-    const ip = getClientIp(req);
+    
     if (await isVpnOrProxy(ip)) {
       return res.status(403).json({ error: 'VPNs and proxies are not allowed. Please disable them to sign in.' });
     }
 
     const users = await query('SELECT * FROM users WHERE email = ?', [email]);
     if (users.length === 0) {
+      recordLoginAttempt(ip, false);
       if (process.env.NODE_ENV !== 'production') console.log('[LOGIN] User not found for email:', email);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
@@ -204,6 +279,7 @@ router.post('/login', async (req, res) => {
 
     const validPassword = await argon2.verify(user.password_hash, password, { type: argon2.argon2id });
     if (!validPassword) {
+      recordLoginAttempt(ip, false);
       if (process.env.NODE_ENV !== 'production') console.log('[LOGIN] Password mismatch for user:', user.id);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
@@ -224,6 +300,8 @@ router.post('/login', async (req, res) => {
       maxAge: 2 * 60 * 60 * 1000,
     });
 
+    recordLoginAttempt(ip, true);
+
     res.json({
       token,
       user: {
@@ -243,7 +321,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.post('/change-password', authenticateToken, async (req, res) => {
+router.post('/change-password', authenticateToken, sensitiveLimiter, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
     const pteroId = req.user?.pteroId;
@@ -252,8 +330,12 @@ router.post('/change-password', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Current password and new password are required' });
     }
 
-    if (newPassword.length < 8) {
-      return res.status(400).json({ error: 'New password must be at least 8 characters' });
+    if (typeof currentPassword !== 'string' || typeof newPassword !== 'string') {
+      return res.status(400).json({ error: 'Invalid input types' });
+    }
+
+    if (newPassword.length < 8 || newPassword.length > MAX_PASSWORD_LENGTH) {
+      return res.status(400).json({ error: 'New password must be between 8 and 128 characters' });
     }
 
     const users = await query('SELECT * FROM users WHERE ptero_user_id = ?', [pteroId]);
@@ -275,7 +357,7 @@ router.post('/change-password', authenticateToken, async (req, res) => {
       parallelism: 4,
     });
 
-    await query('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, user.id]);
+    await query('UPDATE users SET password_hash = ?, token_version = token_version + 1 WHERE id = ?', [passwordHash, user.id]);
 
     try {
       await updatePteroPassword(pteroId, newPassword);
@@ -291,7 +373,7 @@ router.post('/change-password', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/change-email', authenticateToken, async (req, res) => {
+router.post('/change-email', authenticateToken, sensitiveLimiter, async (req, res) => {
   try {
     const { newEmail, password } = req.body;
     const pteroId = req.user?.pteroId;
@@ -299,6 +381,10 @@ router.post('/change-email', authenticateToken, async (req, res) => {
 
     if (!newEmail || !password) {
       return res.status(400).json({ error: 'New email and password are required' });
+    }
+
+    if (typeof newEmail !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Invalid input types' });
     }
 
     if (!validateEmail(newEmail)) {
@@ -364,7 +450,7 @@ router.post('/change-email', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/delete-account', authenticateToken, async (req, res) => {
+router.post('/delete-account', authenticateToken, sensitiveLimiter, async (req, res) => {
   try {
     const { password } = req.body;
     const userId = req.user?.userId;
@@ -434,7 +520,7 @@ router.post('/delete-account', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/upload-avatar', authenticateToken, async (req, res) => {
+router.post('/upload-avatar', authenticateToken, sensitiveLimiter, async (req, res) => {
   try {
     const { image } = req.body;
     if (!image) {
@@ -447,6 +533,11 @@ router.post('/upload-avatar', authenticateToken, async (req, res) => {
     }
 
     const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+
+    if (!MIME_TYPES[ext]) {
+      return res.status(400).json({ error: 'Unsupported image format' });
+    }
+
     const data = Buffer.from(matches[2], 'base64');
 
     if (data.length > 2 * 1024 * 1024) {
@@ -465,7 +556,12 @@ router.post('/upload-avatar', authenticateToken, async (req, res) => {
     }
 
     const filename = `avatar_${req.user.userId}.${ext}`;
-    await writeFile(join(UPLOAD_DIR, filename), data);
+    const filePath = join(UPLOAD_DIR, filename);
+    const resolvedPath = resolve(filePath);
+    if (!resolvedPath.startsWith(resolve(UPLOAD_DIR))) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    await writeFile(resolvedPath, data);
 
     await query('UPDATE users SET avatar = ? WHERE id = ?', [filename, req.user.userId]);
 
@@ -514,11 +610,16 @@ router.get('/avatar/:userId', async (req, res) => {
       return res.status(404).json({ error: 'No avatar found' });
     }
 
+    const resolvedPath = resolve(join(UPLOAD_DIR, avatarFile));
+    if (!resolvedPath.startsWith(UPLOAD_DIR)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
     const mimeType = MIME_TYPES[extname(avatarFile).toLowerCase().slice(1)] || 'application/octet-stream';
 
     res.set('Content-Type', mimeType);
     res.set('Cache-Control', 'private, max-age=3600');
-    res.sendFile(join(UPLOAD_DIR, avatarFile));
+    res.sendFile(resolvedPath);
   } catch (err) {
     if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Invalid or expired token' });
@@ -533,7 +634,7 @@ router.post('/logout', (req, res) => {
   res.json({ message: 'Logged out' });
 });
 
-router.get('/export-data', authenticateToken, async (req, res) => {
+router.get('/export-data', authenticateToken, sensitiveLimiter, async (req, res) => {
   try {
     const userId = req.user.userId;
     const pteroId = req.user.pteroId;

@@ -35,7 +35,7 @@ router.get('/unread-count', authenticateToken, async (req, res) => {
 router.patch('/:id/read', authenticateToken, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) return res.status(400).json({ error: 'Invalid notification ID' });
+    if (isNaN(id) || id < 1) return res.status(400).json({ error: 'Invalid notification ID' });
     await markAsRead(id, req.user.userId);
     res.json({ success: true });
   } catch (err) {

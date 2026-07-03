@@ -1,5 +1,11 @@
 function initIcons() { if (window.lucide) lucide.createIcons(); }
 
+function escapeHtml(str) {
+  if (typeof str !== 'string') return '';
+  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;' };
+  return str.replace(/[&<>"']/g, m => map[m]);
+}
+
 const ADMIN_STORAGE_KEY = 'zh_admin_token';
 
 const adminState = {
@@ -115,7 +121,7 @@ function renderAdminLogin() {
     <div class="auth-page">
       <div class="auth-card">
         <div class="auth-logo">
-          <img src="https://status.zero-host.org/upload/logo1.png?t=1781280015614" alt="ZeroHost" />
+          <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
           <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span> <span style="font-size:0.7rem;color:var(--accent-1);font-weight:600;margin-left:4px;border:1px solid var(--accent-1);padding:2px 8px;border-radius:4px">Admin</span></span>
         </div>
         <h1 class="auth-title">Admin Panel</h1>
@@ -192,7 +198,7 @@ function renderAdminLayout() {
       <nav class="admin-navbar">
         <div class="admin-navbar-left">
           <a href="/" class="sidebar-logo" style="text-decoration:none">
-            <img src="https://status.zero-host.org/upload/logo1.png?t=1781280015614" alt="ZeroHost" />
+            <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
             <span class="sidebar-logo-text">Zero<span style="color:var(--accent-3)">Host</span></span>
           </a>
           <span class="admin-badge">Admin</span>
@@ -396,11 +402,11 @@ async function renderAdminServers() {
 
       return ahtml`
         <tr>
-          <td><strong>${s.name}</strong></td>
-          <td>${ownerName}</td>
-          <td><span class="server-detail-tag">${eggName}</span></td>
-          <td><span class="server-detail-tag">${allocStr}</span></td>
-          <td><span class="server-card-status ${statusClass}">${statusLabel}</span></td>
+          <td><strong>${escapeHtml(s.name)}</strong></td>
+          <td>${escapeHtml(ownerName)}</td>
+          <td><span class="server-detail-tag">${escapeHtml(eggName)}</span></td>
+          <td><span class="server-detail-tag">${escapeHtml(allocStr)}</span></td>
+          <td><span class="server-card-status ${statusClass}">${escapeHtml(statusLabel)}</span></td>
           <td>
             <a class="btn btn-ghost btn-sm" href="/admin/server/${s.id}" onclick="event.preventDefault();adminNavigateTo('server/${s.id}')">Details</a>
           </td>
@@ -443,7 +449,7 @@ async function renderAdminServerDetail(serverId) {
           Back to Servers
         </a>
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-          <h1 class="page-title" style="margin-bottom:0">${s.name}</h1>
+          <h1 class="page-title" style="margin-bottom:0">${escapeHtml(s.name)}</h1>
           <span class="server-card-status ${statusClass}" style="font-size:0.8rem">${statusLabel}</span>
         </div>
       </div>
@@ -460,8 +466,8 @@ async function renderAdminServerDetail(serverId) {
             <h2 class="card-title" style="margin-bottom:16px">Server Info</h2>
             <div class="detail-list">
               <div class="detail-item"><span class="detail-label">Owner</span><span class="detail-value">${s.owner?.username || 'Unknown'} (${s.owner?.email || 'N/A'})</span></div>
-              <div class="detail-item"><span class="detail-label">Egg</span><span class="detail-value">${eggName}</span></div>
-              <div class="detail-item"><span class="detail-label">Allocation</span><span class="detail-value">${allocStr}</span></div>
+              <div class="detail-item"><span class="detail-label">Egg</span><span class="detail-value">${escapeHtml(eggName)}</span></div>
+              <div class="detail-item"><span class="detail-label">Allocation</span><span class="detail-value">${escapeHtml(allocStr)}</span></div>
               <div class="detail-item"><span class="detail-label">Identifier</span><span class="detail-value" style="font-family:monospace">${s.identifier}</span></div>
               <div class="detail-item"><span class="detail-label">Memory</span><span class="detail-value">${s.limits.memory > 0 ? s.limits.memory + ' MB' : '∞'}</span></div>
               <div class="detail-item"><span class="detail-label">CPU</span><span class="detail-value">${s.limits.cpu}%</span></div>
@@ -513,7 +519,7 @@ async function renderAdminServerDetail(serverId) {
       </div>
     `;
 
-    initAdminTabs();
+    initAdminTabs(serverId);
     initAdminActions(serverId);
     initIcons();
   } catch (err) {
@@ -529,7 +535,7 @@ async function renderAdminServerDetail(serverId) {
   }
 }
 
-function initAdminTabs() {
+function initAdminTabs(serverId) {
   const tabs = $a('#admin-server-tabs');
   if (!tabs) return;
   const indicator = $a('#admin-tab-indicator');
@@ -548,6 +554,8 @@ function initAdminTabs() {
       indicator.style.left = tabBtn.offsetLeft + 'px';
       indicator.style.width = tabBtn.offsetWidth + 'px';
     }
+
+    history.pushState({ adminPage: 'server', serverId, tab: tabName }, '', `/admin/server/${serverId}/${tabName}`);
   }
 
   btns.forEach(btn => {
@@ -558,6 +566,16 @@ function initAdminTabs() {
   });
 
   // Set initial indicator position
+  const pathParts = window.location.pathname.replace('/admin/', '').split('/');
+  const tabFromUrl = pathParts[2];
+  if (tabFromUrl) {
+    const tabBtn = Array.from(btns).find(b => b.dataset.tab === tabFromUrl);
+    if (tabBtn) {
+      switchTab(tabBtn);
+      return;
+    }
+  }
+
   const activeBtn = tabs.querySelector('.tab.active');
   if (activeBtn && indicator) {
     indicator.style.left = activeBtn.offsetLeft + 'px';
@@ -780,6 +798,100 @@ function showNotifyModal(userId) {
   });
 }
 
+// ─── Send Notification to All Users Modal ───────────────
+function showNotifyAllModal() {
+  const content = $a('#admin-modal-content');
+  const overlay = $a('#admin-modal-overlay');
+  if (!content || !overlay) return;
+
+  content.innerHTML = ahtml`
+    <div>
+      <h3 style="margin:0 0 16px 0;color:var(--text-primary)">Notify All Users</h3>
+      <form id="admin-notify-all-form">
+        <div class="form-group" style="margin-bottom:12px">
+          <label for="admin-notify-all-title">Title</label>
+          <input type="text" id="admin-notify-all-title" placeholder="e.g. Platform Update" style="width:100%" required />
+        </div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label for="admin-notify-all-message">Message</label>
+          <textarea id="admin-notify-all-message" rows="3" placeholder="Write your message to all users..." style="resize:vertical;width:100%;padding:10px 14px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:inherit;font-size:0.88rem;margin-top:6px;box-sizing:border-box" required></textarea>
+        </div>
+        <div class="form-group" style="margin-bottom:16px">
+          <label for="admin-notify-all-type">Type</label>
+          <div class="custom-select" id="admin-notify-all-type">
+            <div class="custom-select-trigger" tabindex="0">
+              <span class="custom-select-label">Info</span>
+              <i data-lucide="chevron-down" class="custom-select-arrow" style="width:16px;height:16px"></i>
+            </div>
+            <div class="custom-select-dropdown">
+              <div class="custom-select-option" data-value="info">Info</div>
+              <div class="custom-select-option" data-value="success">Success</div>
+              <div class="custom-select-option" data-value="warning">Warning</div>
+              <div class="custom-select-option" data-value="error">Error</div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button type="submit" class="btn btn-primary btn-full" id="admin-btn-send-notify-all" style="justify-content:center">Send to All Users</button>
+          <button type="button" class="btn btn-ghost btn-full" onclick="closeAdminModal()" style="justify-content:center">Cancel</button>
+        </div>
+        <div id="admin-notify-all-msg" style="margin-top:12px;display:none"></div>
+      </form>
+    </div>
+  `;
+  overlay.style.display = 'flex';
+  initIcons();
+
+  const nTypeSelect = $a('#admin-notify-all-type');
+  if (nTypeSelect) {
+    const nTrigger = nTypeSelect.querySelector('.custom-select-trigger');
+    const nLabel = nTypeSelect.querySelector('.custom-select-label');
+    nTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.custom-select.open').forEach(s => s.classList.remove('open'));
+      nTypeSelect.classList.add('open');
+    });
+    nTypeSelect.querySelectorAll('.custom-select-option').forEach(opt => {
+      opt.addEventListener('click', (e) => {
+        e.stopPropagation();
+        nLabel.textContent = opt.textContent;
+        nTypeSelect.dataset.selectedValue = opt.dataset.value;
+        nTypeSelect.classList.remove('open');
+      });
+    });
+    document.addEventListener('click', () => {
+      nTypeSelect.classList.remove('open');
+    });
+  }
+
+  $a('#admin-notify-all-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = $a('#admin-btn-send-notify-all');
+    const msgEl = $a('#admin-notify-all-msg');
+    const titleEl = $a('#admin-notify-all-title');
+    const messageEl = $a('#admin-notify-all-message');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Sending...';
+    if (msgEl) msgEl.style.display = 'none';
+    try {
+      const data = await adminApi('/notify-all', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: titleEl.value.trim(),
+          message: messageEl.value.trim(),
+          type: nTypeSelect.dataset.selectedValue || 'info',
+        }),
+      });
+      if (msgEl) { msgEl.textContent = `Notification sent to ${data.count} user(s) successfully`; msgEl.style.display = 'block'; msgEl.style.color = 'var(--accent-green)'; }
+      setTimeout(() => { closeAdminModal(); }, 1500);
+    } catch (err) {
+      if (msgEl) { msgEl.textContent = err.message; msgEl.style.display = 'block'; msgEl.style.color = 'var(--accent-red)'; }
+      btn.disabled = false;
+      btn.innerHTML = 'Send to All Users';
+    }
+  });
+}
+
 // ─── Dashboard ──────────────────────────────────────────
 async function renderAdminDashboard() {
   document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
@@ -909,8 +1021,8 @@ async function renderAdminUsers() {
     tbody.innerHTML = data.users.map(u => ahtml`
       <tr>
         <td>${u.id}</td>
-        <td><strong>${u.username}</strong></td>
-        <td>${u.email}</td>
+        <td><strong>${escapeHtml(u.username)}</strong></td>
+        <td>${escapeHtml(u.email)}</td>
         <td>${u.is_admin ? '<span class="server-card-status status-active" style="font-size:0.75rem">Admin</span>' : '<span class="server-card-status status-installing" style="font-size:0.75rem">User</span>'}</td>
         <td>${u.server_count}</td>
         <td>${formatDateWithTooltip(u.created_at)}</td>
@@ -948,7 +1060,7 @@ async function renderAdminUserDetail(userId) {
           Back to Users
         </a>
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-          <h1 class="page-title" style="margin-bottom:0">${u.username}</h1>
+          <h1 class="page-title" style="margin-bottom:0">${escapeHtml(u.username)}</h1>
           ${u.restricted ? '<span class="server-card-status status-suspended" style="font-size:0.75rem">Restricted</span>' : '<span class="server-card-status status-active" style="font-size:0.75rem">Active</span>'}
           ${u.auth_restricted ? '<span class="server-card-status status-suspended" style="font-size:0.75rem">Auth Restricted</span>' : ''}
         </div>
@@ -1057,7 +1169,7 @@ async function renderAdminUserDetail(userId) {
       <div id="admin-user-action-msg" style="margin-top:12px;display:none"></div>
     `;
 
-    initUserTabs();
+    initUserTabs(userId);
     initUserActions(userId);
     initIcons();
   } catch (err) {
@@ -1073,7 +1185,7 @@ async function renderAdminUserDetail(userId) {
   }
 }
 
-function initUserTabs() {
+function initUserTabs(userId) {
   const tabs = $a('#admin-user-tabs');
   if (!tabs) return;
   const indicator = $a('#admin-user-tab-indicator');
@@ -1092,6 +1204,8 @@ function initUserTabs() {
       indicator.style.left = tabBtn.offsetLeft + 'px';
       indicator.style.width = tabBtn.offsetWidth + 'px';
     }
+
+    history.pushState({ adminPage: 'user', userId, tab: tabName }, '', `/admin/user/${userId}/${tabName}`);
   }
 
   btns.forEach(btn => {
@@ -1100,6 +1214,16 @@ function initUserTabs() {
       switchTab(btn);
     });
   });
+
+  const pathParts = window.location.pathname.replace('/admin/', '').split('/');
+  const tabFromUrl = pathParts[2];
+  if (tabFromUrl) {
+    const tabBtn = Array.from(btns).find(b => b.dataset.tab === tabFromUrl);
+    if (tabBtn) {
+      switchTab(tabBtn);
+      return;
+    }
+  }
 
   const activeBtn = tabs.querySelector('.tab.active');
   if (activeBtn && indicator) {
@@ -1262,9 +1386,17 @@ async function renderAdminSettings() {
         <h2 class="card-title" style="margin-bottom:4px">Eggs Settings</h2>
         <p style="color:var(--text-secondary);font-size:0.85rem;margin:0">Manage nests, eggs, and per-egg resource overrides</p>
       </div>
+      <div class="card settings-card" style="cursor:pointer;padding:24px;transition:var(--transition);border:1px solid var(--border);border-radius:var(--radius-md)" id="settings-notify-all-entry" onmouseover="this.style.borderColor='var(--accent-1)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-size:1.5rem;margin-bottom:8px">
+          <i data-lucide="megaphone" style="width:32px;height:32px;color:var(--accent-1)"></i>
+        </div>
+        <h2 class="card-title" style="margin-bottom:4px">Send Notification to All Users</h2>
+        <p style="color:var(--text-secondary);font-size:0.85rem;margin:0">Send a message to every user's notification inbox</p>
+      </div>
     </div>
   `;
   $a('#settings-eggs-entry')?.addEventListener('click', () => adminNavigateTo('settings/eggs'));
+  $a('#settings-notify-all-entry')?.addEventListener('click', () => showNotifyAllModal());
   initIcons();
 }
 
@@ -1291,13 +1423,15 @@ async function renderAdminEggsSettings() {
         <thead>
           <tr>
             <th>Local ID</th>
+            <th>Logo</th>
             <th>Name</th>
+            <th>Description</th>
             <th>Panel Nest ID</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody id="admin-nests-tbody">
-          <tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
+          <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -1318,10 +1452,12 @@ async function renderAdminEggsSettings() {
     tbody.innerHTML = data.nests.map(n => ahtml`
       <tr>
         <td>${n.id}</td>
+        <td>${n.logo ? `<img src="${n.logo}" alt="" style="width:32px;height:32px;object-fit:contain;border-radius:4px">` : '<span style="color:var(--text-secondary);font-size:0.75rem">—</span>'}</td>
         <td><a href="/admin/settings/eggs/${n.ptero_nest_id}" onclick="event.preventDefault();adminNavigateTo('settings/eggs/${n.ptero_nest_id}')" style="font-weight:600;cursor:pointer">${n.name}</a></td>
+        <td style="color:var(--text-secondary);font-size:0.85rem;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.description || '—'}</td>
         <td><span class="server-detail-tag">${n.ptero_nest_id}</span></td>
         <td style="display:flex;gap:6px">
-          <button class="btn btn-ghost btn-sm btn-rename-nest" data-id="${n.id}" data-name="${n.name}" style="width:auto">Rename</button>
+          <button class="btn btn-ghost btn-sm btn-rename-nest" data-id="${n.id}" data-name="${n.name}" data-logo="${n.logo || ''}" data-description="${(n.description || '').replace(/"/g, '&quot;')}" style="width:auto">Edit</button>
           <button class="btn btn-danger btn-sm btn-delete-nest" data-id="${n.id}" data-name="${n.name}" style="width:auto">Delete</button>
         </td>
       </tr>
@@ -1329,7 +1465,7 @@ async function renderAdminEggsSettings() {
 
     tbody.querySelectorAll('.btn-rename-nest').forEach(btn => {
       btn.addEventListener('click', () => {
-        showRenameNestModal(btn.dataset.id, btn.dataset.name);
+        showRenameNestModal(btn.dataset.id, btn.dataset.name, btn.dataset.logo, btn.dataset.description);
       });
     });
     tbody.querySelectorAll('.btn-delete-nest').forEach(btn => {
@@ -1363,6 +1499,7 @@ async function renderAdminNestEggs(nestId) {
         <thead>
           <tr>
             <th>ID</th>
+            <th>Logo</th>
             <th>Name</th>
             <th>Description</th>
             <th>Resources</th>
@@ -1370,7 +1507,7 @@ async function renderAdminNestEggs(nestId) {
           </tr>
         </thead>
         <tbody id="admin-eggs-tbody">
-          <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
+          <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -1382,7 +1519,7 @@ async function renderAdminNestEggs(nestId) {
     if (!tbody) return;
 
     if (data.eggs.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary)">No eggs found in this nest.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary)">No eggs found in this nest.</td></tr>';
       return;
     }
 
@@ -1394,6 +1531,7 @@ async function renderAdminNestEggs(nestId) {
       return ahtml`
         <tr>
           <td>${e.id}</td>
+          <td>${res?.logo ? `<img src="${res.logo}" alt="" style="width:28px;height:28px;object-fit:contain;border-radius:4px">` : '<span style="color:var(--text-secondary);font-size:0.75rem">—</span>'}</td>
           <td><strong>${e.name}</strong></td>
           <td style="color:var(--text-secondary);font-size:0.85rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.description || '—'}</td>
           <td><span class="server-detail-tag" style="font-size:0.75rem">${resStr}</span></td>
@@ -1405,7 +1543,7 @@ async function renderAdminNestEggs(nestId) {
     }).join('');
   } catch (err) {
     const tbody = $a('#admin-eggs-tbody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
   }
   initIcons();
 }
@@ -1425,12 +1563,19 @@ async function renderAdminEggSettings(nestId, eggId) {
       <h1 class="page-title" style="margin-bottom:0">Egg Resources</h1>
       <p class="page-subtitle" id="admin-egg-name">Loading...</p>
     </div>
-    <div class="card" style="max-width:480px">
+    <div class="card" style="max-width:520px">
       <form id="admin-egg-resources-form">
         <div id="admin-egg-resources-error" class="auth-error" style="margin-bottom:16px"></div>
         <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:20px">
-          Set custom resource limits for this egg. Leave empty to use defaults.
+          Set custom resource limits and a logo for this egg.
         </p>
+        <div class="form-group">
+          <label for="egg-logo">Logo URL</label>
+          <input type="text" id="egg-logo" placeholder="https://example.com/egg-logo.png" style="width:100%" />
+          <div id="egg-logo-preview" style="margin-top:8px;display:none">
+            <img src="" alt="" style="max-width:48px;max-height:48px;object-fit:contain;border-radius:4px;border:1px solid var(--border)" />
+          </div>
+        </div>
         <div class="form-group">
           <label for="egg-cpu">CPU Limit (%)</label>
           <input type="number" id="egg-cpu" min="0" placeholder="e.g. 50" style="width:100%" />
@@ -1459,6 +1604,11 @@ async function renderAdminEggSettings(nestId, eggId) {
     if (data.egg) nameEl.textContent = data.egg.name + ` (Egg #${eggId})`;
 
     if (data.resources) {
+      if (data.resources.logo != null) {
+        $a('#egg-logo').value = data.resources.logo;
+        const preview = $a('#egg-logo-preview');
+        if (preview) { preview.style.display = 'block'; preview.querySelector('img').src = data.resources.logo; }
+      }
       if (data.resources.cpu_limit != null) $a('#egg-cpu').value = data.resources.cpu_limit;
       if (data.resources.memory_limit != null) $a('#egg-memory').value = data.resources.memory_limit;
       if (data.resources.disk_limit != null) $a('#egg-disk').value = data.resources.disk_limit;
@@ -1468,6 +1618,18 @@ async function renderAdminEggSettings(nestId, eggId) {
     if (errEl) { errEl.textContent = err.message; errEl.classList.add('show'); }
   }
 
+  $a('#egg-logo')?.addEventListener('input', () => {
+    const preview = $a('#egg-logo-preview');
+    const img = preview?.querySelector('img');
+    const val = $a('#egg-logo').value;
+    if (val) {
+      if (preview) preview.style.display = 'block';
+      if (img) img.src = val;
+    } else {
+      if (preview) preview.style.display = 'none';
+    }
+  });
+
   $a('#admin-egg-resources-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = $a('#btn-save-egg-resources');
@@ -1476,6 +1638,7 @@ async function renderAdminEggSettings(nestId, eggId) {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Saving...';
 
+    const logo = $a('#egg-logo').value.trim() || null;
     const cpu = $a('#egg-cpu').value;
     const memory = $a('#egg-memory').value;
     const disk = $a('#egg-disk').value;
@@ -1484,6 +1647,7 @@ async function renderAdminEggSettings(nestId, eggId) {
       await adminApi(`/settings/eggs/${nestId}/${eggId}`, {
         method: 'PUT',
         body: JSON.stringify({
+          logo,
           cpu_limit: cpu !== '' ? parseInt(cpu, 10) : null,
           memory_limit: memory !== '' ? parseInt(memory, 10) : null,
           disk_limit: disk !== '' ? parseInt(disk, 10) : null,
@@ -1505,8 +1669,10 @@ async function renderAdminEggSettings(nestId, eggId) {
     try {
       await adminApi(`/settings/eggs/${nestId}/${eggId}`, {
         method: 'PUT',
-        body: JSON.stringify({ cpu_limit: null, memory_limit: null, disk_limit: null }),
+        body: JSON.stringify({ logo: null, cpu_limit: null, memory_limit: null, disk_limit: null }),
       });
+      $a('#egg-logo').value = '';
+      $a('#egg-logo-preview').style.display = 'none';
       $a('#egg-cpu').value = '';
       $a('#egg-memory').value = '';
       $a('#egg-disk').value = '';
@@ -1626,7 +1792,7 @@ async function showAddNestsModal() {
         try {
           await adminApi('/settings/nests', {
             method: 'POST',
-            body: JSON.stringify({ pteroNestId: parseInt(cb.value, 10) }),
+            body: JSON.stringify({ pteroNestId: parseInt(cb.value, 10), name: cb.dataset.name }),
           });
           added++;
         } catch (err) {
@@ -1656,18 +1822,29 @@ async function showAddNestsModal() {
   }
 }
 
-// ─── Rename Nest Modal ──────────────────────────────────
-function showRenameNestModal(nestId, currentName) {
+// ─── Edit Nest Modal ─────────────────────────────────────
+function showRenameNestModal(nestId, currentName, currentLogo, currentDescription) {
   const content = $a('#admin-modal-content');
   const overlay = $a('#admin-modal-overlay');
   if (!content || !overlay) return;
 
   content.innerHTML = ahtml`
     <div>
-      <h3 style="margin:0 0 16px 0;color:var(--text-primary)">Rename Nest</h3>
+      <h3 style="margin:0 0 16px 0;color:var(--text-primary)">Edit Nest</h3>
       <div class="form-group" style="margin-bottom:16px">
         <label for="modal-rename-nest-name">Display Name</label>
         <input type="text" id="modal-rename-nest-name" value="${currentName}" style="width:100%" />
+      </div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label for="modal-edit-nest-logo">Logo URL</label>
+        <input type="text" id="modal-edit-nest-logo" value="${currentLogo || ''}" placeholder="https://example.com/logo.png" style="width:100%" />
+        <div id="modal-nest-logo-preview" style="margin-top:8px;${currentLogo ? '' : 'display:none'}">
+          <img src="${currentLogo || ''}" alt="" style="max-width:64px;max-height:64px;object-fit:contain;border-radius:4px;border:1px solid var(--border)" />
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label for="modal-edit-nest-description">Description</label>
+        <textarea id="modal-edit-nest-description" rows="3" placeholder="Brief description of this nest" style="width:100%;resize:vertical">${currentDescription || ''}</textarea>
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-primary btn-full" id="btn-confirm-rename-nest" style="justify-content:center">Save</button>
@@ -1678,8 +1855,22 @@ function showRenameNestModal(nestId, currentName) {
   `;
   overlay.style.display = 'flex';
 
+  const logoInput = $a('#modal-edit-nest-logo');
+  logoInput?.addEventListener('input', () => {
+    const preview = $a('#modal-nest-logo-preview');
+    const img = preview?.querySelector('img');
+    if (logoInput.value) {
+      if (preview) preview.style.display = 'block';
+      if (img) img.src = logoInput.value;
+    } else {
+      if (preview) preview.style.display = 'none';
+    }
+  });
+
   $a('#btn-confirm-rename-nest')?.addEventListener('click', async () => {
     const name = $a('#modal-rename-nest-name').value.trim();
+    const logo = $a('#modal-edit-nest-logo').value.trim() || null;
+    const description = $a('#modal-edit-nest-description').value.trim() || null;
     if (!name) {
       const err = $a('#rename-nest-error');
       if (err) { err.textContent = 'Name is required'; err.style.display = 'block'; }
@@ -1693,7 +1884,7 @@ function showRenameNestModal(nestId, currentName) {
     try {
       await adminApi(`/settings/nests/${nestId}`, {
         method: 'PUT',
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, logo, description }),
       });
       closeAdminModal();
       renderAdminEggsSettings();
@@ -1774,10 +1965,24 @@ window.addEventListener('popstate', () => {
     $a('#admin-page-server-detail')?.classList.add('active');
     $a('#admin-page-servers')?.classList.remove('active');
     renderAdminServerDetail(pid);
+    const tab = pathParts[2];
+    if (tab) {
+      setTimeout(() => {
+        const tabBtn = document.querySelector('#admin-server-tabs .tab[data-tab="' + tab + '"]');
+        if (tabBtn) tabBtn.click();
+      }, 50);
+    }
   } else if (basePage === 'user' && param) {
     const uid = parseInt(param, 10);
     $a('#admin-page-user-detail')?.classList.add('active');
     renderAdminUserDetail(uid);
+    const tab = pathParts[2];
+    if (tab) {
+      setTimeout(() => {
+        const tabBtn = document.querySelector('#admin-user-tabs .tab[data-tab="' + tab + '"]');
+        if (tabBtn) tabBtn.click();
+      }, 50);
+    }
   } else if (basePage === 'users') {
     adminNavigateTo('users');
   } else if (basePage === 'dashboard' || !basePage || basePage === 'login') {

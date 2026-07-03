@@ -1,6 +1,6 @@
 export const PTERO_URL = process.env.PTERO_URL || 'https://panel.zero-host.org';
 export const PTERO_API_KEY = process.env.PTERO_API_KEY || '';
-export const PANEL_DB_NAME = process.env.PANEL_DB_NAME || 'panel';
+export const PANEL_DB_NAME = (process.env.PANEL_DB_NAME || 'panel').replace(/[^a-zA-Z0-9_]/g, '');
 
 export const SERVER_LIMITS = {
   memory: 512,

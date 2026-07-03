@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { authenticateToken } from '../middleware/auth.js';
 import {
   getServersByUser,
@@ -18,6 +19,46 @@ import { logActivity } from '../services/activity.js';
 import { createNotification } from '../services/notification.js';
 
 const router = Router();
+
+const createServerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  message: { error: 'Server creation limit reached. Max 3 per hour.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const renameLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many rename requests. Max 10 per hour.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const renewLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { error: 'Too many renew requests. Max 5 per hour.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const reinstallLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000,
+  max: 2,
+  message: { error: 'Too many reinstall requests. Max 2 per day.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const powerLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  message: { error: 'Too many power actions. Max 20 per minute.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 router.get('/list', authenticateToken, async (req, res) => {
   try {
@@ -74,6 +115,58 @@ router.get('/list', authenticateToken, async (req, res) => {
   }
 });
 
+router.get('/nests', authenticateToken, async (req, res) => {
+  try {
+    const dbNests = await query('SELECT ptero_nest_id, name, logo, description FROM nests');
+    const nestIds = dbNests.map(n => n.ptero_nest_id);
+
+    const eggs = await getAllEggs(nestIds);
+    const nestMap = {};
+    for (const n of dbNests) {
+      nestMap[n.ptero_nest_id] = n;
+    }
+
+    const eggResources = await query('SELECT ptero_nest_id, ptero_egg_id, logo, cpu_limit, memory_limit, disk_limit FROM egg_resources');
+    const eggResMap = {};
+    for (const r of eggResources) {
+      eggResMap[`${r.ptero_nest_id}-${r.ptero_egg_id}`] = r;
+    }
+
+    const result = [];
+    const nestEggs = {};
+    for (const { nest, egg } of eggs) {
+      if (!nestEggs[nest]) nestEggs[nest] = [];
+      const key = `${nest}-${egg.id}`;
+      const res = eggResMap[key] || {};
+      nestEggs[nest].push({
+        eggId: egg.id,
+        name: egg.name,
+        description: egg.description || '',
+        dockerImages: egg.docker_images || {},
+        logo: res.logo || null,
+        cpu_limit: res.cpu_limit ?? null,
+        memory_limit: res.memory_limit ?? null,
+        disk_limit: res.disk_limit ?? null,
+      });
+    }
+
+    for (const n of dbNests) {
+      result.push({
+        pteroNestId: n.ptero_nest_id,
+        name: n.name,
+        logo: n.logo || null,
+        description: n.description || '',
+        eggs: nestEggs[n.ptero_nest_id] || [],
+      });
+    }
+
+    res.json({ nests: result });
+  } catch (err) {
+    console.error('Get nests error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch nests: ' + err.message });
+  }
+});
+
 router.get('/eggs', authenticateToken, async (req, res) => {
   try {
     const dbNests = await query('SELECT ptero_nest_id, name FROM nests');
@@ -107,14 +200,18 @@ router.get('/eggs', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/create', authenticateToken, async (req, res) => {
+router.post('/create', authenticateToken, createServerLimiter, async (req, res) => {
   try {
-    const { name, nestId, eggId, environment, capToken } = req.body;
+    const { name, nestId, eggId, environment, capToken, dockerImage: reqDockerImage } = req.body;
     const pteroId = req.user.pteroId;
 
     const userCheck = await query('SELECT restricted FROM users WHERE id = ?', [req.user.userId]);
     if (userCheck.length > 0 && userCheck[0].restricted) {
       return res.status(403).json({ error: 'Your account is restricted. Server creation is disabled.' });
+    }
+
+    if (typeof name !== 'string') {
+      return res.status(400).json({ error: 'Server name must be a string' });
     }
 
     if (!name || !nestId || !eggId) {
@@ -123,6 +220,10 @@ router.post('/create', authenticateToken, async (req, res) => {
 
     if (name.length < 1 || name.length > 255) {
       return res.status(400).json({ error: 'Server name must be between 1 and 255 characters' });
+    }
+
+    if (!/^[a-zA-Z0-9 _.-]+$/.test(name)) {
+      return res.status(400).json({ error: 'Server name contains invalid characters' });
     }
 
     if (!await verifyCap(capToken)) {
@@ -135,7 +236,16 @@ router.post('/create', authenticateToken, async (req, res) => {
     }
 
     const egg = await getEgg(nestId, eggId);
-    const dockerImage = Object.values(egg.docker_images)[0] || Object.keys(egg.docker_images)[0];
+    let dockerImage;
+    if (reqDockerImage && egg.docker_images) {
+      if (egg.docker_images[reqDockerImage]) {
+        dockerImage = egg.docker_images[reqDockerImage];
+      } else {
+        dockerImage = reqDockerImage;
+      }
+    } else {
+      dockerImage = Object.values(egg.docker_images || {})[0] || Object.keys(egg.docker_images || {})[0];
+    }
 
     const eggVars = await query(`SELECT env_variable, default_value FROM ${PANEL_DB_NAME}.egg_variables WHERE egg_id = ?`, [eggId]);
 
@@ -222,7 +332,7 @@ router.get('/details/:id', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/renew/:id', authenticateToken, async (req, res) => {
+router.post('/renew/:id', authenticateToken, renewLimiter, async (req, res) => {
   try {
     const serverId = parseInt(req.params.id, 10);
     if (isNaN(serverId)) {
@@ -292,7 +402,7 @@ router.post('/renew/:id', authenticateToken, async (req, res) => {
   }
 });
 
-router.patch('/:id', authenticateToken, async (req, res) => {
+router.patch('/:id', authenticateToken, renameLimiter, async (req, res) => {
   try {
     const { name } = req.body;
     const serverId = parseInt(req.params.id, 10);
@@ -301,11 +411,14 @@ router.patch('/:id', authenticateToken, async (req, res) => {
     }
     const pteroId = req.user.pteroId;
 
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+    if (typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({ error: 'Server name is required' });
     }
-    if (name.length > 255) {
+    if (name.trim().length > 255) {
       return res.status(400).json({ error: 'Server name must be 255 characters or less' });
+    }
+    if (!/^[a-zA-Z0-9 _.-]+$/.test(name.trim())) {
+      return res.status(400).json({ error: 'Server name contains invalid characters' });
     }
 
     const servers = await getServersByUser(pteroId);
@@ -324,7 +437,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/:id/reinstall', authenticateToken, async (req, res) => {
+router.post('/:id/reinstall', authenticateToken, reinstallLimiter, async (req, res) => {
   try {
     const serverId = parseInt(req.params.id, 10);
     if (isNaN(serverId)) {
@@ -446,11 +559,16 @@ router.get('/resources/:identifier', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/power/:identifier', authenticateToken, async (req, res) => {
+router.post('/power/:identifier', authenticateToken, powerLimiter, async (req, res) => {
   try {
     const { identifier } = req.params;
     const { signal } = req.body;
     const userId = req.user.userId;
+
+    const VALID_SIGNALS = ['start', 'stop', 'restart', 'kill'];
+    if (!signal || typeof signal !== 'string' || !VALID_SIGNALS.includes(signal)) {
+      return res.status(400).json({ error: 'Invalid power signal. Valid signals: start, stop, restart, kill' });
+    }
 
     const users = await query('SELECT ptero_client_api_key FROM users WHERE id = ?', [userId]);
     if (!users[0]?.ptero_client_api_key) {
@@ -499,6 +617,10 @@ router.put('/client-api-key', authenticateToken, async (req, res) => {
 
     if (!apiKey || typeof apiKey !== 'string') {
       return res.status(400).json({ error: 'API key is required' });
+    }
+
+    if (apiKey.trim().length > 255) {
+      return res.status(400).json({ error: 'API key must be 255 characters or less' });
     }
 
     await query('UPDATE users SET ptero_client_api_key = ? WHERE id = ?', [apiKey.trim(), userId]);

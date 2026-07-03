@@ -6,6 +6,18 @@ import { readFile } from 'fs/promises';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: resolve(__dirname, '.env') });
 
+const REQUIRED_ENV_VARS = ['JWT_SECRET', 'DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME', 'CAP_SECRET', 'CAP_ENDPOINT', 'COOKIE_SECRET'];
+const missing = REQUIRED_ENV_VARS.filter(v => !process.env[v]);
+if (missing.length > 0) {
+  console.error(`Missing required environment variables: ${missing.join(', ')}`);
+  process.exit(1);
+}
+
+if (process.env.JWT_SECRET && /[\$\(\)]/.test(process.env.JWT_SECRET)) {
+  console.error('JWT_SECRET contains unresolved shell expansion characters. Generate a proper random key.');
+  process.exit(1);
+}
+
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -13,14 +25,15 @@ import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
 import path from 'path';
+import crypto from 'crypto';
 
 import authRoutes from './routes/auth.js';
 import serverRoutes from './routes/servers.js';
 import adminRoutes from './routes/admin.js';
 import notificationRoutes from './routes/notifications.js';
-import { startScheduler } from './services/scheduler.js';
+import { startScheduler, stopScheduler } from './services/scheduler.js';
 import { migrate } from './config/migrate.js';
-import { query } from './config/db.js';
+import { query, closePool, getPoolStatus } from './config/db.js';
 import { getRecentActivity } from './services/activity.js';
 
 const app = express();
@@ -35,10 +48,42 @@ async function getPort() {
 }
 
 const PORT = process.env.PORT || await getPort();
+const SHUTDOWN_TIMEOUT = parseInt(process.env.SHUTDOWN_TIMEOUT, 10) || 10000;
 
 const trustProxy = process.env.NODE_ENV === 'production';
 
 app.set('trust proxy', trustProxy ? 1 : 0);
+
+app.use((req, res, next) => {
+  req.requestId = crypto.randomUUID();
+  res.setHeader('X-Request-Id', req.requestId);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  next();
+});
+
+const activeRequests = new Map();
+
+app.use((req, res, next) => {
+  const ip = req.ip || req.socket.remoteAddress || '0.0.0.0';
+  const count = (activeRequests.get(ip) || 0) + 1;
+  if (count > 20) {
+    return res.status(429).json({ error: 'Too many concurrent requests' });
+  }
+  activeRequests.set(ip, count);
+  res.on('finish', () => {
+    const c = activeRequests.get(ip);
+    if (c && c <= 1) activeRequests.delete(ip);
+    else if (c) activeRequests.set(ip, c - 1);
+  });
+  next();
+});
+
+app.use((req, res, next) => {
+  res.setTimeout(30000, () => {
+    res.status(503).json({ error: 'Request timeout', requestId: req.requestId });
+  });
+  next();
+});
 
 app.use(helmet({
   contentSecurityPolicy: {
@@ -53,6 +98,7 @@ app.use(helmet({
       workerSrc: ["'self'", "blob:"],
       frameSrc: ["https://cap.zero-host.org"],
       objectSrc: ["'none'"],
+      upgradeInsecureRequests: [],
     },
   },
   hsts: {
@@ -76,7 +122,40 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: false, limit: '1mb' }));
+
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/') && !['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    return res.status(405).json({ error: 'Method not allowed', requestId: req.requestId });
+  }
+  next();
+});
+
+app.use((req, res, next) => {
+  if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.path.startsWith('/api/')) {
+    const ct = req.headers['content-type'] || '';
+    if (!ct.startsWith('application/json') && !ct.startsWith('application/x-www-form-urlencoded') && !ct.startsWith('multipart/form-data')) {
+      return res.status(415).json({ error: 'Unsupported content type. Use application/json.', requestId: req.requestId });
+    }
+  }
+  next();
+});
+
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({ error: 'Invalid JSON in request body', requestId: req.requestId });
+  }
+  next();
+});
 app.use(cookieParser(process.env.COOKIE_SECRET));
+
+app.use((req, res, next) => {
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  res.setHeader('X-DNS-Prefetch-Control', 'off');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -96,9 +175,48 @@ const apiLimiter = rateLimit({
   trustProxy: trustProxy ? 1 : 0,
 });
 
+const activityLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: { error: 'Too many requests' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  trustProxy: trustProxy ? 1 : 0,
+});
+
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
+app.use('/api/activity', activityLimiter);
+app.use('/api/notifications', authLimiter);
+app.use('/api/servers', apiLimiter);
 app.use('/api', apiLimiter);
+
+const userRateMap = new Map();
+const USER_RATE_MAX = 200;
+const USER_RATE_WINDOW = 60000;
+
+app.use('/api', (req, res, next) => {
+  const userId = req.user?.userId;
+  if (!userId) return next();
+  const now = Date.now();
+  let entry = userRateMap.get(userId);
+  if (!entry || now - entry.windowStart > USER_RATE_WINDOW) {
+    entry = { count: 0, windowStart: now };
+    userRateMap.set(userId, entry);
+  }
+  entry.count++;
+  if (entry.count > USER_RATE_MAX) {
+    return res.status(429).json({ error: 'User rate limit exceeded. Slow down.', requestId: req.requestId });
+  }
+  next();
+});
+
+setInterval(() => {
+  const cutoff = Date.now() - USER_RATE_WINDOW;
+  for (const [uid, entry] of userRateMap) {
+    if (entry.windowStart < cutoff) userRateMap.delete(uid);
+  }
+}, 60000);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/servers', serverRoutes);
@@ -130,7 +248,7 @@ app.get('/api/activity', async (req, res) => {
     if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
-    console.error('Activity route error:', err.message, err.stack?.split('\n')[1]);
+    console.error(`[${req.requestId}] Activity route error:`, err.message, err.stack?.split('\n')[1]);
     res.status(500).json({ error: 'Failed to fetch activities' });
   }
 });
@@ -138,9 +256,23 @@ app.get('/api/activity', async (req, res) => {
 app.get('/api/health', async (req, res) => {
   try {
     await query('SELECT 1');
-    res.json({ status: 'ok', db: 'connected', timestamp: new Date().toISOString() });
+    const poolStats = await getPoolStatus();
+    const memUsage = process.memoryUsage();
+    res.json({
+      status: 'ok',
+      db: 'connected',
+      pool: poolStats,
+      memory: {
+        rss: Math.round(memUsage.rss / 1024 / 1024) + 'MB',
+        heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024) + 'MB',
+        heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024) + 'MB',
+      },
+      uptime: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString(),
+      requestId: req.requestId,
+    });
   } catch {
-    res.status(503).json({ status: 'error', db: 'disconnected', timestamp: new Date().toISOString() });
+    res.status(503).json({ status: 'error', db: 'disconnected', timestamp: new Date().toISOString(), requestId: req.requestId });
   }
 });
 
@@ -164,26 +296,56 @@ app.get('*', (req, res) => {
 });
 
 app.use((err, req, res, _next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ error: 'Internal server error' });
-});
-
-process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled Promise rejection:', reason);
-  process.exit(1);
-});
-
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught exception:', err);
-  process.exit(1);
+  console.error(`[${req.requestId}] Unhandled error:`, err);
+  const message = process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message;
+  res.status(err.status || 500).json({ error: message, requestId: req.requestId });
 });
 
 migrate().then(() => {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`ZeroHost Dashboard running on port ${PORT}`);
     startScheduler();
   });
+
+  function shutdown(signal) {
+    console.log(`\nReceived ${signal}, shutting down gracefully...`);
+    stopScheduler();
+    server.close(() => {
+      closePool();
+      process.exit(0);
+    });
+    setTimeout(() => {
+      console.error('Forced shutdown after timeout');
+      process.exit(1);
+    }, SHUTDOWN_TIMEOUT);
+  }
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 }).catch(err => {
   console.error('Migration failed:', err);
   process.exit(1);
 });
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Promise rejection:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+});
+
+process.on('warning', (warning) => {
+  if (warning.name === 'MaxListenersExceededWarning') {
+    console.error('Memory leak detected:', warning.message);
+  }
+});
+
+setInterval(() => {
+  const mem = process.memoryUsage();
+  if (mem.heapUsed > 500 * 1024 * 1024) {
+    console.error(`High memory usage warning: ${Math.round(mem.heapUsed / 1024 / 1024)}MB heap used`);
+  }
+}, 60000);
+
+

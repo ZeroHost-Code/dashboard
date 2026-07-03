@@ -4,6 +4,11 @@ const FETCH_TIMEOUT = 15000;
 const CACHE_TTL = 5 * 60 * 1000;
 const CACHE_MAX_SIZE = 50;
 const nodeCache = new Map();
+let cacheCleanupTimer = null;
+
+function recordPteroError(errMsg) {
+  console.warn(`Pterodactyl API error: ${errMsg}`);
+}
 
 async function fetchWithTimeout(url, options = {}, timeout = FETCH_TIMEOUT) {
   const controller = new AbortController();
@@ -22,14 +27,45 @@ const headers = {
   'Content-Type': 'application/json',
 };
 
+function startCacheCleanup() {
+  if (cacheCleanupTimer) return;
+  cacheCleanupTimer = setInterval(() => {
+    const cutoff = Date.now() - CACHE_TTL;
+    let cleaned = 0;
+    for (const [id, entry] of nodeCache) {
+      if (entry.ts < cutoff) {
+        nodeCache.delete(id);
+        cleaned++;
+      }
+    }
+    if (cleaned > 0) {
+      console.log(`Cleaned ${cleaned} stale cache entries (${nodeCache.size} remaining)`);
+    }
+  }, CACHE_TTL);
+}
+
+startCacheCleanup();
+
 async function pteroFetch(path, options = {}) {
   const url = `${PTERO_URL}/api/application${path}`;
   const maxRetries = 3;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    const res = await fetchWithTimeout(url, {
-      ...options,
-      headers: { ...headers, ...options.headers },
-    });
+    let res;
+    try {
+      res = await fetchWithTimeout(url, {
+        ...options,
+        headers: { ...headers, ...options.headers },
+      });
+    } catch (err) {
+      recordPteroError(err.message);
+      if (attempt < maxRetries) {
+        const wait = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
+        console.warn(`pteroFetch network error (${err.message}), retry ${attempt}/${maxRetries} after ${wait}ms`);
+        await new Promise(r => setTimeout(r, wait));
+        continue;
+      }
+      throw err;
+    }
     if (res.status === 204) return null;
     if (res.status === 429 && attempt < maxRetries) {
       const wait = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
@@ -37,12 +73,12 @@ async function pteroFetch(path, options = {}) {
       await new Promise(r => setTimeout(r, wait));
       continue;
     }
-    const data = await res.json();
     if (!res.ok) {
-      const detail = data?.errors?.[0]?.detail || JSON.stringify(data);
-      throw new Error(detail);
+      recordPteroError(`${res.status} ${res.statusText}`);
+      const text = await res.text();
+      throw new Error(`Pterodactyl API error ${res.status}: ${text.slice(0, 200)}`);
     }
-    return data;
+    return await res.json();
   }
 }
 
@@ -108,7 +144,8 @@ export async function getAllServers() {
   let page = 1;
   let hasMore = true;
 
-  while (hasMore) {
+  const MAX_PAGES = 20;
+  while (hasMore && page <= MAX_PAGES) {
     const data = await pteroFetch(`/servers?page=${page}&per_page=50`);
     const servers = data.data.map(s => s.attributes);
     allServers = allServers.concat(servers);
@@ -143,7 +180,8 @@ export async function getServersByUser(userId) {
   let page = 1;
   let hasMore = true;
 
-  while (hasMore) {
+  const MAX_PAGES = 20;
+  while (hasMore && page <= MAX_PAGES) {
     const data = await pteroFetch(`/servers?page=${page}&per_page=50`);
     const servers = data.data.map(s => s.attributes).filter(s => s.user === userId);
     allServers = allServers.concat(servers);
@@ -275,7 +313,8 @@ export async function getPergoServerIdsByEgg(nestId, eggId) {
   const ids = [];
   let page = 1;
   let hasMore = true;
-  while (hasMore) {
+  const MAX_PAGES = 20;
+  while (hasMore && page <= MAX_PAGES) {
     const data = await pteroFetch(`/servers?page=${page}&per_page=100`);
     const servers = data.data.map(s => s.attributes);
     for (const s of servers) {

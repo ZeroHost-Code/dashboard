@@ -2,6 +2,8 @@
 
 Game server management dashboard for the ZeroHost platform. Provides user-facing server lifecycle management (creation, renewal, suspension, deletion) backed by a Pyrodactyl/Pterodactyl panel API.
 
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/3bf1a711-9923-4089-8a12-94bbc134c41b" />
+
 ---
 
 ## Table of Contents
