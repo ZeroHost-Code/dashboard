@@ -17,6 +17,7 @@ Game server management dashboard for the ZeroHost platform. Provides user-facing
 
 ## Table of Contents
 
+- [Panel Compatibility](#panel-compatibility)
 - [Architecture Overview](#architecture-overview)
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
@@ -30,6 +31,15 @@ Game server management dashboard for the ZeroHost platform. Provides user-facing
 - [Deployment](#deployment)
 
 ---
+
+## Panel Compatibility
+
+| Panel | Status |
+|---|---|
+| Pterodactyl | ⚠️ Not fully tested |
+| Pyrodactyl | ✅ Tested — working |
+| Hydrodactyl | ✅ Tested — working |
+| Pelican | ❓ Not tested |
 
 ## Architecture Overview
 
