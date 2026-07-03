@@ -518,7 +518,7 @@ function renderLoginPage() {
           <div class="auth-error"></div>
           <div class="form-group">
             <label for="login-email">Email</label>
-            <input type="email" id="login-email" placeholder="your@email.com" required autocomplete="email webauthn" />
+            <input type="email" id="login-email" placeholder="your@email.com" required autocomplete="webauthn" />
           </div>
           <div class="form-group">
             <label for="login-password">Password</label>

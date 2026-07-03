@@ -141,7 +141,7 @@ router.post('/passkeys/login/begin', async (req, res) => {
   try {
     const { email } = req.body;
     let userId = null;
-    let allowCredentials = [];
+    let allowCredentials;
 
     if (email && typeof email === 'string') {
       const users = await query('SELECT id, email, username, auth_restricted FROM users WHERE email = ?', [email]);
@@ -174,7 +174,7 @@ router.post('/passkeys/login/begin', async (req, res) => {
     const { rpID } = getWebAuthnConfig(req);
     const options = await generateAuthenticationOptions({
       rpID,
-      allowCredentials,
+      ...(allowCredentials ? { allowCredentials } : {}),
       userVerification: 'preferred',
     });
 
@@ -193,7 +193,7 @@ router.post('/passkeys/login/begin', async (req, res) => {
 
 router.post('/passkeys/login/complete', async (req, res) => {
   try {
-    const { response, userId: bodyUserId } = req.body;
+    const { response } = req.body;
     if (!response) {
       return res.status(400).json({ error: 'Response is required' });
     }
@@ -206,29 +206,16 @@ router.post('/passkeys/login/complete', async (req, res) => {
 
     challengeMap.delete(challengeFromResponse);
 
-    let userId = bodyUserId || expectedChallenge.userId;
-    if (!userId && response.response.userHandle) {
-      const userHandleBytes = isoBase64URL.toBuffer(response.response.userHandle);
-      userId = parseInt(new TextDecoder().decode(userHandleBytes), 10);
-    }
-
-    if (!userId) {
-      return res.status(400).json({ error: 'Could not identify user. Try logging in with email.' });
-    }
-
     const passkeys = await query(
-      'SELECT id, credential_id, public_key, counter, transports FROM passkeys WHERE user_id = ?',
-      [userId]
+      'SELECT id, credential_id, public_key, counter, transports, user_id FROM passkeys WHERE credential_id = ?',
+      [response.id]
     );
 
-    const credentialId = response.id;
-    const passkey = passkeys.find(
-      k => isoBase64URL.fromBuffer(isoBase64URL.toBuffer(k.credential_id)) === credentialId
-    );
-
-    if (!passkey) {
+    if (!passkeys.length) {
       return res.status(400).json({ error: 'Passkey not found' });
     }
+
+    const passkey = passkeys[0];
 
     const { rpID, origin } = getWebAuthnConfig(req);
     const verification = await verifyAuthenticationResponse({
@@ -253,7 +240,7 @@ router.post('/passkeys/login/complete', async (req, res) => {
       passkey.id,
     ]);
 
-    const users = await query('SELECT id, email, username, ptero_user_id, is_admin, restricted, token_version FROM users WHERE id = ?', [userId]);
+    const users = await query('SELECT id, email, username, ptero_user_id, is_admin, restricted, token_version FROM users WHERE id = ?', [passkey.user_id]);
     if (!users.length) {
       return res.status(404).json({ error: 'User not found' });
     }
