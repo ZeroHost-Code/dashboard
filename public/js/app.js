@@ -1414,6 +1414,7 @@ async function renderServers() {
         </div>
       `;
       $('#servers-empty-create-btn').addEventListener('click', () => navigateTo('create'));
+      initIcons();
       return;
     }
 
