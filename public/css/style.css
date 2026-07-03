@@ -2463,7 +2463,7 @@ tbody tr:hover {
 }
 
 .wizard-content-wrapper {
-  overflow: hidden;
+  overflow: visible;
   position: relative;
 }
 
