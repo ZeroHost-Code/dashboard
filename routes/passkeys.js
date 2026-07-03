@@ -66,11 +66,16 @@ router.post('/passkeys/register/begin', authenticateToken, async (req, res) => {
       attestationType: 'none',
       excludeCredentials,
       userId: new TextEncoder().encode(String(userId).padStart(16, '0')),
+      authenticatorSelection: {
+        residentKey: 'required',
+        userVerification: 'preferred',
+      },
     });
 
-    challengeMap.set(userId, {
+    challengeMap.set(options.challenge, {
       challenge: options.challenge,
       timestamp: Date.now(),
+      userId,
     });
 
     res.json({ options });
@@ -89,12 +94,13 @@ router.post('/passkeys/register/complete', authenticateToken, async (req, res) =
       return res.status(400).json({ error: 'Registration response is required' });
     }
 
-    const expectedChallenge = challengeMap.get(userId);
+    const challengeFromResponse = JSON.parse(isoBase64URL.toUTF8String(response.response.clientDataJSON)).challenge;
+    const expectedChallenge = challengeMap.get(challengeFromResponse);
     if (!expectedChallenge) {
       return res.status(400).json({ error: 'No registration in progress. Please try again.' });
     }
 
-    challengeMap.delete(userId);
+    challengeMap.delete(challengeFromResponse);
 
     const { rpID, origin } = getWebAuthnConfig(req);
     const verification = await verifyRegistrationResponse({
@@ -134,34 +140,36 @@ router.post('/passkeys/register/complete', authenticateToken, async (req, res) =
 router.post('/passkeys/login/begin', async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email || typeof email !== 'string') {
-      return res.status(400).json({ error: 'Email is required' });
+    let userId = null;
+    let allowCredentials = [];
+
+    if (email && typeof email === 'string') {
+      const users = await query('SELECT id, email, username, auth_restricted FROM users WHERE email = ?', [email]);
+      if (!users.length) {
+        return res.status(404).json({ error: 'No account found with this email' });
+      }
+
+      const user = users[0];
+      if (user.auth_restricted) {
+        return res.status(403).json({ error: 'Your account has been restricted. Contact support for assistance.' });
+      }
+
+      userId = user.id;
+      const passkeys = await query(
+        'SELECT id, credential_id, transports FROM passkeys WHERE user_id = ?',
+        [user.id]
+      );
+
+      if (!passkeys.length) {
+        return res.status(404).json({ error: 'No passkeys registered for this account' });
+      }
+
+      allowCredentials = passkeys.map(k => ({
+        id: k.credential_id,
+        type: 'public-key',
+        transports: k.transports ? k.transports.split(',') : ['internal'],
+      }));
     }
-
-    const users = await query('SELECT id, email, username, auth_restricted FROM users WHERE email = ?', [email]);
-    if (!users.length) {
-      return res.status(404).json({ error: 'No account found with this email' });
-    }
-
-    const user = users[0];
-    if (user.auth_restricted) {
-      return res.status(403).json({ error: 'Your account has been restricted. Contact support for assistance.' });
-    }
-
-    const passkeys = await query(
-      'SELECT id, credential_id, transports FROM passkeys WHERE user_id = ?',
-      [user.id]
-    );
-
-    if (!passkeys.length) {
-      return res.status(404).json({ error: 'No passkeys registered for this account' });
-    }
-
-    const allowCredentials = passkeys.map(k => ({
-      id: k.credential_id,
-      type: 'public-key',
-      transports: k.transports ? k.transports.split(',') : ['internal'],
-    }));
 
     const { rpID } = getWebAuthnConfig(req);
     const options = await generateAuthenticationOptions({
@@ -170,14 +178,13 @@ router.post('/passkeys/login/begin', async (req, res) => {
       userVerification: 'preferred',
     });
 
-    challengeMap.set(`login:${user.id}`, {
+    challengeMap.set(options.challenge, {
       challenge: options.challenge,
       timestamp: Date.now(),
-      email,
-      userId: user.id,
+      userId,
     });
 
-    res.json({ options, userId: user.id });
+    res.json({ options, userId });
   } catch (err) {
     console.error('Passkey login begin error:', err.message);
     res.status(500).json({ error: 'Failed to initiate passkey login' });
@@ -186,17 +193,28 @@ router.post('/passkeys/login/begin', async (req, res) => {
 
 router.post('/passkeys/login/complete', async (req, res) => {
   try {
-    const { response, userId } = req.body;
-    if (!response || !userId) {
-      return res.status(400).json({ error: 'Response and userId are required' });
+    const { response, userId: bodyUserId } = req.body;
+    if (!response) {
+      return res.status(400).json({ error: 'Response is required' });
     }
 
-    const expectedChallenge = challengeMap.get(`login:${userId}`);
+    const challengeFromResponse = JSON.parse(isoBase64URL.toUTF8String(response.response.clientDataJSON)).challenge;
+    const expectedChallenge = challengeMap.get(challengeFromResponse);
     if (!expectedChallenge) {
       return res.status(400).json({ error: 'No login in progress. Please try again.' });
     }
 
-    challengeMap.delete(`login:${userId}`);
+    challengeMap.delete(challengeFromResponse);
+
+    let userId = bodyUserId || expectedChallenge.userId;
+    if (!userId && response.response.userHandle) {
+      const userHandleBytes = isoBase64URL.toBuffer(response.response.userHandle);
+      userId = parseInt(new TextDecoder().decode(userHandleBytes), 10);
+    }
+
+    if (!userId) {
+      return res.status(400).json({ error: 'Could not identify user. Try logging in with email.' });
+    }
 
     const passkeys = await query(
       'SELECT id, credential_id, public_key, counter, transports FROM passkeys WHERE user_id = ?',

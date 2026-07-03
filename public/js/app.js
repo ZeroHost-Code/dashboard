@@ -518,7 +518,7 @@ function renderLoginPage() {
           <div class="auth-error"></div>
           <div class="form-group">
             <label for="login-email">Email</label>
-            <input type="email" id="login-email" placeholder="your@email.com" required autocomplete="email" />
+            <input type="email" id="login-email" placeholder="your@email.com" required autocomplete="email webauthn" />
           </div>
           <div class="form-group">
             <label for="login-password">Password</label>
@@ -548,6 +548,8 @@ function renderLoginPage() {
     e.preventDefault();
     navigateTo('signup');
   });
+
+  setupPasskeyAutofill();
 }
 
 function renderRegisterPage() {
@@ -634,47 +636,73 @@ async function handleLogin(e) {
   }
 }
 
+async function completePasskeyLogin(credential) {
+  const data = await api('/auth/passkeys/login/complete', {
+    method: 'POST',
+    body: JSON.stringify({
+      response: serializeCredential(credential),
+    }),
+  });
+  state.token = data.token;
+  state.user = data.user;
+  localStorage.setItem('zh_token', data.token);
+  localStorage.setItem('zh_user', JSON.stringify(data.user));
+  history.replaceState({ page: 'overview' }, '', '/');
+  renderDashboard();
+}
+
+let passkeyAbortController = null;
+
+async function setupPasskeyAutofill() {
+  if (passkeyAbortController) {
+    passkeyAbortController.abort();
+    passkeyAbortController = null;
+  }
+  if (!navigator.credentials || typeof navigator.credentials.get !== 'function') return;
+
+  try {
+    const beginData = await api('/auth/passkeys/login/begin', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+
+    passkeyAbortController = new AbortController();
+    const credential = await navigator.credentials.get({
+      publicKey: prepareWebAuthnOptions(beginData.options),
+      mediation: 'conditional',
+      signal: passkeyAbortController.signal,
+    });
+
+    if (credential) {
+      await completePasskeyLogin(credential);
+    }
+  } catch (err) {
+    if (err.name === 'AbortError' || err.name === 'NotAllowedError') return;
+    console.error('Passkey autofill error:', err.message);
+  }
+}
+
 async function handlePasskeyLogin() {
   const btn = $('#passkey-login-btn');
   const errorEl = $('#login-form .auth-error');
   if (errorEl) errorEl.classList.remove('show');
 
-  const email = $('#login-email').value.trim();
-  if (!email) {
-    if (errorEl) {
-      errorEl.textContent = 'Enter your email first, then click Sign in with Passkey.';
-      errorEl.classList.add('show');
-    }
-    return;
-  }
-
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>';
 
   try {
+    const email = $('#login-email').value.trim();
+    const body = email ? { email } : {};
     const beginData = await api('/auth/passkeys/login/begin', {
       method: 'POST',
-      body: JSON.stringify({ email }),
+      body: JSON.stringify(body),
     });
 
     const credential = await navigator.credentials.get({
       publicKey: prepareWebAuthnOptions(beginData.options),
     });
 
-    const completeData = await api('/auth/passkeys/login/complete', {
-      method: 'POST',
-      body: JSON.stringify({
-        userId: beginData.userId,
-        response: serializeCredential(credential),
-      }),
-    });
-
-    state.token = completeData.token;
-    state.user = completeData.user;
-    localStorage.setItem('zh_token', completeData.token);
-    localStorage.setItem('zh_user', JSON.stringify(completeData.user));
-    history.replaceState({ page: 'overview' }, '', '/');
-    renderDashboard();
+    await completePasskeyLogin(credential);
   } catch (err) {
     if (errorEl) {
       errorEl.textContent = err.message;
@@ -1017,6 +1045,10 @@ function initSidebarTooltip() {
 
 function navigateTo(page) {
   if (state.notifPanelOpen) closeNotifPanel();
+  if (passkeyAbortController) {
+    passkeyAbortController.abort();
+    passkeyAbortController = null;
+  }
   const parts = page.split('/');
   let basePage = parts[0] || 'overview';
   const param = parts[1];
