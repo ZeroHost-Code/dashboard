@@ -239,7 +239,7 @@ a:hover { color: var(--accent-1); }
   display: none;
 }
 
-.custom-select-dropdown.open {
+.custom-select.open .custom-select-dropdown {
   display: block;
 }
 
