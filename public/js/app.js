@@ -126,7 +126,7 @@ function md5(s) {
 
 function gravatarUrl(email, size = 32) {
   if (!email) return '';
-  const hash = md5(email.trim().toLowerCase());
+  const hash = state.user?.gravatarHash || md5(email.trim().toLowerCase());
   return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=identicon`;
 }
 

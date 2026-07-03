@@ -7,6 +7,7 @@ import {
 } from '@simplewebauthn/server';
 import { isoBase64URL } from '@simplewebauthn/server/helpers';
 import { authenticateToken } from '../middleware/auth.js';
+import { createHash } from 'crypto';
 import { query } from '../config/db.js';
 import { generateToken } from '../middleware/auth.js';
 import { logActivity } from '../services/activity.js';
@@ -14,6 +15,10 @@ import { logActivity } from '../services/activity.js';
 const router = Router();
 
 const RP_NAME = 'ZeroHost';
+
+function gravatarHash(email) {
+  return createHash('md5').update(email.trim().toLowerCase()).digest('hex');
+}
 
 function getWebAuthnConfig(req) {
   if (process.env.WEBAUTHN_ORIGIN && process.env.WEBAUTHN_RP_ID) {
@@ -268,6 +273,7 @@ router.post('/passkeys/login/complete', async (req, res) => {
         pteroId: user.ptero_user_id,
         isAdmin: !!user.is_admin,
         restricted: !!user.restricted,
+        gravatarHash: gravatarHash(user.email),
       },
     });
   } catch (err) {

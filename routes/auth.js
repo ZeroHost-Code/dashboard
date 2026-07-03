@@ -2,6 +2,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
+import { createHash } from 'crypto';
 
 import { query } from '../config/db.js';
 import { generateToken, authenticateToken } from '../middleware/auth.js';
@@ -10,6 +11,10 @@ import { verifyCap } from '../config/cap.js';
 import { logActivity } from '../services/activity.js';
 
 const router = Router();
+
+function gravatarHash(email) {
+  return createHash('md5').update(email.trim().toLowerCase()).digest('hex');
+}
 
 const loginAttempts = new Map();
 
@@ -215,6 +220,7 @@ router.post('/register', async (req, res) => {
         lastName: 'User',
         isAdmin: false,
         restricted: false,
+        gravatarHash: gravatarHash(email),
       },
     });
   } catch (err) {
@@ -309,6 +315,7 @@ router.post('/login', async (req, res) => {
         lastName: user.last_name,
         isAdmin: !!user.is_admin,
         restricted: !!user.restricted,
+        gravatarHash: gravatarHash(user.email),
       },
     });
   } catch (err) {
@@ -439,6 +446,7 @@ router.post('/change-email', authenticateToken, sensitiveLimiter, async (req, re
         firstName: user.first_name,
         lastName: user.last_name,
         isAdmin: !!user.is_admin,
+        gravatarHash: gravatarHash(newEmail),
       },
       message: 'Email updated successfully',
     });
