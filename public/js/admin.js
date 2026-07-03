@@ -519,7 +519,7 @@ async function renderAdminServerDetail(serverId) {
       </div>
     `;
 
-    initAdminTabs();
+    initAdminTabs(serverId);
     initAdminActions(serverId);
     initIcons();
   } catch (err) {
@@ -535,7 +535,7 @@ async function renderAdminServerDetail(serverId) {
   }
 }
 
-function initAdminTabs() {
+function initAdminTabs(serverId) {
   const tabs = $a('#admin-server-tabs');
   if (!tabs) return;
   const indicator = $a('#admin-tab-indicator');
@@ -554,6 +554,8 @@ function initAdminTabs() {
       indicator.style.left = tabBtn.offsetLeft + 'px';
       indicator.style.width = tabBtn.offsetWidth + 'px';
     }
+
+    history.pushState({ adminPage: 'server', serverId, tab: tabName }, '', `/admin/server/${serverId}/${tabName}`);
   }
 
   btns.forEach(btn => {
@@ -564,6 +566,16 @@ function initAdminTabs() {
   });
 
   // Set initial indicator position
+  const pathParts = window.location.pathname.replace('/admin/', '').split('/');
+  const tabFromUrl = pathParts[2];
+  if (tabFromUrl) {
+    const tabBtn = Array.from(btns).find(b => b.dataset.tab === tabFromUrl);
+    if (tabBtn) {
+      switchTab(tabBtn);
+      return;
+    }
+  }
+
   const activeBtn = tabs.querySelector('.tab.active');
   if (activeBtn && indicator) {
     indicator.style.left = activeBtn.offsetLeft + 'px';
@@ -806,12 +818,18 @@ function showNotifyAllModal() {
         </div>
         <div class="form-group" style="margin-bottom:16px">
           <label for="admin-notify-all-type">Type</label>
-          <select id="admin-notify-all-type" style="width:100%">
-            <option value="info">Info</option>
-            <option value="success">Success</option>
-            <option value="warning">Warning</option>
-            <option value="error">Error</option>
-          </select>
+          <div class="custom-select" id="admin-notify-all-type">
+            <div class="custom-select-trigger" tabindex="0">
+              <span class="custom-select-label">Info</span>
+              <i data-lucide="chevron-down" class="custom-select-arrow" style="width:16px;height:16px"></i>
+            </div>
+            <div class="custom-select-dropdown">
+              <div class="custom-select-option" data-value="info">Info</div>
+              <div class="custom-select-option" data-value="success">Success</div>
+              <div class="custom-select-option" data-value="warning">Warning</div>
+              <div class="custom-select-option" data-value="error">Error</div>
+            </div>
+          </div>
         </div>
         <div style="display:flex;gap:8px">
           <button type="submit" class="btn btn-primary btn-full" id="admin-btn-send-notify-all" style="justify-content:center">Send to All Users</button>
@@ -822,6 +840,29 @@ function showNotifyAllModal() {
     </div>
   `;
   overlay.style.display = 'flex';
+  initIcons();
+
+  const nTypeSelect = $a('#admin-notify-all-type');
+  if (nTypeSelect) {
+    const nTrigger = nTypeSelect.querySelector('.custom-select-trigger');
+    const nLabel = nTypeSelect.querySelector('.custom-select-label');
+    nTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.custom-select.open').forEach(s => s.classList.remove('open'));
+      nTypeSelect.classList.add('open');
+    });
+    nTypeSelect.querySelectorAll('.custom-select-option').forEach(opt => {
+      opt.addEventListener('click', (e) => {
+        e.stopPropagation();
+        nLabel.textContent = opt.textContent;
+        nTypeSelect.dataset.selectedValue = opt.dataset.value;
+        nTypeSelect.classList.remove('open');
+      });
+    });
+    document.addEventListener('click', () => {
+      nTypeSelect.classList.remove('open');
+    });
+  }
 
   $a('#admin-notify-all-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -829,7 +870,6 @@ function showNotifyAllModal() {
     const msgEl = $a('#admin-notify-all-msg');
     const titleEl = $a('#admin-notify-all-title');
     const messageEl = $a('#admin-notify-all-message');
-    const typeEl = $a('#admin-notify-all-type');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Sending...';
     if (msgEl) msgEl.style.display = 'none';
@@ -839,7 +879,7 @@ function showNotifyAllModal() {
         body: JSON.stringify({
           title: titleEl.value.trim(),
           message: messageEl.value.trim(),
-          type: typeEl.value,
+          type: nTypeSelect.dataset.selectedValue || 'info',
         }),
       });
       if (msgEl) { msgEl.textContent = `Notification sent to ${data.count} user(s) successfully`; msgEl.style.display = 'block'; msgEl.style.color = 'var(--accent-green)'; }
@@ -1129,7 +1169,7 @@ async function renderAdminUserDetail(userId) {
       <div id="admin-user-action-msg" style="margin-top:12px;display:none"></div>
     `;
 
-    initUserTabs();
+    initUserTabs(userId);
     initUserActions(userId);
     initIcons();
   } catch (err) {
@@ -1145,7 +1185,7 @@ async function renderAdminUserDetail(userId) {
   }
 }
 
-function initUserTabs() {
+function initUserTabs(userId) {
   const tabs = $a('#admin-user-tabs');
   if (!tabs) return;
   const indicator = $a('#admin-user-tab-indicator');
@@ -1164,6 +1204,8 @@ function initUserTabs() {
       indicator.style.left = tabBtn.offsetLeft + 'px';
       indicator.style.width = tabBtn.offsetWidth + 'px';
     }
+
+    history.pushState({ adminPage: 'user', userId, tab: tabName }, '', `/admin/user/${userId}/${tabName}`);
   }
 
   btns.forEach(btn => {
@@ -1172,6 +1214,16 @@ function initUserTabs() {
       switchTab(btn);
     });
   });
+
+  const pathParts = window.location.pathname.replace('/admin/', '').split('/');
+  const tabFromUrl = pathParts[2];
+  if (tabFromUrl) {
+    const tabBtn = Array.from(btns).find(b => b.dataset.tab === tabFromUrl);
+    if (tabBtn) {
+      switchTab(tabBtn);
+      return;
+    }
+  }
 
   const activeBtn = tabs.querySelector('.tab.active');
   if (activeBtn && indicator) {
@@ -1913,10 +1965,24 @@ window.addEventListener('popstate', () => {
     $a('#admin-page-server-detail')?.classList.add('active');
     $a('#admin-page-servers')?.classList.remove('active');
     renderAdminServerDetail(pid);
+    const tab = pathParts[2];
+    if (tab) {
+      setTimeout(() => {
+        const tabBtn = document.querySelector('#admin-server-tabs .tab[data-tab="' + tab + '"]');
+        if (tabBtn) tabBtn.click();
+      }, 50);
+    }
   } else if (basePage === 'user' && param) {
     const uid = parseInt(param, 10);
     $a('#admin-page-user-detail')?.classList.add('active');
     renderAdminUserDetail(uid);
+    const tab = pathParts[2];
+    if (tab) {
+      setTimeout(() => {
+        const tabBtn = document.querySelector('#admin-user-tabs .tab[data-tab="' + tab + '"]');
+        if (tabBtn) tabBtn.click();
+      }, 50);
+    }
   } else if (basePage === 'users') {
     adminNavigateTo('users');
   } else if (basePage === 'dashboard' || !basePage || basePage === 'login') {
