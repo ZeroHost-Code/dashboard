@@ -1682,9 +1682,9 @@ function renderSummaryStep() {
     <div class="card" style="margin-top:20px;max-width:480px">
       <div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px">Default Resources</div>
       <div style="display:flex;gap:12px;flex-wrap:wrap">
-        <span class="server-detail-tag">512 MB RAM</span>
-        <span class="server-detail-tag">50% CPU</span>
-        <span class="server-detail-tag">3 GB Disk</span>
+        <span class="server-detail-tag">${egg?.memory_limit != null ? egg.memory_limit + ' MB' : '512 MB'} RAM</span>
+        <span class="server-detail-tag">${egg?.cpu_limit != null ? egg.cpu_limit + '%' : '50%'} CPU</span>
+        <span class="server-detail-tag">${egg?.disk_limit != null ? (egg.disk_limit / 1024).toFixed(1) + ' GB' : '3 GB'} Disk</span>
       </div>
     </div>
     <div style="margin:20px 0;width:100%">

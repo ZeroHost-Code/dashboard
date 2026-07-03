@@ -126,10 +126,10 @@ router.get('/nests', authenticateToken, async (req, res) => {
       nestMap[n.ptero_nest_id] = n;
     }
 
-    const eggResources = await query('SELECT ptero_nest_id, ptero_egg_id, logo FROM egg_resources');
-    const eggLogoMap = {};
+    const eggResources = await query('SELECT ptero_nest_id, ptero_egg_id, logo, cpu_limit, memory_limit, disk_limit FROM egg_resources');
+    const eggResMap = {};
     for (const r of eggResources) {
-      eggLogoMap[`${r.ptero_nest_id}-${r.ptero_egg_id}`] = r.logo;
+      eggResMap[`${r.ptero_nest_id}-${r.ptero_egg_id}`] = r;
     }
 
     const result = [];
@@ -137,12 +137,16 @@ router.get('/nests', authenticateToken, async (req, res) => {
     for (const { nest, egg } of eggs) {
       if (!nestEggs[nest]) nestEggs[nest] = [];
       const key = `${nest}-${egg.id}`;
+      const res = eggResMap[key] || {};
       nestEggs[nest].push({
         eggId: egg.id,
         name: egg.name,
         description: egg.description || '',
         dockerImages: egg.docker_images || {},
-        logo: eggLogoMap[key] || null,
+        logo: res.logo || null,
+        cpu_limit: res.cpu_limit ?? null,
+        memory_limit: res.memory_limit ?? null,
+        disk_limit: res.disk_limit ?? null,
       });
     }
 
