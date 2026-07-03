@@ -1,10 +1,9 @@
 # ZeroHost Dashboard
 
 Game server management dashboard for the ZeroHost platform. Provides user-facing server lifecycle management (creation, renewal, suspension, deletion) backed by a panel API.
-
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/3bf1a711-9923-4089-8a12-94bbc134c41b" />
 [![ZeroHost](https://img.zero-host.org/assets/github.png)](https://github.com/ZeroHost-Code/legal/blob/main/zhsl.md)
 
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/3bf1a711-9923-4089-8a12-94bbc134c41b" />
 
 ---
 
