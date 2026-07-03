@@ -12,6 +12,8 @@ const state = {
   notifications: [],
   unreadCount: 0,
   notifPanelOpen: false,
+  sidebarMode: 'main',
+  accountTab: 'info',
 };
 
 function setRgpdConsent(preferences) {
@@ -829,57 +831,36 @@ async function renderDashboard() {
             <span class="sidebar-logo-text">Zero<span style="color:var(--accent-3)">Host</span></span>
           </a>
         </div>
-        <nav class="sidebar-nav">
-          <div class="nav-indicator" id="nav-indicator"></div>
-          <div class="nav-section-label">Main</div>
-          <a class="nav-item active" data-page="overview" href="/">
-            <i data-lucide="grid-3x3"></i>
-            Overview
-          </a>
-          <a class="nav-item" data-page="servers" href="/servers">
-            <i data-lucide="server"></i>
-            My Servers
-          </a>
-          <a class="nav-item" id="nav-notifications" href="#">
-            <span style="position:relative;display:inline-flex">
-              <i data-lucide="bell"></i>
-              <span class="notif-badge" id="notif-badge"></span>
-            </span>
-            Notifications
-          </a>
-          <div class="nav-section-label">Actions</div>
-          <a class="nav-item" data-page="create" href="/create">
-            <i data-lucide="plus"></i>
-            Create Server
-          </a>
-          <div class="nav-section-label">Links</div>
-          <a class="nav-item" href="https://hub.zero-host.org" target="_blank">
-            <i data-lucide="globe"></i>
-            Links Hub
-          </a>
-          <a class="nav-item" href="${window.location.hostname === 'beta.zero-host.org' ? 'https://dashboard.zero-host.org' : 'https://beta.zero-host.org'}" target="_blank">
-            <i data-lucide="globe"></i>
-            ${window.location.hostname === 'beta.zero-host.org' ? 'Switch to Stable' : 'Switch to Beta'}
-          </a>
-          ${state.user?.isAdmin ? html`
-          <a class="nav-item" href="/admin">
-            <i data-lucide="shield"></i>
-            Switch Admin
-          </a>
-          ` : ''}
-        </nav>
+        <nav class="sidebar-nav" id="sidebar-nav"></nav>
         <div class="sidebar-tooltip" id="sidebar-tooltip"></div>
         <div class="sidebar-footer">
-          <div class="user-info" id="sidebar-user-info" style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer">
-            <div style="display:flex;align-items:center;gap:10px">
-              <div class="user-avatar" id="avatar-container"><img src="${gravatarUrl(state.user?.email, 32)}" alt="" width="32" height="32" style="border-radius:50%;width:32px;height:32px;object-fit:cover"/></div>
-              <div>
-                <div class="user-name">${state.user?.username || 'User'}</div>
-                <div class="user-email">${state.user?.email || ''}</div>
+          <div class="sidebar-user-wrapper">
+            <div class="user-info" id="sidebar-user-info" style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer">
+              <div style="display:flex;align-items:center;gap:10px">
+                <div class="user-avatar" id="avatar-container"><img src="${gravatarUrl(state.user?.email, 32)}" alt="" width="32" height="32" style="border-radius:50%;width:32px;height:32px;object-fit:cover"/></div>
+                <div>
+                  <div class="user-name">${state.user?.username || 'User'}</div>
+                  <div class="user-email">${state.user?.email || ''}</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:4px">
+                <div id="logout-btn" style="cursor:pointer;color:var(--text-muted);display:flex;align-items:center;padding:6px;border-radius:var(--radius-sm);transition:all var(--transition)" title="Sign Out">
+                  <i data-lucide="log-out" style="width:18px;height:18px"></i>
+                </div>
+                <div class="sidebar-user-chevron" id="sidebar-user-chevron" style="cursor:pointer;color:var(--text-muted);display:flex;align-items:center;padding:6px;border-radius:var(--radius-sm);transition:all var(--transition)" title="Account">
+                  <i data-lucide="chevron-up" style="width:16px;height:16px"></i>
+                </div>
               </div>
             </div>
-            <div id="logout-btn" style="cursor:pointer;color:var(--text-muted);display:flex;align-items:center;padding:6px;border-radius:var(--radius-sm);transition:all var(--transition)" title="Sign Out">
-              <i data-lucide="log-out" style="width:18px;height:18px"></i>
+            <div class="sidebar-user-dropdown" id="sidebar-user-dropdown">
+              <a class="sidebar-user-dropdown-item" id="user-dropdown-settings">
+                <i data-lucide="settings" style="width:16px;height:16px"></i>
+                Settings
+              </a>
+              <a class="sidebar-user-dropdown-item" id="user-dropdown-logout">
+                <i data-lucide="log-out" style="width:16px;height:16px"></i>
+                Logout
+              </a>
             </div>
           </div>
           <div style="border-top:1px solid var(--border);margin:6px -12px 0"></div>
@@ -926,14 +907,6 @@ async function renderDashboard() {
     </div>
   `;
 
-  document.querySelectorAll('.nav-item[data-page]').forEach(item => {
-    item.addEventListener('click', (e) => {
-      e.preventDefault();
-      const page = item.dataset.page;
-      navigateTo(page);
-    });
-  });
-
   $('#logout-btn').addEventListener('click', async () => {
     try { await api('/auth/logout', { method: 'POST' }); } catch {}
     state.token = null;
@@ -944,13 +917,34 @@ async function renderDashboard() {
   });
 
   $('#sidebar-user-info').addEventListener('click', (e) => {
-    if (e.target.closest('#logout-btn')) return;
-    navigateTo('account');
+    if (e.target.closest('#logout-btn') || e.target.closest('.sidebar-user-dropdown') || e.target.closest('#sidebar-user-chevron')) return;
+    if ($('#sidebar').classList.contains('collapsed')) {
+      navigateTo('account/info');
+    } else {
+      toggleUserDropdown();
+    }
   });
 
-  $('#nav-notifications').addEventListener('click', (e) => {
+  $('#sidebar-user-chevron').addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleUserDropdown();
+  });
+
+  $('#user-dropdown-settings').addEventListener('click', (e) => {
     e.preventDefault();
-    toggleNotifPanel();
+    closeUserDropdown();
+    navigateTo('account/info');
+  });
+
+  $('#user-dropdown-logout').addEventListener('click', async (e) => {
+    e.preventDefault();
+    closeUserDropdown();
+    try { await api('/auth/logout', { method: 'POST' }); } catch {}
+    state.token = null;
+    state.user = null;
+    localStorage.removeItem('zh_token');
+    localStorage.removeItem('zh_user');
+    navigateTo('login');
   });
 
   $('#notif-backdrop').addEventListener('click', closeNotifPanel);
@@ -969,6 +963,8 @@ async function renderDashboard() {
   initSidebarResize();
 
   initSidebarTooltip();
+
+  renderSidebarNav();
 
   initIcons();
 
@@ -1028,6 +1024,134 @@ function initSidebarTooltip() {
   });
 }
 
+function renderSidebarNav() {
+  const nav = $('#sidebar-nav');
+  if (!nav) return;
+
+  if (state.sidebarMode === 'account') {
+    nav.innerHTML = html`
+      <div class="nav-indicator" id="nav-indicator"></div>
+      <div class="nav-section-label">Account</div>
+      <a class="nav-item ${state.accountTab === 'info' ? 'active' : ''}" data-account-page="info" href="/account/info">
+        <i data-lucide="user"></i>
+        Account Info
+      </a>
+      <a class="nav-item ${state.accountTab === 'security' ? 'active' : ''}" data-account-page="security" href="/account/security">
+        <i data-lucide="lock"></i>
+        Security
+      </a>
+      <a class="nav-item ${state.accountTab === 'logs' ? 'active' : ''}" data-account-page="logs" href="/account/logs">
+        <i data-lucide="file-text"></i>
+        Logs
+      </a>
+      <a class="nav-item ${state.accountTab === 'dangerous' ? 'active' : ''}" data-account-page="dangerous" href="/account/dangerous">
+        <i data-lucide="triangle-alert"></i>
+        Dangerous
+      </a>
+      <div style="margin-top:auto;padding-top:16px;border-top:1px solid var(--border);margin-left:12px;margin-right:12px"></div>
+      <a class="nav-item" data-page="overview" href="/">
+        <i data-lucide="arrow-left"></i>
+        Back to Dashboard
+      </a>
+    `;
+  } else {
+    nav.innerHTML = html`
+      <div class="nav-indicator" id="nav-indicator"></div>
+      <div class="nav-section-label">Main</div>
+      <a class="nav-item ${state.currentPage === 'overview' ? 'active' : ''}" data-page="overview" href="/">
+        <i data-lucide="grid-3x3"></i>
+        Overview
+      </a>
+      <a class="nav-item ${state.currentPage === 'servers' ? 'active' : ''}" data-page="servers" href="/servers">
+        <i data-lucide="server"></i>
+        My Servers
+      </a>
+      <a class="nav-item" id="nav-notifications" href="#">
+        <span style="position:relative;display:inline-flex">
+          <i data-lucide="bell"></i>
+          <span class="notif-badge" id="notif-badge"></span>
+        </span>
+        Notifications
+      </a>
+      <div class="nav-section-label">Actions</div>
+      <a class="nav-item ${state.currentPage === 'create' ? 'active' : ''}" data-page="create" href="/create">
+        <i data-lucide="plus"></i>
+        Create Server
+      </a>
+      <div class="nav-section-label">Links</div>
+      <a class="nav-item" href="https://hub.zero-host.org" target="_blank">
+        <i data-lucide="globe"></i>
+        Links Hub
+      </a>
+      <a class="nav-item" href="${window.location.hostname === 'beta.zero-host.org' ? 'https://dashboard.zero-host.org' : 'https://beta.zero-host.org'}" target="_blank">
+        <i data-lucide="globe"></i>
+        ${window.location.hostname === 'beta.zero-host.org' ? 'Switch to Stable' : 'Switch to Beta'}
+      </a>
+      ${state.user?.isAdmin ? html`
+      <a class="nav-item" href="/admin">
+        <i data-lucide="shield"></i>
+        Switch Admin
+      </a>
+      ` : ''}
+    `;
+  }
+
+  document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.preventDefault();
+      navigateTo(item.dataset.page);
+    });
+  });
+
+  document.querySelectorAll('.nav-item[data-account-page]').forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.preventDefault();
+      navigateTo('account/' + item.dataset.accountPage);
+    });
+  });
+
+  const notifItem = document.querySelector('#nav-notifications');
+  if (notifItem) {
+    notifItem.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggleNotifPanel();
+    });
+  }
+
+  updateNavIndicator();
+  initIcons();
+}
+
+let userDropdownOpen = false;
+
+function toggleUserDropdown() {
+  const dropdown = $('#sidebar-user-dropdown');
+  const chevron = $('#sidebar-user-chevron');
+  if (!dropdown) return;
+  userDropdownOpen = !userDropdownOpen;
+  dropdown.classList.toggle('open', userDropdownOpen);
+  if (chevron) {
+    chevron.style.transform = userDropdownOpen ? 'rotate(180deg)' : '';
+  }
+}
+
+function closeUserDropdown() {
+  const dropdown = $('#sidebar-user-dropdown');
+  const chevron = $('#sidebar-user-chevron');
+  if (!dropdown) return;
+  userDropdownOpen = false;
+  dropdown.classList.remove('open');
+  if (chevron) {
+    chevron.style.transform = '';
+  }
+}
+
+document.addEventListener('click', (e) => {
+  if (userDropdownOpen && !e.target.closest('.sidebar-user-wrapper')) {
+    closeUserDropdown();
+  }
+});
+
 function navigateTo(page) {
   if (state.notifPanelOpen) closeNotifPanel();
   if (passkeyAbortController) {
@@ -1075,8 +1199,16 @@ function navigateTo(page) {
   state.currentPage = basePage;
   state.serverId = param ? parseInt(param) : null;
   state.serverDetailTab = tab || 'info';
+
+  const isAccountPage = basePage === 'account';
+  const newSidebarMode = isAccountPage ? 'account' : 'main';
+  if (state.sidebarMode !== newSidebarMode) {
+    state.sidebarMode = newSidebarMode;
+    renderSidebarNav();
+  }
+
   const url = basePage === 'overview' && !param ? '/' : `/${page}`;
-  history.pushState({ page: basePage, serverId: state.serverId }, '', url);
+  history.pushState({ page: basePage, serverId: state.serverId, sidebarMode: state.sidebarMode }, '', url);
 
   if (basePage === 'server' && state.serverId) {
     const targetPage = $('#page-server-detail');
@@ -1123,9 +1255,9 @@ function navigateTo(page) {
     }
     else if (basePage === 'pyrodactyl') renderPyrodactyl();
     else if (basePage === 'account') {
-      if (param === 'edit') renderAccountEdit();
-      else if (param === 'dangerous') renderDangerous();
-      else renderAccount();
+      const accountTab = param || 'info';
+      state.accountTab = accountTab;
+      renderAccountTab(accountTab);
     } else if (basePage === 'logs') {
       renderLog();
     }
@@ -1176,6 +1308,13 @@ window.addEventListener('popstate', () => {
   state.serverId = param ? parseInt(param) : null;
   state.serverDetailTab = tab || 'info';
 
+  const isAccountPage = basePage === 'account';
+  const newSidebarMode = isAccountPage ? 'account' : 'main';
+  if (state.sidebarMode !== newSidebarMode) {
+    state.sidebarMode = newSidebarMode;
+    renderSidebarNav();
+  }
+
   if (basePage === 'server' && state.serverId) {
     const targetPage = $('#page-server-detail');
     if (targetPage) targetPage.classList.add('active');
@@ -1221,9 +1360,9 @@ window.addEventListener('popstate', () => {
     }
     else if (basePage === 'pyrodactyl') renderPyrodactyl();
     else if (basePage === 'account') {
-      if (param === 'edit') renderAccountEdit();
-      else if (param === 'dangerous') renderDangerous();
-      else renderAccount();
+      const accountTab = param || 'info';
+      state.accountTab = accountTab;
+      renderAccountTab(accountTab);
     } else if (basePage === 'logs') {
       renderLog();
     }
@@ -2032,189 +2171,230 @@ function renderPyrodactyl() {
 }
 
 // ===== ACCOUNT PAGE =====
-function renderAccount() {
+function renderAccountTab(tab) {
   const el = $('#page-account');
+  state.accountTab = tab;
+
+  const pageTitle = {
+    info: 'Account Info',
+    security: 'Security',
+    logs: 'Activity Log',
+    dangerous: 'Dangerous Zone',
+  }[tab] || 'Account';
+
+  const pageSubtitle = {
+    info: 'Manage your account details and API keys',
+    security: 'Password and authentication settings',
+    logs: 'All account activity',
+    dangerous: 'Delete your account or export your data (RGPD)',
+  }[tab] || '';
+
   el.innerHTML = html`
     <div class="page-header">
-      <h1 class="page-title">Account</h1>
-      <p class="page-subtitle">Manage your account settings</p>
+      <h1 class="page-title">${pageTitle}</h1>
+      <p class="page-subtitle">${pageSubtitle}</p>
     </div>
-    <div class="account-grid">
-      <div class="card account-menu-card" id="account-menu-edit" style="cursor:pointer">
-        <div class="account-menu-item">
-          <div class="account-menu-icon">
-            <i data-lucide="edit" style="width:22px;height:22px"></i>
-          </div>
-          <div class="account-menu-text">
-            <div class="account-menu-title">Change Account Info</div>
-            <div class="account-menu-desc">Update your email address or password</div>
-          </div>
-          <i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--text-muted);flex-shrink:0"></i>
-        </div>
-      </div>
-
-      <div class="card account-menu-card" id="account-menu-logs" style="cursor:pointer">
-        <div class="account-menu-item">
-          <div class="account-menu-icon">
-            <i data-lucide="file-text" style="width:22px;height:22px"></i>
-          </div>
-          <div class="account-menu-text">
-            <div class="account-menu-title">Activity Log</div>
-            <div class="account-menu-desc">View all account activity</div>
-          </div>
-          <i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--text-muted);flex-shrink:0"></i>
-        </div>
-      </div>
-
-      <div class="card account-menu-card" id="account-menu-logout" style="cursor:pointer">
-        <div class="account-menu-item">
-          <div class="account-menu-icon" style="color:var(--accent-red)">
-            <i data-lucide="log-out" style="width:22px;height:22px"></i>
-          </div>
-          <div class="account-menu-text">
-            <div class="account-menu-title">Sign Out</div>
-            <div class="account-menu-desc">Logout from your account</div>
-          </div>
-          <i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--text-muted);flex-shrink:0"></i>
-        </div>
-      </div>
-
-      <div class="card account-menu-card" id="account-menu-dangerous" style="cursor:pointer">
-        <div class="account-menu-item">
-          <div class="account-menu-icon" style="color:var(--accent-red)">
-            <i data-lucide="triangle-alert" style="width:22px;height:22px"></i>
-          </div>
-          <div class="account-menu-text">
-            <div class="account-menu-title">Dangerous Zone & Export Account Data</div>
-            <div class="account-menu-desc">Delete your account or export your personal data (RGPD)</div>
-          </div>
-          <i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--text-muted);flex-shrink:0"></i>
-        </div>
-      </div>
-    </div>
+    <div class="account-grid" id="account-tab-content"></div>
   `;
 
-  $('#account-menu-edit').addEventListener('click', () => navigateTo('account/edit'));
-  $('#account-menu-logs').addEventListener('click', () => navigateTo('logs'));
-  $('#account-menu-dangerous').addEventListener('click', () => navigateTo('account/dangerous'));
-  $('#account-menu-logout').addEventListener('click', async () => {
-    initIcons();
-    try { await api('/auth/logout', { method: 'POST' }); } catch {}
-    state.token = null;
-    state.user = null;
-    localStorage.removeItem('zh_token');
-    localStorage.removeItem('zh_user');
-    navigateTo('login');
+  if (tab === 'info') renderAccountInfoTab();
+  else if (tab === 'security') renderAccountSecurityTab();
+  else if (tab === 'logs') renderAccountLogsTab();
+  else if (tab === 'dangerous') renderAccountDangerousTab();
+
+  initIcons();
+
+  document.querySelectorAll('.nav-item[data-account-page]').forEach(n => {
+    n.classList.toggle('active', n.dataset.accountPage === tab);
   });
+  updateNavIndicator();
 }
 
-function renderAccountEdit() {
-  const el = $('#page-account');
-  el.innerHTML = html`
-    <div class="page-header" style="display:flex;align-items:center;gap:12px">
-      <a href="/account" onclick="event.preventDefault();navigateTo('account')" style="color:var(--text-muted);display:flex;padding:4px;border-radius:var(--radius-sm);cursor:pointer">
-        <i data-lucide="arrow-left" style="width:20px;height:20px"></i>
-      </a>
-      <div>
-        <h1 class="page-title" style="margin:0">Change Account Info</h1>
-        <p class="page-subtitle" style="margin:0">Update your email address or password</p>
+function renderAccountInfoTab() {
+  const container = $('#account-tab-content');
+  container.innerHTML = html`
+    <div class="card">
+      <h2 class="card-title" style="margin-bottom:20px">Profile Picture</h2>
+      <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin-bottom:12px">
+        Your profile picture is provided by <a href="https://gravatar.com" target="_blank">Gravatar</a>.
+        To change it, update your avatar on <a href="https://gravatar.com" target="_blank">gravatar.com</a> using this account's email address.
+      </p>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
+        <img src="${gravatarUrl(state.user?.email, 64)}" alt="" width="64" height="64" style="border-radius:8px;width:64px;height:64px;object-fit:cover" />
+        <div>
+          <div style="font-weight:500">${state.user?.email || ''}</div>
+          <div style="font-size:0.82rem;color:var(--text-muted)">Gravatar</div>
+        </div>
       </div>
     </div>
-    <div class="account-grid">
-      <div class="card">
-        <h2 class="card-title" style="margin-bottom:20px">Profile Picture</h2>
-        <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin-bottom:12px">
-          Your profile picture is provided by <a href="https://gravatar.com" target="_blank">Gravatar</a>.
-          To change it, update your avatar on <a href="https://gravatar.com" target="_blank">gravatar.com</a> using this account's email address.
-        </p>
-        <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
-          <img src="${gravatarUrl(state.user?.email, 64)}" alt="" width="64" height="64" style="border-radius:8px;width:64px;height:64px;object-fit:cover" />
-          <div>
-            <div style="font-weight:500">${state.user?.email || ''}</div>
-            <div style="font-size:0.82rem;color:var(--text-muted)">Gravatar</div>
-          </div>
-        </div>
-      </div>
 
-      <div class="card">
-        <h2 class="card-title" style="margin-bottom:20px">Change Email</h2>
-        <form id="change-email-form" style="width:100%">
+    <div class="card">
+      <h2 class="card-title" style="margin-bottom:20px">Change Email</h2>
+      <form id="change-email-form" style="width:100%">
+        <div class="form-group">
+          <label for="acc-new-email">New Email</label>
+          <input type="email" id="acc-new-email" placeholder="${state.user?.email || 'Enter new email'}" required />
+        </div>
+        <div class="form-group">
+          <label for="acc-email-pw">Current Password</label>
+          <input type="password" id="acc-email-pw" placeholder="Enter your password" required autocomplete="current-password" />
+        </div>
+        <button type="submit" class="btn btn-primary btn-full" id="change-email-btn">Change Email</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2 class="card-title" style="margin-bottom:20px">Pyrodactyl API Key</h2>
+      <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin-bottom:16px">
+        Add your Pyrodactyl Client API key to enable live resource monitoring and server power state detection directly in the dashboard.
+        Generate one at <a href="https://panel.zero-host.org/account/api" target="_blank">panel.zero-host.org/account/api</a>.
+      </p>
+      <div id="api-key-section-content">
+        <form id="api-key-form" style="width:100%">
           <div class="form-group">
-            <label for="acc-new-email">New Email</label>
-            <input type="email" id="acc-new-email" placeholder="${state.user?.email || 'Enter new email'}" required />
+            <label for="ptero-api-key-input">API Key</label>
+            <input type="password" id="ptero-api-key-input" placeholder="ptla_..." autocomplete="off" />
           </div>
-          <div class="form-group">
-            <label for="acc-email-pw">Current Password</label>
-            <input type="password" id="acc-email-pw" placeholder="Enter your password" required autocomplete="current-password" />
-          </div>
-          <button type="submit" class="btn btn-primary btn-full" id="change-email-btn">Change Email</button>
+          <button type="submit" class="btn btn-primary btn-full" id="save-api-key-btn">Save</button>
         </form>
-      </div>
-
-      <div class="card">
-        <h2 class="card-title" style="margin-bottom:20px">Change Password</h2>
-        <form id="change-password-form" style="width:100%">
-          <div class="form-group">
-            <label for="acc-current-pw">Current Password</label>
-            <input type="password" id="acc-current-pw" placeholder="Enter current password" required autocomplete="current-password" />
-          </div>
-          <div class="form-group">
-            <label for="acc-new-pw">New Password</label>
-            <input type="password" id="acc-new-pw" placeholder="At least 8 characters" required autocomplete="new-password" />
-          </div>
-          <div class="form-group">
-            <label for="acc-confirm-pw">Confirm New Password</label>
-            <input type="password" id="acc-confirm-pw" placeholder="Repeat new password" required autocomplete="new-password" />
-          </div>
-          <button type="submit" class="btn btn-primary btn-full" id="change-pw-btn">Change Password</button>
-        </form>
-      </div>
-
-      <div class="card">
-        <h2 class="card-title" style="margin-bottom:20px">Pyrodactyl API Key</h2>
-        <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin-bottom:16px">
-          Add your Pyrodactyl Client API key to enable live resource monitoring and server power state detection directly in the dashboard.
-          Generate one at <a href="https://panel.zero-host.org/account/api" target="_blank">panel.zero-host.org/account/api</a>.
-        </p>
-        <div id="api-key-section-content">
-          <form id="api-key-form" style="width:100%">
-            <div class="form-group">
-              <label for="ptero-api-key-input">API Key</label>
-              <input type="password" id="ptero-api-key-input" placeholder="ptla_..." autocomplete="off" />
-            </div>
-            <button type="submit" class="btn btn-primary btn-full" id="save-api-key-btn">Save</button>
-          </form>
-          <div id="api-key-status" style="margin-top:8px;font-size:0.82rem;color:var(--text-muted)"></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2 class="card-title" style="margin-bottom:20px">Passkeys</h2>
-        <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin-bottom:16px">
-          Passkeys let you sign in without a password using your device's built-in authentication
-          (fingerprint, face recognition, or PIN).
-        </p>
-        <div id="passkey-section-content">
-          <div id="passkey-list" style="margin-bottom:16px">
-            <p style="color:var(--text-muted);font-size:0.85rem">Loading...</p>
-          </div>
-          <button class="btn btn-primary btn-full" id="register-passkey-btn">
-            <i data-lucide="fingerprint" style="width:16px;height:16px"></i>
-            Register a New Passkey
-          </button>
-          <div id="passkey-status" style="margin-top:8px;font-size:0.82rem;color:var(--text-muted)"></div>
-        </div>
+        <div id="api-key-status" style="margin-top:8px;font-size:0.82rem;color:var(--text-muted)"></div>
       </div>
     </div>
   `;
 
   $('#change-email-form').addEventListener('submit', handleChangeEmail);
-  $('#change-password-form').addEventListener('submit', handleChangePassword);
   $('#api-key-form').addEventListener('submit', handleSaveApiKey);
-  $('#register-passkey-btn').addEventListener('click', handleRegisterPasskey);
-
   checkApiKeyStatus();
+}
+
+function renderAccountSecurityTab() {
+  const container = $('#account-tab-content');
+  container.innerHTML = html`
+    <div class="card">
+      <h2 class="card-title" style="margin-bottom:20px">Change Password</h2>
+      <form id="change-password-form" style="width:100%">
+        <div class="form-group">
+          <label for="acc-current-pw">Current Password</label>
+          <input type="password" id="acc-current-pw" placeholder="Enter current password" required autocomplete="current-password" />
+        </div>
+        <div class="form-group">
+          <label for="acc-new-pw">New Password</label>
+          <input type="password" id="acc-new-pw" placeholder="At least 8 characters" required autocomplete="new-password" />
+        </div>
+        <div class="form-group">
+          <label for="acc-confirm-pw">Confirm New Password</label>
+          <input type="password" id="acc-confirm-pw" placeholder="Repeat new password" required autocomplete="new-password" />
+        </div>
+        <button type="submit" class="btn btn-primary btn-full" id="change-pw-btn">Change Password</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2 class="card-title" style="margin-bottom:20px">Passkeys</h2>
+      <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin-bottom:16px">
+        Passkeys let you sign in without a password using your device's built-in authentication
+        (fingerprint, face recognition, or PIN).
+      </p>
+      <div id="passkey-section-content">
+        <div id="passkey-list" style="margin-bottom:16px">
+          <p style="color:var(--text-muted);font-size:0.85rem">Loading...</p>
+        </div>
+        <button class="btn btn-primary btn-full" id="register-passkey-btn">
+          <i data-lucide="fingerprint" style="width:16px;height:16px"></i>
+          Register a New Passkey
+        </button>
+        <div id="passkey-status" style="margin-top:8px;font-size:0.82rem;color:var(--text-muted)"></div>
+      </div>
+    </div>
+  `;
+
+  $('#change-password-form').addEventListener('submit', handleChangePassword);
+  $('#register-passkey-btn').addEventListener('click', handleRegisterPasskey);
   loadPasskeys();
+}
+
+function renderAccountLogsTab() {
+  const container = $('#account-tab-content');
+  container.innerHTML = html`
+    <div class="card" style="margin-bottom:20px">
+      <div id="log-list">
+        <div style="text-align:center;padding:24px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</div>
+      </div>
+    </div>
+  `;
+  fetchAccountLogs();
+}
+
+async function fetchAccountLogs(pageNum) {
+  pageNum = pageNum || 1;
+  const limit = 50;
+  const offset = (pageNum - 1) * limit;
+  const list = $('#log-list');
+  if (!list) return;
+
+  try {
+    const data = await api(`/activity?limit=${limit}&offset=${offset}`);
+
+    if (data.activities.length === 0) {
+      list.innerHTML = '<div class="activity-empty">No activity found.</div>';
+      return;
+    }
+
+    const pageInfo = data.totalPages > 1 ? html`
+      <div class="log-pagination">
+        <button class="btn btn-ghost btn-sm" onclick="fetchAccountLogs(${pageNum - 1})" ${pageNum <= 1 ? 'disabled' : ''}>Previous</button>
+        <span class="log-pagination-info">Page ${data.page} of ${data.totalPages} (${data.total} total)</span>
+        <button class="btn btn-ghost btn-sm" onclick="fetchAccountLogs(${pageNum + 1})" ${pageNum >= data.totalPages ? 'disabled' : ''}>Next</button>
+      </div>
+    ` : '';
+
+    list.innerHTML = html`
+      ${pageInfo}
+      <div class="activity-list">
+        ${data.activities.map(a => html`
+          <div class="activity-item">
+            <div class="activity-icon activity-icon-${a.action}">${activityIcons[a.action] || ''}</div>
+            <div class="activity-content">
+              <div class="activity-action">${escapeHtml(getActionLabel(a.action))}</div>
+              <div class="activity-details">${escapeHtml(a.details || '')}</div>
+            </div>
+            <div class="activity-time">${formatRelativeTime(a.created_at)}</div>
+          </div>
+        `).join('')}
+      </div>
+      ${pageInfo}
+    `;
+    initIcons();
+  } catch (err) {
+    if (list) list.innerHTML = '<div class="activity-empty">Could not load activity log.</div>';
+  }
+}
+
+function renderAccountDangerousTab() {
+  const container = $('#account-tab-content');
+  container.innerHTML = html`
+    <div class="card" style="border-color:rgba(239,68,68,0.3)">
+      <h2 class="card-title" style="margin-bottom:8px">Delete Account</h2>
+      <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:20px;line-height:1.6">
+        This action is irreversible. All your servers will be deleted and your account will be permanently removed.
+      </p>
+      <button class="btn btn-danger btn-full" id="delete-account-btn">Delete My Account</button>
+    </div>
+
+    <div class="card">
+      <h2 class="card-title" style="margin-bottom:8px">Data Export (RGPD)</h2>
+      <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:20px;line-height:1.6">
+        Under Article 15 and 20 of the RGPD, you have the right to access and port your personal data. Click below to download a copy of all data we hold about you.
+      </p>
+      <button class="btn btn-primary btn-full" id="export-data-btn">
+        <i data-lucide="download" style="width:18px;height:18px"></i>
+        Export My Data
+      </button>
+    </div>
+  `;
+
+  $('#delete-account-btn').addEventListener('click', handleDeleteAccountClick);
+  $('#export-data-btn').addEventListener('click', handleExportData);
   initIcons();
 }
 
@@ -2395,11 +2575,6 @@ async function handleDeletePasskey(id) {
   });
 }
 
-function formatDate(d) {
-  if (!d) return 'N/A';
-  return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
 function handleModifyApiKey() {
   const overlay = $('#modal-overlay');
   const content = $('#modal-content');
@@ -2560,44 +2735,6 @@ async function handleChangePassword(e) {
     btn.disabled = false;
     btn.innerHTML = 'Change Password';
   }
-}
-
-function renderDangerous() {
-  const el = $('#page-account');
-  el.innerHTML = html`
-    <div class="page-header" style="display:flex;align-items:center;gap:12px">
-      <a href="/account" onclick="event.preventDefault();navigateTo('account')" style="color:var(--text-muted);display:flex;padding:4px;border-radius:var(--radius-sm);cursor:pointer">
-        <i data-lucide="arrow-left" style="width:20px;height:20px"></i>
-      </a>
-      <div>
-        <h1 class="page-title" style="margin:0">Dangerous Zone & Export Account Data</h1>
-        <p class="page-subtitle" style="margin:0">Delete your account or export your personal data (RGPD)</p>
-      </div>
-    </div>
-    <div class="account-grid">
-      <div class="card" style="border-color:rgba(239,68,68,0.3)">
-        <h2 class="card-title" style="margin-bottom:8px">Delete Account</h2>
-        <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:20px;line-height:1.6">
-          This action is irreversible. All your servers will be deleted and your account will be permanently removed.
-        </p>
-        <button class="btn btn-danger btn-full" id="delete-account-btn">Delete My Account</button>
-      </div>
-
-      <div class="card">
-        <h2 class="card-title" style="margin-bottom:8px">Data Export (RGPD)</h2>
-        <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:20px;line-height:1.6">
-          Under Article 15 and 20 of the RGPD, you have the right to access and port your personal data. Click below to download a copy of all data we hold about you.
-        </p>
-        <button class="btn btn-primary btn-full" id="export-data-btn">
-          <i data-lucide="download" style="width:18px;height:18px"></i>
-          Export My Data
-        </button>
-      </div>
-    </div>
-  `;
-  $('#delete-account-btn').addEventListener('click', handleDeleteAccountClick);
-  $('#export-data-btn').addEventListener('click', handleExportData);
-  initIcons();
 }
 
 function handleDeleteAccountClick() {
@@ -2909,9 +3046,9 @@ async function fetchLiveResources(identifier) {
         <div class="empty-state" style="padding:24px">
           <div class="empty-state-title" style="font-size:0.95rem">No live data</div>
           <div class="empty-state-desc" style="font-size:0.82rem">
-            ${data.error || 'Add your Pyrodactyl API key in Account → Linked Accounts to enable live monitoring.'}
+            ${data.error || 'Add your Pyrodactyl API key in Account → Account Info to enable live monitoring.'}
           </div>
-          <button class="btn btn-primary btn-sm" onclick="navigateTo('account/edit')" style="margin-top:8px;width:auto">Configure API Key</button>
+          <button class="btn btn-primary btn-sm" onclick="navigateTo('account/info')" style="margin-top:8px;width:auto">Configure API Key</button>
         </div>
       `;
       return;

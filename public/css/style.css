@@ -751,6 +751,62 @@ cap-widget {
   min-height: 100vh;
 }
 
+/* ===== SIDEBAR USER DROPDOWN ===== */
+.sidebar-user-wrapper {
+  position: relative;
+}
+
+.sidebar-user-dropdown {
+  display: none;
+  position: absolute;
+  bottom: 100%;
+  left: 12px;
+  right: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 6px;
+  margin-bottom: 4px;
+  z-index: 50;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.4);
+}
+
+.sidebar-user-dropdown.open {
+  display: block;
+}
+
+.sidebar-user-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all var(--transition);
+  text-decoration: none;
+}
+
+.sidebar-user-dropdown-item:hover {
+  background: rgba(238, 129, 50, 0.08);
+  color: var(--text-primary);
+}
+
+.sidebar-user-dropdown-item svg {
+  width: 16px;
+  height: 16px;
+}
+
+.sidebar-user-chevron {
+  transition: transform var(--transition);
+}
+
+.sidebar.collapsed .sidebar-user-dropdown,
+.sidebar.collapsed .sidebar-user-chevron {
+  display: none !important;
+}
+
 /* ===== DASHBOARD PAGES ===== */
 .page {
   display: none;
