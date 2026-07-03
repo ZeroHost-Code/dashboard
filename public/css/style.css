@@ -1228,6 +1228,18 @@ tbody tr:hover {
   color: var(--accent-red);
 }
 
+.toast-info {
+  background: rgba(56, 132, 255, 0.15);
+  border: 1px solid rgba(56, 132, 255, 0.3);
+  color: var(--accent-1);
+}
+
+.toast-warning {
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  color: var(--accent-yellow);
+}
+
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }

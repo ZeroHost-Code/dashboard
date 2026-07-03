@@ -2455,18 +2455,37 @@ async function handleRegisterPasskey() {
 }
 
 async function handleDeletePasskey(id) {
-  if (!confirm('Delete this passkey? You will no longer be able to use it to sign in.')) return;
-  try {
-    await api(`/auth/passkeys/${id}`, { method: 'DELETE' });
-    showToast('Passkey deleted', 'info');
-    loadPasskeys();
-  } catch (err) {
-    const status = $('#passkey-status');
-    if (status) {
-      status.textContent = err.message;
-      status.style.color = 'var(--accent-red)';
+  const overlay = $('#modal-overlay');
+  const content = $('#modal-content');
+  content.innerHTML = html`
+    <div class="modal-title">Delete Passkey</div>
+    <p style="color:var(--text-secondary);line-height:1.6;margin-bottom:16px">
+      Are you sure you want to delete this passkey? You will no longer be able to use it to sign in.
+    </p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-full modal-cancel-btn">Cancel</button>
+      <button class="btn btn-danger btn-full" id="confirm-delete-passkey-btn">Delete</button>
+    </div>
+  `;
+  overlay.classList.add('open');
+
+  const confirmBtn = $('#confirm-delete-passkey-btn');
+  const newBtn = confirmBtn.cloneNode(true);
+  confirmBtn.replaceWith(newBtn);
+  newBtn.addEventListener('click', async () => {
+    overlay.classList.remove('open');
+    try {
+      await api(`/auth/passkeys/${id}`, { method: 'DELETE' });
+      showToast('Passkey deleted', 'info');
+      loadPasskeys();
+    } catch (err) {
+      const status = $('#passkey-status');
+      if (status) {
+        status.textContent = err.message;
+        status.style.color = 'var(--accent-red)';
+      }
     }
-  }
+  });
 }
 
 function formatDate(d) {
