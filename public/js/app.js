@@ -843,14 +843,7 @@ async function renderDashboard() {
                   <div class="user-email">${state.user?.email || ''}</div>
                 </div>
               </div>
-              <div style="display:flex;align-items:center;gap:4px">
-                <div id="logout-btn" style="cursor:pointer;color:var(--text-muted);display:flex;align-items:center;padding:6px;border-radius:var(--radius-sm);transition:all var(--transition)" title="Sign Out">
-                  <i data-lucide="log-out" style="width:18px;height:18px"></i>
-                </div>
-                <div class="sidebar-user-chevron" id="sidebar-user-chevron" style="cursor:pointer;color:var(--text-muted);display:flex;align-items:center;padding:6px;border-radius:var(--radius-sm);transition:all var(--transition)" title="Account">
-                  <i data-lucide="chevron-up" style="width:16px;height:16px"></i>
-                </div>
-              </div>
+
             </div>
             <div class="sidebar-user-dropdown" id="sidebar-user-dropdown">
               <a class="sidebar-user-dropdown-item" id="user-dropdown-settings">
@@ -907,27 +900,13 @@ async function renderDashboard() {
     </div>
   `;
 
-  $('#logout-btn').addEventListener('click', async () => {
-    try { await api('/auth/logout', { method: 'POST' }); } catch {}
-    state.token = null;
-    state.user = null;
-    localStorage.removeItem('zh_token');
-    localStorage.removeItem('zh_user');
-    navigateTo('login');
-  });
-
   $('#sidebar-user-info').addEventListener('click', (e) => {
-    if (e.target.closest('#logout-btn') || e.target.closest('.sidebar-user-dropdown') || e.target.closest('#sidebar-user-chevron')) return;
+    if (e.target.closest('.sidebar-user-dropdown')) return;
     if ($('#sidebar').classList.contains('collapsed')) {
       navigateTo('account/info');
     } else {
       toggleUserDropdown();
     }
-  });
-
-  $('#sidebar-user-chevron').addEventListener('click', (e) => {
-    e.stopPropagation();
-    toggleUserDropdown();
   });
 
   $('#user-dropdown-settings').addEventListener('click', (e) => {
@@ -1126,24 +1105,16 @@ let userDropdownOpen = false;
 
 function toggleUserDropdown() {
   const dropdown = $('#sidebar-user-dropdown');
-  const chevron = $('#sidebar-user-chevron');
   if (!dropdown) return;
   userDropdownOpen = !userDropdownOpen;
   dropdown.classList.toggle('open', userDropdownOpen);
-  if (chevron) {
-    chevron.style.transform = userDropdownOpen ? 'rotate(180deg)' : '';
-  }
 }
 
 function closeUserDropdown() {
   const dropdown = $('#sidebar-user-dropdown');
-  const chevron = $('#sidebar-user-chevron');
   if (!dropdown) return;
   userDropdownOpen = false;
   dropdown.classList.remove('open');
-  if (chevron) {
-    chevron.style.transform = '';
-  }
 }
 
 document.addEventListener('click', (e) => {

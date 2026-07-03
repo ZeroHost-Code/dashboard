@@ -87,8 +87,8 @@ function adminNavigateTo(page) {
     renderAdminDashboard();
     history.pushState({ adminPage: 'dashboard' }, '', '/admin/dashboard');
   } else if (basePage === 'activity') {
-    renderAdminActivity();
-    history.pushState({ adminPage: 'activity' }, '', '/admin/activity');
+    window.location.href = '/logs';
+    return;
   } else if (basePage === 'settings') {
     const sub = parts[1];
     if (sub === 'eggs') {
@@ -216,7 +216,7 @@ function renderAdminLayout() {
             <i data-lucide="users" style="width:18px;height:18px"></i>
             Users
           </a>
-          <a class="admin-nav-link" data-page="activity" href="/admin/activity">
+          <a class="admin-nav-link" data-page="activity" href="/logs">
             <i data-lucide="activity" style="width:18px;height:18px"></i>
             Activity
           </a>
@@ -257,6 +257,10 @@ function renderAdminLayout() {
     link.addEventListener('click', (e) => {
       e.preventDefault();
       const page = link.dataset.page;
+      if (page === 'activity') {
+        window.location.href = '/logs';
+        return;
+      }
       adminNavigateTo(page);
     });
   });
@@ -1988,7 +1992,8 @@ window.addEventListener('popstate', () => {
   } else if (basePage === 'dashboard' || !basePage || basePage === 'login') {
     adminNavigateTo('dashboard');
   } else if (basePage === 'activity') {
-    adminNavigateTo('activity');
+    window.location.href = '/logs';
+    return;
   } else if (basePage === 'settings') {
     adminNavigateTo(pathParts.join('/'));
   } else {

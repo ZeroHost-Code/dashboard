@@ -545,10 +545,6 @@ cap-widget {
   text-align: center;
 }
 
-.sidebar.collapsed #logout-btn {
-  display: none !important;
-}
-
 .sidebar.collapsed .user-info {
   display: block !important;
   padding: 0 !important;
@@ -798,12 +794,7 @@ cap-widget {
   height: 16px;
 }
 
-.sidebar-user-chevron {
-  transition: transform var(--transition);
-}
-
-.sidebar.collapsed .sidebar-user-dropdown,
-.sidebar.collapsed .sidebar-user-chevron {
+.sidebar.collapsed .sidebar-user-dropdown {
   display: none !important;
 }
 
