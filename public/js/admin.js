@@ -1455,11 +1455,12 @@ async function renderAdminEggsSettings() {
             <th>Name</th>
             <th>Description</th>
             <th>Panel Nest ID</th>
+            <th>Status</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody id="admin-nests-tbody">
-          <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
+          <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -1484,12 +1485,39 @@ async function renderAdminEggsSettings() {
         <td><a href="/admin/settings/eggs/${n.ptero_nest_id}" onclick="event.preventDefault();adminNavigateTo('settings/eggs/${n.ptero_nest_id}')" style="font-weight:600;cursor:pointer">${n.name}</a></td>
         <td style="color:var(--text-secondary);font-size:0.85rem;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.description || '—'}</td>
         <td><span class="server-detail-tag">${n.ptero_nest_id}</span></td>
+        <td>
+          <label class="toggle-switch" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
+            <input type="checkbox" class="nest-unavailable-toggle" data-id="${n.id}" ${n.unavailable ? 'checked' : ''} style="opacity:0;width:0;height:0">
+            <span class="toggle-slider" style="position:absolute;cursor:pointer;inset:0;background:var(--bg-secondary);border:1px solid var(--border);border-radius:24px;transition:0.2s"></span>
+          </label>
+          <span class="nest-status-label" data-id="${n.id}" style="margin-left:8px;font-size:0.82rem;${n.unavailable ? 'color:var(--accent-red)' : 'color:var(--accent-green)'}">${n.unavailable ? 'Unavailable' : 'Available'}</span>
+        </td>
         <td style="display:flex;gap:6px">
           <button class="btn btn-ghost btn-sm btn-rename-nest" data-id="${n.id}" data-name="${n.name}" data-logo="${n.logo || ''}" data-description="${(n.description || '').replace(/"/g, '&quot;')}" style="width:auto">Edit</button>
           <button class="btn btn-danger btn-sm btn-delete-nest" data-id="${n.id}" data-name="${n.name}" style="width:auto">Delete</button>
         </td>
       </tr>
     `).join('');
+
+    tbody.querySelectorAll('.nest-unavailable-toggle').forEach(toggle => {
+      toggle.addEventListener('change', async () => {
+        const nestId = parseInt(toggle.dataset.id, 10);
+        const label = tbody.querySelector(`.nest-status-label[data-id="${nestId}"]`);
+        try {
+          await adminApi(`/settings/nests/${nestId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ unavailable: toggle.checked }),
+          });
+          if (label) {
+            label.textContent = toggle.checked ? 'Unavailable' : 'Available';
+            label.style.color = toggle.checked ? 'var(--accent-red)' : 'var(--accent-green)';
+          }
+        } catch (err) {
+          toggle.checked = !toggle.checked;
+          showToast(err.message, 'error');
+        }
+      });
+    });
 
     tbody.querySelectorAll('.btn-rename-nest').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1531,11 +1559,12 @@ async function renderAdminNestEggs(nestId) {
             <th>Name</th>
             <th>Description</th>
             <th>Resources</th>
+            <th>Status</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody id="admin-eggs-tbody">
-          <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
+          <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -1556,6 +1585,7 @@ async function renderAdminNestEggs(nestId) {
       const resStr = res
         ? `CPU: ${res.cpu_limit ?? 'default'}% / RAM: ${res.memory_limit ?? 'default'} MB / Disk: ${res.disk_limit ?? 'default'} MB`
         : 'Defaults';
+      const isUnavailable = res?.unavailable;
       return ahtml`
         <tr>
           <td>${e.id}</td>
@@ -1564,11 +1594,39 @@ async function renderAdminNestEggs(nestId) {
           <td style="color:var(--text-secondary);font-size:0.85rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.description || '—'}</td>
           <td><span class="server-detail-tag" style="font-size:0.75rem">${resStr}</span></td>
           <td>
+            <label class="toggle-switch" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
+              <input type="checkbox" class="egg-unavailable-toggle" data-nest="${nestId}" data-egg="${e.id}" ${isUnavailable ? 'checked' : ''} style="opacity:0;width:0;height:0">
+              <span class="toggle-slider" style="position:absolute;cursor:pointer;inset:0;background:var(--bg-secondary);border:1px solid var(--border);border-radius:24px;transition:0.2s"></span>
+            </label>
+            <span class="egg-status-label" data-nest="${nestId}" data-egg="${e.id}" style="margin-left:8px;font-size:0.82rem;${isUnavailable ? 'color:var(--accent-red)' : 'color:var(--accent-green)'}">${isUnavailable ? 'Unavailable' : 'Available'}</span>
+          </td>
+          <td>
             <a href="/admin/settings/eggs/${nestId}/${e.id}" onclick="event.preventDefault();adminNavigateTo('settings/eggs/${nestId}/${e.id}')" class="btn btn-ghost btn-sm">Configure</a>
           </td>
         </tr>
       `;
     }).join('');
+
+    tbody.querySelectorAll('.egg-unavailable-toggle').forEach(toggle => {
+      toggle.addEventListener('change', async () => {
+        const nId = parseInt(toggle.dataset.nest, 10);
+        const eId = parseInt(toggle.dataset.egg, 10);
+        const label = tbody.querySelector(`.egg-status-label[data-nest="${nId}"][data-egg="${eId}"]`);
+        try {
+          await adminApi(`/settings/eggs/${nId}/${eId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ unavailable: toggle.checked }),
+          });
+          if (label) {
+            label.textContent = toggle.checked ? 'Unavailable' : 'Available';
+            label.style.color = toggle.checked ? 'var(--accent-red)' : 'var(--accent-green)';
+          }
+        } catch (err) {
+          toggle.checked = !toggle.checked;
+          showToast(err.message, 'error');
+        }
+      });
+    });
   } catch (err) {
     const tbody = $a('#admin-eggs-tbody');
     if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;

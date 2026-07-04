@@ -118,7 +118,7 @@ router.get('/list', authenticateToken, async (req, res) => {
 
 router.get('/nests', authenticateToken, async (req, res) => {
   try {
-    const dbNests = await query('SELECT ptero_nest_id, name, logo, description FROM nests');
+    const dbNests = await query('SELECT ptero_nest_id, name, logo, description, unavailable FROM nests');
     const nestIds = dbNests.map(n => n.ptero_nest_id);
 
     const eggs = await getAllEggs(nestIds);
@@ -127,7 +127,7 @@ router.get('/nests', authenticateToken, async (req, res) => {
       nestMap[n.ptero_nest_id] = n;
     }
 
-    const eggResources = await query('SELECT ptero_nest_id, ptero_egg_id, logo, cpu_limit, memory_limit, disk_limit FROM egg_resources');
+    const eggResources = await query('SELECT ptero_nest_id, ptero_egg_id, logo, cpu_limit, memory_limit, disk_limit, unavailable FROM egg_resources');
     const eggResMap = {};
     for (const r of eggResources) {
       eggResMap[`${r.ptero_nest_id}-${r.ptero_egg_id}`] = r;
@@ -148,6 +148,7 @@ router.get('/nests', authenticateToken, async (req, res) => {
         cpu_limit: res.cpu_limit ?? null,
         memory_limit: res.memory_limit ?? null,
         disk_limit: res.disk_limit ?? null,
+        unavailable: !!res.unavailable,
       });
     }
 
@@ -157,6 +158,7 @@ router.get('/nests', authenticateToken, async (req, res) => {
         name: n.name,
         logo: n.logo || null,
         description: n.description || '',
+        unavailable: !!n.unavailable,
         eggs: nestEggs[n.ptero_nest_id] || [],
       });
     }
@@ -224,6 +226,20 @@ router.post('/create', authenticateToken, requireNotRestricted, createServerLimi
 
     if (!await verifyCap(capToken)) {
       return res.status(400).json({ error: 'Please complete the security check' });
+    }
+
+    // Check if nest or egg is unavailable
+    try {
+      const [nestRow] = await query('SELECT unavailable FROM nests WHERE ptero_nest_id = ?', [nestId]);
+      if (nestRow && nestRow.unavailable) {
+        return res.status(403).json({ error: 'This nest is currently unavailable' });
+      }
+      const [eggRow] = await query('SELECT unavailable FROM egg_resources WHERE ptero_nest_id = ? AND ptero_egg_id = ?', [nestId, eggId]);
+      if (eggRow && eggRow.unavailable) {
+        return res.status(403).json({ error: 'This egg is currently unavailable' });
+      }
+    } catch (err) {
+      console.warn('Failed to check nest/egg availability:', err.message);
     }
 
     const existingServers = await getServersByUser(pteroId);

@@ -746,7 +746,7 @@ router.post('/settings/nests', authenticateToken, requireAdmin, async (req, res)
 router.put('/settings/nests/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const { name, logo, description } = req.body;
+    const { name, logo, description, unavailable } = req.body;
     if (name !== undefined && (typeof name !== 'string' || name.trim().length === 0)) return res.status(400).json({ error: 'Name cannot be empty' });
     if (name && name.trim().length > 255) return res.status(400).json({ error: 'Name must be 255 characters or less' });
     const updates = [];
@@ -754,6 +754,7 @@ router.put('/settings/nests/:id', authenticateToken, requireAdmin, async (req, r
     if (name !== undefined) { updates.push('name = ?'); params.push(name.trim()); }
     if (logo !== undefined) { updates.push('logo = ?'); params.push(logo || null); }
     if (description !== undefined) { updates.push('description = ?'); params.push(description || null); }
+    if (unavailable !== undefined) { updates.push('unavailable = ?'); params.push(unavailable ? 1 : 0); }
     if (updates.length === 0) return res.status(400).json({ error: 'No fields to update' });
     params.push(id);
     await query(`UPDATE nests SET ${updates.join(', ')} WHERE id = ?`, params);
@@ -815,13 +816,14 @@ router.put('/settings/eggs/:nestId/:eggId', authenticateToken, requireAdmin, asy
     const nestId = parseInt(req.params.nestId, 10);
     const eggId = parseInt(req.params.eggId, 10);
     if (isNaN(nestId) || isNaN(eggId)) return res.status(400).json({ error: 'Invalid nest or egg ID' });
-    const { cpu_limit, memory_limit, disk_limit, logo } = req.body;
+    const { cpu_limit, memory_limit, disk_limit, logo, unavailable } = req.body;
 
     const sanitized = {
       cpu_limit: (cpu_limit != null && !isNaN(Number(cpu_limit))) ? Number(cpu_limit) : null,
       memory_limit: (memory_limit != null && !isNaN(Number(memory_limit))) ? Number(memory_limit) : null,
       disk_limit: (disk_limit != null && !isNaN(Number(disk_limit))) ? Number(disk_limit) : null,
       logo: logo !== undefined ? (logo || null) : undefined,
+      unavailable: unavailable !== undefined ? (unavailable ? 1 : 0) : undefined,
     };
 
     if (sanitized.cpu_limit != null && sanitized.cpu_limit < 0) return res.status(400).json({ error: 'CPU limit cannot be negative' });
@@ -833,12 +835,14 @@ router.put('/settings/eggs/:nestId/:eggId', authenticateToken, requireAdmin, asy
       const updates = ['cpu_limit = ?', 'memory_limit = ?', 'disk_limit = ?'];
       const vals = [sanitized.cpu_limit, sanitized.memory_limit, sanitized.disk_limit];
       if (sanitized.logo !== undefined) { updates.push('logo = ?'); vals.push(sanitized.logo); }
+      if (sanitized.unavailable !== undefined) { updates.push('unavailable = ?'); vals.push(sanitized.unavailable); }
       vals.push(existing.id);
       await query(`UPDATE egg_resources SET ${updates.join(', ')} WHERE id = ?`, vals);
     } else {
       const cols = ['ptero_nest_id', 'ptero_egg_id', 'cpu_limit', 'memory_limit', 'disk_limit'];
       const vals = [nestId, eggId, sanitized.cpu_limit, sanitized.memory_limit, sanitized.disk_limit];
       if (sanitized.logo !== undefined) { cols.push('logo'); vals.push(sanitized.logo); }
+      if (sanitized.unavailable !== undefined) { cols.push('unavailable'); vals.push(sanitized.unavailable); }
       await query(`INSERT INTO egg_resources (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`, vals);
     }
     res.json({ success: true });

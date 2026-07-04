@@ -1807,15 +1807,19 @@ function renderNestStep() {
     <div class="wizard-step-title">Choose a Nest</div>
     <p class="wizard-step-desc">Select the type of server you want to create</p>
     <div class="nest-grid">
-      ${createState.nests.map(n => html`
-        <div class="nest-card ${createState.selectedNest?.pteroNestId === n.pteroNestId ? 'selected' : ''}" data-nest-id="${n.pteroNestId}">
-          <div class="nest-card-logo">
-            ${n.logo ? html`<img src="${n.logo}" alt="" />` : html`<i data-lucide="box" style="width:40px;height:40px;color:var(--text-secondary)"></i>`}
+      ${createState.nests.map(n => {
+        const unavail = n.unavailable;
+        return html`
+          <div class="nest-card ${unavail ? 'unavailable' : ''} ${createState.selectedNest?.pteroNestId === n.pteroNestId ? 'selected' : ''}" data-nest-id="${n.pteroNestId}" ${unavail ? 'style="opacity:0.5;pointer-events:none"' : ''}>
+            <div class="nest-card-logo">
+              ${n.logo ? html`<img src="${n.logo}" alt="" />` : html`<i data-lucide="box" style="width:40px;height:40px;color:var(--text-secondary)"></i>`}
+            </div>
+            <div class="nest-card-name">${escapeHtml(n.name)}</div>
+            ${n.description ? html`<div class="nest-card-desc">${escapeHtml(n.description)}</div>` : ''}
+            ${unavail ? html`<div class="nest-card-badge" style="margin-top:8px;display:inline-block;padding:2px 10px;border-radius:12px;font-size:0.75rem;font-weight:600;background:rgba(239,68,68,0.15);color:var(--accent-red)">Unavailable</div>` : ''}
           </div>
-          <div class="nest-card-name">${escapeHtml(n.name)}</div>
-          ${n.description ? html`<div class="nest-card-desc">${escapeHtml(n.description)}</div>` : ''}
-        </div>
-      `).join('')}
+        `;
+      }).join('')}
     </div>
     <div class="wizard-actions">
       <button class="btn btn-primary" id="wizard-next-btn" ${createState.selectedNest ? '' : 'disabled'}>
@@ -1834,14 +1838,16 @@ function renderEggStep() {
   const eggCards = nest.eggs.map(e => {
     const dockerImages = e.dockerImages || {};
     const images = Object.entries(dockerImages);
+    const unavail = e.unavailable;
     return html`
-      <div class="egg-card ${createState.selectedEgg?.eggId === e.eggId ? 'selected' : ''}" data-egg-id="${e.eggId}">
+      <div class="egg-card ${unavail ? 'unavailable' : ''} ${createState.selectedEgg?.eggId === e.eggId ? 'selected' : ''}" data-egg-id="${e.eggId}" ${unavail ? 'style="opacity:0.5;pointer-events:none"' : ''}>
         <div class="egg-card-logo">
           ${e.logo ? html`<img src="${e.logo}" alt="" />` : html`<i data-lucide="egg" style="width:32px;height:32px;color:var(--text-secondary)"></i>`}
         </div>
         <div class="egg-card-info">
           <div class="egg-card-name">${escapeHtml(e.name)}</div>
           ${e.description ? html`<div class="egg-card-desc">${escapeHtml(e.description)}</div>` : ''}
+          ${unavail ? html`<div class="egg-card-badge" style="margin-top:6px;display:inline-block;padding:2px 10px;border-radius:12px;font-size:0.75rem;font-weight:600;background:rgba(239,68,68,0.15);color:var(--accent-red)">Unavailable</div>` : ''}
         </div>
       </div>
     `;
