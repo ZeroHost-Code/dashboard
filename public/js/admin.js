@@ -72,6 +72,7 @@ function adminNavigateTo(page) {
   adminState.currentPage = basePage;
   adminState.serverId = param ? parseInt(param, 10) : null;
   adminState.userId = param ? parseInt(param, 10) : null;
+  adminState.nodeId = param ? parseInt(param, 10) : null;
   updateAdminNav();
 
   if (basePage === 'server' && adminState.serverId) {
@@ -80,6 +81,12 @@ function adminNavigateTo(page) {
   } else if (basePage === 'user' && adminState.userId) {
     renderAdminUserDetail(adminState.userId);
     history.pushState({ adminPage: 'user', userId: adminState.userId }, '', `/admin/user/${adminState.userId}`);
+  } else if (basePage === 'node' && adminState.nodeId) {
+    renderAdminNodeDetail(adminState.nodeId);
+    history.pushState({ adminPage: 'node', nodeId: adminState.nodeId }, '', `/admin/node/${adminState.nodeId}`);
+  } else if (basePage === 'nodes') {
+    renderAdminNodes();
+    history.pushState({ adminPage: 'nodes' }, '', '/admin/nodes');
   } else if (basePage === 'users') {
     renderAdminUsers();
     history.pushState({ adminPage: 'users' }, '', '/admin/users');
@@ -212,6 +219,10 @@ function renderAdminLayout() {
             <i data-lucide="server" style="width:18px;height:18px"></i>
             Servers
           </a>
+          <a class="admin-nav-link" data-page="nodes" href="/admin/nodes">
+            <i data-lucide="network" style="width:18px;height:18px"></i>
+            Nodes
+          </a>
           <a class="admin-nav-link" data-page="users" href="/admin/users">
             <i data-lucide="users" style="width:18px;height:18px"></i>
             Users
@@ -237,6 +248,8 @@ function renderAdminLayout() {
         <div class="admin-page" id="admin-page-dashboard"></div>
         <div class="admin-page active" id="admin-page-servers"></div>
         <div class="admin-page" id="admin-page-server-detail"></div>
+        <div class="admin-page" id="admin-page-nodes"></div>
+        <div class="admin-page" id="admin-page-node-detail"></div>
         <div class="admin-page" id="admin-page-users"></div>
         <div class="admin-page" id="admin-page-user-detail"></div>
         <div class="admin-page" id="admin-page-activity"></div>
@@ -286,6 +299,17 @@ function renderAdminLayout() {
     adminState.userId = uid;
     $a('#admin-page-user-detail').classList.add('active');
     renderAdminUserDetail(uid);
+  } else if (basePage === 'node' && param) {
+    const nid = parseInt(param, 10);
+    adminState.currentPage = 'node';
+    updateAdminNav();
+    adminState.nodeId = nid;
+    $a('#admin-page-node-detail').classList.add('active');
+    renderAdminNodeDetail(nid);
+  } else if (basePage === 'nodes') {
+    adminState.currentPage = 'nodes';
+    updateAdminNav();
+    renderAdminNodes();
   } else if (basePage === 'users') {
     adminState.currentPage = 'users';
     updateAdminNav();
@@ -1941,6 +1965,236 @@ function showDeleteNestConfirm(nestId, name) {
   });
 }
 
+// ─── Nodes ──────────────────────────────────────────────
+async function renderAdminNodes() {
+  document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
+  const el = $a('#admin-page-nodes');
+  if (!el) return;
+  el.classList.add('active');
+  el.innerHTML = ahtml`
+    <div class="page-header">
+      <h1 class="page-title">Nodes</h1>
+      <p class="page-subtitle">Pterodactyl panel nodes</p>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>FQDN</th>
+            <th>RAM</th>
+            <th>Disk</th>
+            <th>CPU</th>
+            <th>Allocations</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="admin-nodes-tbody">
+          <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  try {
+    const data = await adminApi('/nodes');
+    const tbody = $a('#admin-nodes-tbody');
+    if (!tbody) return;
+
+    if (data.nodes.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-secondary)">No nodes found in the panel.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.nodes.map(n => {
+      const ramMB = n.memory ? Math.round(n.memory / 1024) : '—';
+      const diskGB = n.disk ? (n.disk / 1024).toFixed(1) : '—';
+      const cpuPct = n.cpu ? n.cpu + '%' : '—';
+      const allocCount = n.allocation_count ?? '—';
+      const isOnline = n.is_online;
+      return ahtml`
+        <tr>
+          <td>${n.id}</td>
+          <td><a href="/admin/node/${n.id}" onclick="event.preventDefault();adminNavigateTo('node/${n.id}')" style="font-weight:600;cursor:pointer">${escapeHtml(n.name)}</a></td>
+          <td><span class="server-detail-tag">${escapeHtml(n.fqdn)}</span></td>
+          <td>${ramMB !== '—' ? ramMB + ' MB' : '—'}</td>
+          <td>${diskGB !== '—' ? diskGB + ' GB' : '—'}</td>
+          <td>${cpuPct}</td>
+          <td>${allocCount}</td>
+          <td>${isOnline !== undefined ? (isOnline ? '<span style="color:var(--accent-green)">Online</span>' : '<span style="color:var(--accent-red)">Offline</span>') : '—'}</td>
+        </tr>
+      `;
+    }).join('');
+  } catch (err) {
+    const tbody = $a('#admin-nodes-tbody');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
+  }
+}
+
+async function renderAdminNodeDetail(nodeId) {
+  document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
+  const el = $a('#admin-page-node-detail');
+  if (!el) return;
+  el.classList.add('active');
+  el.innerHTML = ahtml`
+    <div class="page-header">
+      <a href="/admin/nodes" onclick="event.preventDefault();adminNavigateTo('nodes')" class="btn btn-ghost btn-sm" style="display:inline-flex;width:auto;margin-bottom:16px">
+        <i data-lucide="arrow-left" style="width:14px;height:14px"></i>
+        Back to Nodes
+      </a>
+      <h1 class="page-title" style="margin-bottom:0">Node #${nodeId}</h1>
+      <p class="page-subtitle" id="admin-node-name">Loading...</p>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px" id="admin-node-info-cards">
+      <div class="card" style="padding:20px">
+        <h3 style="color:var(--text-secondary);font-size:0.8rem;text-transform:uppercase;margin-bottom:12px">Details</h3>
+        <div id="admin-node-details"><span class="spinner"></span></div>
+      </div>
+      <div class="card" style="padding:20px">
+        <h3 style="color:var(--text-secondary);font-size:0.8rem;text-transform:uppercase;margin-bottom:12px">Resources</h3>
+        <div id="admin-node-resources"><span class="spinner"></span></div>
+      </div>
+    </div>
+    <div class="card" style="padding:20px;margin-bottom:24px">
+      <h3 style="color:var(--text-secondary);font-size:0.8rem;text-transform:uppercase;margin-bottom:12px">Allocations</h3>
+      <div class="table-container" style="margin:0">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>IP</th>
+              <th>Port</th>
+              <th>Alias</th>
+              <th>Server</th>
+            </tr>
+          </thead>
+          <tbody id="admin-node-alloc-tbody">
+            <tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text-secondary)"><span class="spinner"></span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card" style="padding:20px">
+      <h3 style="color:var(--text-secondary);font-size:0.8rem;text-transform:uppercase;margin-bottom:12px">Servers on this Node</h3>
+      <div class="table-container" style="margin:0">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Identifier</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="admin-node-servers-tbody">
+            <tr><td colspan="4" style="text-align:center;padding:16px;color:var(--text-secondary)"><span class="spinner"></span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+  initIcons();
+
+  try {
+    const [nodeData, allocData, serversData] = await Promise.all([
+      adminApi(`/nodes/${nodeId}`),
+      adminApi(`/nodes/${nodeId}/allocations`).catch(() => ({ allocations: [] })),
+      adminApi(`/nodes/${nodeId}/servers`).catch(() => ({ servers: [] })),
+    ]);
+
+    const n = nodeData.node;
+    const nameEl = $a('#admin-node-name');
+    if (nameEl) nameEl.textContent = escapeHtml(n.name);
+
+    const detailsEl = $a('#admin-node-details');
+    if (detailsEl) {
+      detailsEl.innerHTML = ahtml`
+        <div style="display:grid;gap:8px;font-size:0.88rem">
+          <div><span style="color:var(--text-secondary)">FQDN:</span> <strong>${escapeHtml(n.fqdn)}</strong></div>
+          <div><span style="color:var(--text-secondary)">Scheme:</span> ${n.scheme || 'https'}</div>
+          <div><span style="color:var(--text-secondary)">Port:</span> ${n.port || '—'}</div>
+          <div><span style="color:var(--text-secondary)">Daemon Token:</span> <span style="font-family:monospace;font-size:0.8rem">${n.daemon_token ? '••••••••' : '—'}</span></div>
+          <div><span style="color:var(--text-secondary)">Status:</span> ${n.is_online !== undefined ? (n.is_online ? '<span style="color:var(--accent-green)">Online</span>' : '<span style="color:var(--accent-red)">Offline</span>') : '—'}</div>
+          <div><span style="color:var(--text-secondary)">Communication:</span> ${n.communications || '—'}</div>
+        </div>
+      `;
+    }
+
+    const resEl = $a('#admin-node-resources');
+    if (resEl) {
+      const memTotal = n.memory ? Math.round(n.memory / 1024) : 0;
+      const memUsed = n.memory_allocated ? Math.round(n.memory_allocated / 1024) : 0;
+      const diskTotal = n.disk ? (n.disk / 1024).toFixed(1) : 0;
+      const diskUsed = n.disk_allocated ? (n.disk_allocated / 1024).toFixed(1) : 0;
+      resEl.innerHTML = ahtml`
+        <div style="display:grid;gap:12px;font-size:0.88rem">
+          <div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>RAM</span><span>${memUsed} / ${memTotal} MB</span></div>
+            <div style="background:var(--bg-secondary);border-radius:4px;height:8px;overflow:hidden"><div style="background:var(--accent-1);height:100%;width:${memTotal > 0 ? (memUsed / memTotal * 100) : 0}%;border-radius:4px"></div></div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Disk</span><span>${diskUsed} / ${diskTotal} GB</span></div>
+            <div style="background:var(--bg-secondary);border-radius:4px;height:8px;overflow:hidden"><div style="background:var(--accent-3);height:100%;width:${diskTotal > 0 ? (diskUsed / diskTotal * 100) : 0}%;border-radius:4px"></div></div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>CPU</span><span>${n.cpu || 0}%</span></div>
+            <div style="background:var(--bg-secondary);border-radius:4px;height:8px;overflow:hidden"><div style="background:var(--accent-2);height:100%;width:${n.cpu || 0}%;border-radius:4px"></div></div>
+          </div>
+          <div style="margin-top:4px"><span style="color:var(--text-secondary)">Allocation Count:</span> <strong>${n.allocation_count ?? '—'}</strong></div>
+        </div>
+      `;
+    }
+
+    const allocTbody = $a('#admin-node-alloc-tbody');
+    if (allocTbody) {
+      const allocs = allocData.allocations || [];
+      if (allocs.length === 0) {
+        allocTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text-secondary)">No allocations found.</td></tr>';
+      } else {
+        allocTbody.innerHTML = allocs.map(a => ahtml`
+          <tr>
+            <td>${a.id}</td>
+            <td><span class="server-detail-tag">${escapeHtml(a.ip)}</span></td>
+            <td>${a.port}</td>
+            <td>${a.alias ? escapeHtml(a.alias) : '—'}</td>
+            <td>${a.server ? `<span style="color:var(--accent-1)">${a.server}</span>` : '<span style="color:var(--text-secondary)">Free</span>'}</td>
+          </tr>
+        `).join('');
+      }
+    }
+
+    const serversTbody = $a('#admin-node-servers-tbody');
+    if (serversTbody) {
+      const servers = serversData.servers || [];
+      if (servers.length === 0) {
+        serversTbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:16px;color:var(--text-secondary)">No servers on this node.</td></tr>';
+      } else {
+        serversTbody.innerHTML = servers.map(s => ahtml`
+          <tr>
+            <td>${s.id}</td>
+            <td>${escapeHtml(s.name)}</td>
+            <td><span class="server-detail-tag">${escapeHtml(s.identifier)}</span></td>
+            <td><span class="server-detail-tag">${s.status || '—'}</span></td>
+          </tr>
+        `).join('');
+      }
+    }
+  } catch (err) {
+    el.innerHTML = ahtml`
+      <div class="page-header">
+        <a href="/admin/nodes" onclick="event.preventDefault();adminNavigateTo('nodes')" class="btn btn-ghost btn-sm" style="display:inline-flex;width:auto;margin-bottom:16px">
+          <i data-lucide="arrow-left" style="width:14px;height:14px"></i>
+          Back to Nodes
+        </a>
+        <h1 class="page-title">Error</h1>
+        <p style="color:var(--accent-red)">${err.message}</p>
+      </div>
+    `;
+    initIcons();
+  }
+}
+
 // ─── Common ─────────────────────────────────────────────
 function formatDateWithTooltip(d) {
   if (!d) return 'N/A';
@@ -1987,6 +2241,12 @@ window.addEventListener('popstate', () => {
         if (tabBtn) tabBtn.click();
       }, 50);
     }
+  } else if (basePage === 'node' && param) {
+    const nid = parseInt(param, 10);
+    $a('#admin-page-node-detail')?.classList.add('active');
+    renderAdminNodeDetail(nid);
+  } else if (basePage === 'nodes') {
+    adminNavigateTo('nodes');
   } else if (basePage === 'users') {
     adminNavigateTo('users');
   } else if (basePage === 'dashboard' || !basePage || basePage === 'login') {

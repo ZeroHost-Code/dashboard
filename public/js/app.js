@@ -52,7 +52,17 @@ function renderCookieBanner() {
   });
 }
 
-const PTERO_URL = 'https://panel.zero-host.org';
+let PTERO_URL = '';
+
+async function fetchConfig() {
+  try {
+    const res = await fetch('/api/config');
+    const data = await res.json();
+    if (data.pteroUrl) PTERO_URL = data.pteroUrl;
+  } catch {}
+}
+
+fetchConfig();
 
 function openPyrodactylPanel(serverIdentifier) {
   const url = `${PTERO_URL}${serverIdentifier ? '/server/' + serverIdentifier : ''}`;

@@ -4,7 +4,7 @@ import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 import { authenticateToken, requireAdmin } from '../middleware/auth.js';
 import { query } from '../config/db.js';
-import { getAllServers, getServerById, getEgg, getPteroNests, getPteroNestEggs, suspendPteroServer, unsuspendPteroServer, deletePteroServer, deletePteroUser, updatePteroServerBuild, getPergoServerIdsByEgg } from '../services/pyrodactyl.js';
+import { getAllServers, getServerById, getEgg, getPteroNests, getPteroNestEggs, suspendPteroServer, unsuspendPteroServer, deletePteroServer, deletePteroUser, updatePteroServerBuild, getPergoServerIdsByEgg, getAllNodes, getNodeDetail, getNodeAllocations, getNodeServers } from '../services/pyrodactyl.js';
 import { verifyCap } from '../config/cap.js';
 import { logActivity } from '../services/activity.js';
 import { createNotification } from '../services/notification.js';
@@ -253,6 +253,62 @@ router.delete('/servers/:id', authenticateToken, requireAdmin, async (req, res) 
   } catch (err) {
     console.error('Admin delete error:', err.message);
     res.status(500).json({ error: 'Failed to delete server: ' + err.message });
+  }
+});
+
+// ─── Nodes ──────────────────────────────────────────────
+router.get('/nodes', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const nodes = await getAllNodes();
+    res.json({ nodes });
+  } catch (err) {
+    console.error('Admin nodes list error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch nodes' });
+  }
+});
+
+router.get('/nodes/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const nodeId = parseInt(req.params.id, 10);
+    if (isNaN(nodeId)) {
+      return res.status(400).json({ error: 'Invalid node ID' });
+    }
+
+    const node = await getNodeDetail(nodeId);
+    res.json({ node });
+  } catch (err) {
+    console.error('Admin node detail error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch node details' });
+  }
+});
+
+router.get('/nodes/:id/allocations', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const nodeId = parseInt(req.params.id, 10);
+    if (isNaN(nodeId)) {
+      return res.status(400).json({ error: 'Invalid node ID' });
+    }
+
+    const allocations = await getNodeAllocations(nodeId);
+    res.json({ allocations });
+  } catch (err) {
+    console.error('Admin node allocations error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch node allocations' });
+  }
+});
+
+router.get('/nodes/:id/servers', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const nodeId = parseInt(req.params.id, 10);
+    if (isNaN(nodeId)) {
+      return res.status(400).json({ error: 'Invalid node ID' });
+    }
+
+    const servers = await getNodeServers(nodeId);
+    res.json({ servers });
+  } catch (err) {
+    console.error('Admin node servers error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch node servers' });
   }
 });
 

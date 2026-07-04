@@ -231,6 +231,12 @@ setInterval(() => {
   }
 }, 60000);
 
+app.get('/api/config', (req, res) => {
+  res.json({
+    pteroUrl: process.env.PTERO_URL || '',
+  });
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/auth', passkeyRoutes);
 app.use('/api/servers', serverRoutes);
