@@ -20,6 +20,139 @@ function ahtml(strings, ...values) {
   return strings.reduce((acc, str, i) => acc + str + (values[i] ?? ''), '');
 }
 
+// ─── Simple Icons Library (loaded dynamically) ────────────
+let _simpleIconsCache = null;
+let _simpleIconsLoading = null;
+
+async function loadSimpleIcons() {
+  if (_simpleIconsCache) return _simpleIconsCache;
+  if (_simpleIconsLoading) return _simpleIconsLoading;
+
+  _simpleIconsLoading = (async () => {
+    try {
+      const res = await fetch('https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/slugs.md');
+      const text = await res.text();
+      const icons = [];
+      const re = /\|\s*`([^`]+)`\s*\|\s*`([^`]+)`\s*\|/g;
+      let m;
+      while ((m = re.exec(text)) !== null) {
+        const label = m[1];
+        const slug = m[2];
+        if (slug && label) icons.push({ slug, label });
+      }
+      icons.sort((a, b) => a.label.localeCompare(b.label));
+      _simpleIconsCache = icons;
+    } catch (e) {
+      console.warn('Failed to load Simple Icons list, using fallback');
+      _simpleIconsCache = [
+        { slug: 'docker', label: 'Docker' },
+        { slug: 'kubernetes', label: 'Kubernetes' },
+        { slug: 'minecraft', label: 'Minecraft' },
+        { slug: 'ubuntu', label: 'Ubuntu' },
+        { slug: 'debian', label: 'Debian' },
+        { slug: 'linux', label: 'Linux' },
+        { slug: 'github', label: 'GitHub' },
+        { slug: 'discord', label: 'Discord' },
+        { slug: 'database', label: 'Database' },
+        { slug: 'code', label: 'Code' },
+      ];
+    }
+    _simpleIconsLoading = null;
+    return _simpleIconsCache;
+  })();
+
+  return _simpleIconsLoading;
+}
+
+// ─── Lucide Icons (dynamically loaded from lucide.icons) ─
+function getLucideIcons() {
+  if (typeof lucide === 'undefined' || !lucide.icons) return [];
+  return Object.keys(lucide.icons).sort().map(name => ({
+    name,
+    label: name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+  }));
+}
+
+function lucideIconHtml(name, size, extraStyle) {
+  const s = size || 32;
+  const style = `width:${s}px;height:${s}px;${extraStyle || ''}`;
+  return `<i data-lucide="${name}" style="${style}"></i>`;
+}
+
+function renderLucidePickerGrid(selectedName) {
+  return `<div style="text-align:center;padding:16px;color:var(--text-secondary)"><span class="spinner"></span> Loading icons...</div>`;
+}
+
+async function renderLucidePickerGridLoaded(selectedName) {
+  const icons = getLucideIcons();
+  if (!icons.length) return '<div style="text-align:center;padding:16px;color:var(--text-secondary)">Lucide not loaded</div>';
+  return icons.map(icon => {
+    const isSelected = icon.name === selectedName;
+    return `<div class="svg-picker-item ${isSelected ? 'selected' : ''}" data-name="${icon.name}" data-label="${escapeHtml(icon.label)}" title="${escapeHtml(icon.label)}">
+      <i data-lucide="${icon.name}" style="width:24px;height:24px"></i>
+      <span>${escapeHtml(icon.label)}</span>
+    </div>`;
+  }).join('');
+}
+
+function siUrl(slug) {
+  return `https://cdn.simpleicons.org/${slug}`;
+}
+
+function renderLogoDisplay(logo, size, extraStyle) {
+  if (!logo) return '';
+  const s = size || 32;
+  const style = `width:${s}px;height:${s}px;object-fit:contain;border-radius:4px;${extraStyle || ''}`;
+  if (logo.startsWith('si:')) {
+    const slug = logo.slice(3);
+    return `<img src="${siUrl(slug)}" alt="" style="${style}" />`;
+  }
+  if (logo.startsWith('lucide:')) {
+    const name = logo.slice(7);
+    return lucideIconHtml(name, s, extraStyle);
+  }
+  return `<img src="${escapeHtml(logo)}" alt="" style="${style}" />`;
+}
+
+function renderSvgPickerGrid(selectedSlug) {
+  return `<div style="text-align:center;padding:16px;color:var(--text-secondary)"><span class="spinner"></span> Loading icons...</div>`;
+}
+
+async function renderSvgPickerGridLoaded(selectedSlug) {
+  const icons = await loadSimpleIcons();
+  return icons.map(icon => {
+    const isSelected = icon.slug === selectedSlug;
+    return `<div class="svg-picker-item ${isSelected ? 'selected' : ''}" data-slug="${icon.slug}" data-label="${escapeHtml(icon.label)}" title="${escapeHtml(icon.label)}">
+      <img src="${siUrl(icon.slug)}" alt="${escapeHtml(icon.label)}" loading="lazy" />
+      <span>${escapeHtml(icon.label)}</span>
+    </div>`;
+  }).join('');
+}
+
+function initSvgPickerListeners(container, onSelect) {
+  if (!container) return;
+  const search = container.querySelector('.svg-picker-search');
+  const grid = container.querySelector('.svg-picker-grid');
+  if (!search || !grid) return;
+
+  search.addEventListener('input', () => {
+    const q = search.value.toLowerCase().trim();
+    grid.querySelectorAll('.svg-picker-item').forEach(item => {
+      const label = (item.dataset.label || '').toLowerCase();
+      const slug = (item.dataset.slug || item.dataset.name || '').toLowerCase();
+      item.style.display = (!q || label.includes(q) || slug.includes(q)) ? '' : 'none';
+    });
+  });
+
+  grid.addEventListener('click', (e) => {
+    const item = e.target.closest('.svg-picker-item');
+    if (!item) return;
+    grid.querySelectorAll('.svg-picker-item').forEach(i => i.classList.remove('selected'));
+    item.classList.add('selected');
+    onSelect(item.dataset.name || item.dataset.slug);
+  });
+}
+
 async function adminApi(path, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...options.headers };
   if (adminState.token) {
@@ -72,6 +205,7 @@ function adminNavigateTo(page) {
   adminState.currentPage = basePage;
   adminState.serverId = param ? parseInt(param, 10) : null;
   adminState.userId = param ? parseInt(param, 10) : null;
+  adminState.nodeId = param ? parseInt(param, 10) : null;
   updateAdminNav();
 
   if (basePage === 'server' && adminState.serverId) {
@@ -80,6 +214,12 @@ function adminNavigateTo(page) {
   } else if (basePage === 'user' && adminState.userId) {
     renderAdminUserDetail(adminState.userId);
     history.pushState({ adminPage: 'user', userId: adminState.userId }, '', `/admin/user/${adminState.userId}`);
+  } else if (basePage === 'node' && adminState.nodeId) {
+    renderAdminNodeDetail(adminState.nodeId);
+    history.pushState({ adminPage: 'node', nodeId: adminState.nodeId }, '', `/admin/node/${adminState.nodeId}`);
+  } else if (basePage === 'nodes') {
+    renderAdminNodes();
+    history.pushState({ adminPage: 'nodes' }, '', '/admin/nodes');
   } else if (basePage === 'users') {
     renderAdminUsers();
     history.pushState({ adminPage: 'users' }, '', '/admin/users');
@@ -87,8 +227,8 @@ function adminNavigateTo(page) {
     renderAdminDashboard();
     history.pushState({ adminPage: 'dashboard' }, '', '/admin/dashboard');
   } else if (basePage === 'activity') {
-    renderAdminActivity();
-    history.pushState({ adminPage: 'activity' }, '', '/admin/activity');
+    window.location.href = '/logs';
+    return;
   } else if (basePage === 'settings') {
     const sub = parts[1];
     if (sub === 'eggs') {
@@ -212,11 +352,15 @@ function renderAdminLayout() {
             <i data-lucide="server" style="width:18px;height:18px"></i>
             Servers
           </a>
+          <a class="admin-nav-link" data-page="nodes" href="/admin/nodes">
+            <i data-lucide="network" style="width:18px;height:18px"></i>
+            Nodes
+          </a>
           <a class="admin-nav-link" data-page="users" href="/admin/users">
             <i data-lucide="users" style="width:18px;height:18px"></i>
             Users
           </a>
-          <a class="admin-nav-link" data-page="activity" href="/admin/activity">
+          <a class="admin-nav-link" data-page="activity" href="/logs">
             <i data-lucide="activity" style="width:18px;height:18px"></i>
             Activity
           </a>
@@ -237,6 +381,8 @@ function renderAdminLayout() {
         <div class="admin-page" id="admin-page-dashboard"></div>
         <div class="admin-page active" id="admin-page-servers"></div>
         <div class="admin-page" id="admin-page-server-detail"></div>
+        <div class="admin-page" id="admin-page-nodes"></div>
+        <div class="admin-page" id="admin-page-node-detail"></div>
         <div class="admin-page" id="admin-page-users"></div>
         <div class="admin-page" id="admin-page-user-detail"></div>
         <div class="admin-page" id="admin-page-activity"></div>
@@ -257,6 +403,10 @@ function renderAdminLayout() {
     link.addEventListener('click', (e) => {
       e.preventDefault();
       const page = link.dataset.page;
+      if (page === 'activity') {
+        window.location.href = '/logs';
+        return;
+      }
       adminNavigateTo(page);
     });
   });
@@ -282,6 +432,17 @@ function renderAdminLayout() {
     adminState.userId = uid;
     $a('#admin-page-user-detail').classList.add('active');
     renderAdminUserDetail(uid);
+  } else if (basePage === 'node' && param) {
+    const nid = parseInt(param, 10);
+    adminState.currentPage = 'node';
+    updateAdminNav();
+    adminState.nodeId = nid;
+    $a('#admin-page-node-detail').classList.add('active');
+    renderAdminNodeDetail(nid);
+  } else if (basePage === 'nodes') {
+    adminState.currentPage = 'nodes';
+    updateAdminNav();
+    renderAdminNodes();
   } else if (basePage === 'users') {
     adminState.currentPage = 'users';
     updateAdminNav();
@@ -1427,11 +1588,12 @@ async function renderAdminEggsSettings() {
             <th>Name</th>
             <th>Description</th>
             <th>Panel Nest ID</th>
+            <th>Status</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody id="admin-nests-tbody">
-          <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
+          <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -1452,16 +1614,45 @@ async function renderAdminEggsSettings() {
     tbody.innerHTML = data.nests.map(n => ahtml`
       <tr>
         <td>${n.id}</td>
-        <td>${n.logo ? `<img src="${n.logo}" alt="" style="width:32px;height:32px;object-fit:contain;border-radius:4px">` : '<span style="color:var(--text-secondary);font-size:0.75rem">—</span>'}</td>
+        <td>${n.logo ? renderLogoDisplay(n.logo, 32) : '<span style="color:var(--text-secondary);font-size:0.75rem">—</span>'}</td>
         <td><a href="/admin/settings/eggs/${n.ptero_nest_id}" onclick="event.preventDefault();adminNavigateTo('settings/eggs/${n.ptero_nest_id}')" style="font-weight:600;cursor:pointer">${n.name}</a></td>
         <td style="color:var(--text-secondary);font-size:0.85rem;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.description || '—'}</td>
         <td><span class="server-detail-tag">${n.ptero_nest_id}</span></td>
+        <td>
+          <label class="toggle-switch" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
+            <input type="checkbox" class="nest-unavailable-toggle" data-id="${n.id}" ${n.unavailable ? 'checked' : ''} style="opacity:0;width:0;height:0">
+            <span class="toggle-slider" style="position:absolute;cursor:pointer;inset:0;background:var(--bg-secondary);border:1px solid var(--border);border-radius:24px;transition:0.2s"></span>
+          </label>
+          <span class="nest-status-label" data-id="${n.id}" style="margin-left:8px;font-size:0.82rem;${n.unavailable ? 'color:var(--accent-red)' : 'color:var(--accent-green)'}">${n.unavailable ? 'Unavailable' : 'Available'}</span>
+        </td>
         <td style="display:flex;gap:6px">
           <button class="btn btn-ghost btn-sm btn-rename-nest" data-id="${n.id}" data-name="${n.name}" data-logo="${n.logo || ''}" data-description="${(n.description || '').replace(/"/g, '&quot;')}" style="width:auto">Edit</button>
           <button class="btn btn-danger btn-sm btn-delete-nest" data-id="${n.id}" data-name="${n.name}" style="width:auto">Delete</button>
         </td>
       </tr>
     `).join('');
+
+    if (window.lucide) lucide.createIcons();
+
+    tbody.querySelectorAll('.nest-unavailable-toggle').forEach(toggle => {
+      toggle.addEventListener('change', async () => {
+        const nestId = parseInt(toggle.dataset.id, 10);
+        const label = tbody.querySelector(`.nest-status-label[data-id="${nestId}"]`);
+        try {
+          await adminApi(`/settings/nests/${nestId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ unavailable: toggle.checked }),
+          });
+          if (label) {
+            label.textContent = toggle.checked ? 'Unavailable' : 'Available';
+            label.style.color = toggle.checked ? 'var(--accent-red)' : 'var(--accent-green)';
+          }
+        } catch (err) {
+          toggle.checked = !toggle.checked;
+          showToast(err.message, 'error');
+        }
+      });
+    });
 
     tbody.querySelectorAll('.btn-rename-nest').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1503,11 +1694,12 @@ async function renderAdminNestEggs(nestId) {
             <th>Name</th>
             <th>Description</th>
             <th>Resources</th>
+            <th>Status</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody id="admin-eggs-tbody">
-          <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
+          <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -1528,19 +1720,48 @@ async function renderAdminNestEggs(nestId) {
       const resStr = res
         ? `CPU: ${res.cpu_limit ?? 'default'}% / RAM: ${res.memory_limit ?? 'default'} MB / Disk: ${res.disk_limit ?? 'default'} MB`
         : 'Defaults';
+      const isUnavailable = res?.unavailable;
       return ahtml`
         <tr>
           <td>${e.id}</td>
-          <td>${res?.logo ? `<img src="${res.logo}" alt="" style="width:28px;height:28px;object-fit:contain;border-radius:4px">` : '<span style="color:var(--text-secondary);font-size:0.75rem">—</span>'}</td>
+          <td>${res?.logo ? renderLogoDisplay(res.logo, 28) : '<span style="color:var(--text-secondary);font-size:0.75rem">—</span>'}</td>
           <td><strong>${e.name}</strong></td>
           <td style="color:var(--text-secondary);font-size:0.85rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.description || '—'}</td>
           <td><span class="server-detail-tag" style="font-size:0.75rem">${resStr}</span></td>
+          <td>
+            <label class="toggle-switch" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
+              <input type="checkbox" class="egg-unavailable-toggle" data-nest="${nestId}" data-egg="${e.id}" ${isUnavailable ? 'checked' : ''} style="opacity:0;width:0;height:0">
+              <span class="toggle-slider" style="position:absolute;cursor:pointer;inset:0;background:var(--bg-secondary);border:1px solid var(--border);border-radius:24px;transition:0.2s"></span>
+            </label>
+            <span class="egg-status-label" data-nest="${nestId}" data-egg="${e.id}" style="margin-left:8px;font-size:0.82rem;${isUnavailable ? 'color:var(--accent-red)' : 'color:var(--accent-green)'}">${isUnavailable ? 'Unavailable' : 'Available'}</span>
+          </td>
           <td>
             <a href="/admin/settings/eggs/${nestId}/${e.id}" onclick="event.preventDefault();adminNavigateTo('settings/eggs/${nestId}/${e.id}')" class="btn btn-ghost btn-sm">Configure</a>
           </td>
         </tr>
       `;
     }).join('');
+
+    tbody.querySelectorAll('.egg-unavailable-toggle').forEach(toggle => {
+      toggle.addEventListener('change', async () => {
+        const nId = parseInt(toggle.dataset.nest, 10);
+        const eId = parseInt(toggle.dataset.egg, 10);
+        const label = tbody.querySelector(`.egg-status-label[data-nest="${nId}"][data-egg="${eId}"]`);
+        try {
+          await adminApi(`/settings/eggs/${nId}/${eId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ unavailable: toggle.checked }),
+          });
+          if (label) {
+            label.textContent = toggle.checked ? 'Unavailable' : 'Available';
+            label.style.color = toggle.checked ? 'var(--accent-red)' : 'var(--accent-green)';
+          }
+        } catch (err) {
+          toggle.checked = !toggle.checked;
+          showToast(err.message, 'error');
+        }
+      });
+    });
   } catch (err) {
     const tbody = $a('#admin-eggs-tbody');
     if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
@@ -1570,11 +1791,29 @@ async function renderAdminEggSettings(nestId, eggId) {
           Set custom resource limits and a logo for this egg.
         </p>
         <div class="form-group">
-          <label for="egg-logo">Logo URL</label>
-          <input type="text" id="egg-logo" placeholder="https://example.com/egg-logo.png" style="width:100%" />
-          <div id="egg-logo-preview" style="margin-top:8px;display:none">
-            <img src="" alt="" style="max-width:48px;max-height:48px;object-fit:contain;border-radius:4px;border:1px solid var(--border)" />
+          <label>Logo</label>
+          <div class="logo-type-toggle">
+            <button type="button" class="active" data-type="url">Logo URL</button>
+            <button type="button" data-type="svg">Choose SVG</button>
           </div>
+          <div id="egg-logo-url-section">
+            <input type="text" id="egg-logo" placeholder="https://example.com/egg-logo.png" style="width:100%" />
+            <div id="egg-logo-preview" style="margin-top:8px;display:none">
+              <img src="" alt="" style="max-width:48px;max-height:48px;object-fit:contain;border-radius:4px;border:1px solid var(--border)" />
+            </div>
+          </div>
+          <div id="egg-logo-svg-section" style="display:none">
+            <div id="egg-lucide-picker" class="svg-picker">
+              <input type="text" class="svg-picker-search" placeholder="Search icons..." />
+              <div class="svg-picker-grid">${renderLucidePickerGrid('')}</div>
+            </div>
+            <div id="egg-lucide-selected-preview" class="logo-preview-box" style="display:none">
+              <span class="logo-preview-label"></span>
+              <button type="button" class="logo-preview-clear" id="egg-lucide-clear"><i data-lucide="x" style="width:14px;height:14px"></i></button>
+            </div>
+          </div>
+          <input type="hidden" id="egg-logo-type" value="url" />
+          <input type="hidden" id="egg-lucide-name" value="" />
         </div>
         <div class="form-group">
           <label for="egg-cpu">CPU Limit (%)</label>
@@ -1605,9 +1844,43 @@ async function renderAdminEggSettings(nestId, eggId) {
 
     if (data.resources) {
       if (data.resources.logo != null) {
-        $a('#egg-logo').value = data.resources.logo;
-        const preview = $a('#egg-logo-preview');
-        if (preview) { preview.style.display = 'block'; preview.querySelector('img').src = data.resources.logo; }
+        const isLucide = data.resources.logo.startsWith('lucide:');
+        const isSi = data.resources.logo.startsWith('si:');
+        const isIcon = isLucide || isSi;
+        const type = isIcon ? 'svg' : 'url';
+        $a('#egg-logo-type').value = type;
+        $a('#egg-logo-svg-section').style.display = type === 'svg' ? 'block' : 'none';
+        $a('#egg-logo-url-section').style.display = type === 'url' ? 'block' : 'none';
+        const toggleBtns = $a('#admin-egg-resources-form')?.closest('.card')?.querySelectorAll('.logo-type-toggle button') || [];
+        toggleBtns.forEach(b => { b.classList.toggle('active', b.dataset.type === type); });
+
+        if (isLucide) {
+          const name = data.resources.logo.slice(7);
+          $a('#egg-lucide-name').value = name;
+          const prev = $a('#egg-lucide-selected-preview');
+          if (prev) {
+            prev.style.display = 'flex';
+            let iconEl = prev.querySelector('[data-lucide]');
+            if (!iconEl) {
+              iconEl = document.createElement('i');
+              iconEl.style.cssText = 'width:32px;height:32px';
+              prev.prepend(iconEl);
+            }
+            iconEl.setAttribute('data-lucide', name);
+            prev.querySelector('.logo-preview-label').textContent = name;
+            if (window.lucide) lucide.createIcons({ nodes: [prev] });
+          }
+          const item = $a('#egg-lucide-picker')?.querySelector(`[data-name="${name}"]`);
+          if (item) item.classList.add('selected');
+        } else if (isSi) {
+          const slug = data.resources.logo.slice(3);
+          $a('#egg-logo').value = '';
+          $a('#egg-logo-type').value = 'svg';
+        } else {
+          $a('#egg-logo').value = data.resources.logo;
+          const preview = $a('#egg-logo-preview');
+          if (preview) { preview.style.display = 'block'; preview.querySelector('img').src = data.resources.logo; }
+        }
       }
       if (data.resources.cpu_limit != null) $a('#egg-cpu').value = data.resources.cpu_limit;
       if (data.resources.memory_limit != null) $a('#egg-memory').value = data.resources.memory_limit;
@@ -1630,6 +1903,25 @@ async function renderAdminEggSettings(nestId, eggId) {
     }
   });
 
+  const eggToggleBtns = $a('#admin-egg-resources-form')?.closest('.card')?.querySelectorAll('.logo-type-toggle button') || [];
+  eggToggleBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      eggToggleBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const type = btn.dataset.type;
+      $a('#egg-logo-type').value = type;
+      $a('#egg-logo-url-section').style.display = type === 'url' ? 'block' : 'none';
+      $a('#egg-logo-svg-section').style.display = type === 'svg' ? 'block' : 'none';
+    });
+  });
+
+  $a('#egg-lucide-clear')?.addEventListener('click', () => {
+    $a('#egg-lucide-name').value = '';
+    const prev = $a('#egg-lucide-selected-preview');
+    if (prev) prev.style.display = 'none';
+    $a('#egg-lucide-picker')?.querySelectorAll('.svg-picker-item').forEach(i => i.classList.remove('selected'));
+  });
+
   $a('#admin-egg-resources-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = $a('#btn-save-egg-resources');
@@ -1638,7 +1930,14 @@ async function renderAdminEggSettings(nestId, eggId) {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Saving...';
 
-    const logo = $a('#egg-logo').value.trim() || null;
+    const logoType = $a('#egg-logo-type')?.value || 'url';
+    let logo = null;
+    if (logoType === 'svg') {
+      const name = $a('#egg-lucide-name')?.value?.trim();
+      logo = name ? `lucide:${name}` : null;
+    } else {
+      logo = $a('#egg-logo')?.value?.trim() || null;
+    }
     const cpu = $a('#egg-cpu').value;
     const memory = $a('#egg-memory').value;
     const disk = $a('#egg-disk').value;
@@ -1673,6 +1972,15 @@ async function renderAdminEggSettings(nestId, eggId) {
       });
       $a('#egg-logo').value = '';
       $a('#egg-logo-preview').style.display = 'none';
+      $a('#egg-lucide-name').value = '';
+      $a('#egg-logo-type').value = 'url';
+      const eggPrev = $a('#egg-lucide-selected-preview');
+      if (eggPrev) eggPrev.style.display = 'none';
+      $a('#egg-lucide-picker')?.querySelectorAll('.svg-picker-item').forEach(i => i.classList.remove('selected'));
+      const eggToggleBtns = $a('#admin-egg-resources-form')?.closest('.card')?.querySelectorAll('.logo-type-toggle button') || [];
+      eggToggleBtns.forEach(b => { b.classList.toggle('active', b.dataset.type === 'url'); });
+      $a('#egg-logo-url-section').style.display = 'block';
+      $a('#egg-logo-svg-section').style.display = 'none';
       $a('#egg-cpu').value = '';
       $a('#egg-memory').value = '';
       $a('#egg-disk').value = '';
@@ -1685,6 +1993,30 @@ async function renderAdminEggSettings(nestId, eggId) {
   });
 
   initIcons();
+
+  (async () => {
+    const grid = $a('#egg-lucide-picker .svg-picker-grid');
+    if (grid) {
+      grid.innerHTML = await renderLucidePickerGridLoaded('');
+      if (window.lucide) lucide.createIcons({ nodes: [grid] });
+      initSvgPickerListeners($a('#egg-lucide-picker'), (name) => {
+        $a('#egg-lucide-name').value = name;
+        const prev = $a('#egg-lucide-selected-preview');
+        if (prev) {
+          prev.style.display = 'flex';
+          let iconEl = prev.querySelector('[data-lucide]');
+          if (!iconEl) {
+            iconEl = document.createElement('i');
+            iconEl.style.cssText = 'width:32px;height:32px';
+            prev.prepend(iconEl);
+          }
+          iconEl.setAttribute('data-lucide', name);
+          prev.querySelector('.logo-preview-label').textContent = name;
+          if (window.lucide) lucide.createIcons({ nodes: [prev] });
+        }
+      });
+    }
+  })();
 
   $a('#btn-save-egg-resources-all')?.addEventListener('click', async () => {
     if (!confirm('Apply these resources to ALL existing servers using this egg? This will update their limits on the panel.')) return;
@@ -1828,6 +2160,12 @@ function showRenameNestModal(nestId, currentName, currentLogo, currentDescriptio
   const overlay = $a('#admin-modal-overlay');
   if (!content || !overlay) return;
 
+  const isLucide = currentLogo && currentLogo.startsWith('lucide:');
+  const isSi = currentLogo && currentLogo.startsWith('si:');
+  const isIcon = isLucide || isSi;
+  const initialType = isIcon ? 'svg' : 'url';
+  const initialSvgSlug = isLucide ? currentLogo.slice(7) : isSi ? currentLogo.slice(3) : '';
+
   content.innerHTML = ahtml`
     <div>
       <h3 style="margin:0 0 16px 0;color:var(--text-primary)">Edit Nest</h3>
@@ -1836,11 +2174,30 @@ function showRenameNestModal(nestId, currentName, currentLogo, currentDescriptio
         <input type="text" id="modal-rename-nest-name" value="${currentName}" style="width:100%" />
       </div>
       <div class="form-group" style="margin-bottom:16px">
-        <label for="modal-edit-nest-logo">Logo URL</label>
-        <input type="text" id="modal-edit-nest-logo" value="${currentLogo || ''}" placeholder="https://example.com/logo.png" style="width:100%" />
-        <div id="modal-nest-logo-preview" style="margin-top:8px;${currentLogo ? '' : 'display:none'}">
-          <img src="${currentLogo || ''}" alt="" style="max-width:64px;max-height:64px;object-fit:contain;border-radius:4px;border:1px solid var(--border)" />
+        <label>Logo</label>
+        <div class="logo-type-toggle">
+          <button type="button" class="${initialType === 'url' ? 'active' : ''}" data-type="url">Logo URL</button>
+          <button type="button" class="${initialType === 'svg' ? 'active' : ''}" data-type="svg">Choose SVG</button>
         </div>
+        <div id="nest-logo-url-section" style="display:${initialType === 'url' ? 'block' : 'none'}">
+          <input type="text" id="modal-edit-nest-logo" value="${isIcon ? '' : (currentLogo || '')}" placeholder="https://example.com/logo.png" style="width:100%" />
+          <div id="modal-nest-logo-preview" style="margin-top:8px;${currentLogo && !isIcon ? '' : 'display:none'}">
+            <img src="${isIcon ? '' : (currentLogo || '')}" alt="" style="max-width:64px;max-height:64px;object-fit:contain;border-radius:4px;border:1px solid var(--border)" />
+          </div>
+        </div>
+        <div id="nest-logo-svg-section" style="display:${initialType === 'svg' ? 'block' : 'none'}">
+          <div id="nest-lucide-picker" class="svg-picker">
+            <input type="text" class="svg-picker-search" placeholder="Search icons..." />
+            <div class="svg-picker-grid">${renderLucidePickerGrid(initialSvgSlug)}</div>
+          </div>
+          <div id="nest-lucide-selected-preview" class="logo-preview-box" style="display:${initialSvgSlug ? 'flex' : 'none'}">
+            ${initialSvgSlug ? `<i data-lucide="${initialSvgSlug}" style="width:32px;height:32px"></i>` : ''}
+            <span class="logo-preview-label">${initialSvgSlug || ''}</span>
+            <button type="button" class="logo-preview-clear" id="nest-svg-clear"><i data-lucide="x" style="width:14px;height:14px"></i></button>
+          </div>
+        </div>
+        <input type="hidden" id="modal-edit-nest-logo-type" value="${initialType}" />
+        <input type="hidden" id="modal-edit-nest-svg-slug" value="${initialSvgSlug}" />
       </div>
       <div class="form-group" style="margin-bottom:16px">
         <label for="modal-edit-nest-description">Description</label>
@@ -1854,6 +2211,43 @@ function showRenameNestModal(nestId, currentName, currentLogo, currentDescriptio
     </div>
   `;
   overlay.style.display = 'flex';
+  initIcons();
+
+  (async () => {
+    const grid = $a('#nest-lucide-picker .svg-picker-grid');
+    if (grid) {
+      grid.innerHTML = await renderLucidePickerGridLoaded(initialSvgSlug);
+      if (window.lucide) lucide.createIcons({ nodes: [grid] });
+      initSvgPickerListeners($a('#nest-lucide-picker'), (name) => {
+        $a('#modal-edit-nest-svg-slug').value = name;
+        const prev = $a('#nest-lucide-selected-preview');
+        if (prev) {
+          prev.style.display = 'flex';
+          let iconEl = prev.querySelector('[data-lucide]');
+          if (!iconEl) {
+            iconEl = document.createElement('i');
+            iconEl.style.cssText = 'width:32px;height:32px';
+            prev.prepend(iconEl);
+          }
+          iconEl.setAttribute('data-lucide', name);
+          prev.querySelector('.logo-preview-label').textContent = name;
+          if (window.lucide) lucide.createIcons({ nodes: [prev] });
+        }
+      });
+    }
+  })();
+
+  const toggleBtns = content.querySelectorAll('.logo-type-toggle button');
+  toggleBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      toggleBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const type = btn.dataset.type;
+      $a('#modal-edit-nest-logo-type').value = type;
+      $a('#nest-logo-url-section').style.display = type === 'url' ? 'block' : 'none';
+      $a('#nest-logo-svg-section').style.display = type === 'svg' ? 'block' : 'none';
+    });
+  });
 
   const logoInput = $a('#modal-edit-nest-logo');
   logoInput?.addEventListener('input', () => {
@@ -1867,9 +2261,23 @@ function showRenameNestModal(nestId, currentName, currentLogo, currentDescriptio
     }
   });
 
+  $a('#nest-svg-clear')?.addEventListener('click', () => {
+    $a('#modal-edit-nest-svg-slug').value = '';
+    const prev = $a('#nest-lucide-selected-preview');
+    if (prev) prev.style.display = 'none';
+    $a('#nest-lucide-picker')?.querySelectorAll('.svg-picker-item').forEach(i => i.classList.remove('selected'));
+  });
+
   $a('#btn-confirm-rename-nest')?.addEventListener('click', async () => {
     const name = $a('#modal-rename-nest-name').value.trim();
-    const logo = $a('#modal-edit-nest-logo').value.trim() || null;
+    const type = $a('#modal-edit-nest-logo-type').value;
+    let logo = null;
+    if (type === 'svg') {
+      const slug = $a('#modal-edit-nest-svg-slug').value.trim();
+      logo = slug ? `lucide:${slug}` : null;
+    } else {
+      logo = $a('#modal-edit-nest-logo').value.trim() || null;
+    }
     const description = $a('#modal-edit-nest-description').value.trim() || null;
     if (!name) {
       const err = $a('#rename-nest-error');
@@ -1937,6 +2345,368 @@ function showDeleteNestConfirm(nestId, name) {
   });
 }
 
+// ─── Nodes ──────────────────────────────────────────────
+async function renderAdminNodes() {
+  document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
+  const el = $a('#admin-page-nodes');
+  if (!el) return;
+  el.classList.add('active');
+  el.innerHTML = ahtml`
+    <div class="page-header">
+      <h1 class="page-title">Nodes</h1>
+      <p class="page-subtitle">Pterodactyl panel nodes</p>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>FQDN</th>
+            <th>RAM</th>
+            <th>Disk</th>
+            <th>CPU</th>
+            <th>Allocations</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="admin-nodes-tbody">
+          <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  try {
+    const data = await adminApi('/nodes');
+    const tbody = $a('#admin-nodes-tbody');
+    if (!tbody) return;
+
+    if (data.nodes.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-secondary)">No nodes found in the panel.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.nodes.map(n => {
+      const ramMB = n.memory ? Math.round(n.memory / 1024) : '—';
+      const diskGB = n.disk ? (n.disk / 1024).toFixed(1) : '—';
+      const cpuPct = n.cpu ? n.cpu + '%' : '—';
+      const allocCount = n.allocation_count ?? '—';
+      const isOnline = n.is_online;
+      return ahtml`
+        <tr>
+          <td>${n.id}</td>
+          <td><a href="/admin/node/${n.id}" onclick="event.preventDefault();adminNavigateTo('node/${n.id}')" style="font-weight:600;cursor:pointer">${escapeHtml(n.name)}</a></td>
+          <td><span class="server-detail-tag">${escapeHtml(n.fqdn)}</span></td>
+          <td>${ramMB !== '—' ? ramMB + ' MB' : '—'}</td>
+          <td>${diskGB !== '—' ? diskGB + ' GB' : '—'}</td>
+          <td>${cpuPct}</td>
+          <td>${allocCount}</td>
+          <td>${isOnline !== undefined ? (isOnline ? '<span style="color:var(--accent-green)">Online</span>' : '<span style="color:var(--accent-red)">Offline</span>') : '—'}</td>
+        </tr>
+      `;
+    }).join('');
+  } catch (err) {
+    const tbody = $a('#admin-nodes-tbody');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
+  }
+}
+
+async function renderAdminNodeDetail(nodeId) {
+  document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
+  const el = $a('#admin-page-node-detail');
+  if (!el) return;
+  el.classList.add('active');
+  el.innerHTML = ahtml`
+    <div class="page-header">
+      <a href="/admin/nodes" onclick="event.preventDefault();adminNavigateTo('nodes')" class="btn btn-ghost btn-sm" style="display:inline-flex;width:auto;margin-bottom:16px">
+        <i data-lucide="arrow-left" style="width:14px;height:14px"></i>
+        Back to Nodes
+      </a>
+      <h1 class="page-title" style="margin-bottom:0">Node #${nodeId}</h1>
+      <p class="page-subtitle" id="admin-node-name">Loading...</p>
+    </div>
+    <div class="tabs" id="admin-node-tabs">
+      <button class="tab active" data-tab="info">Info</button>
+      <button class="tab" data-tab="allocations">Allocations</button>
+      <button class="tab" data-tab="servers">Servers</button>
+      <button class="tab" data-tab="settings">Settings</button>
+      <div class="tab-indicator" id="admin-node-tab-indicator"></div>
+    </div>
+
+    <div id="admin-node-tab-info" class="tab-content" style="display:block">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="card" style="padding:20px">
+          <h3 style="color:var(--text-secondary);font-size:0.8rem;text-transform:uppercase;margin-bottom:12px">Details</h3>
+          <div id="admin-node-details"><span class="spinner"></span></div>
+        </div>
+        <div class="card" style="padding:20px">
+          <h3 style="color:var(--text-secondary);font-size:0.8rem;text-transform:uppercase;margin-bottom:12px">Resources</h3>
+          <div id="admin-node-resources"><span class="spinner"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="admin-node-tab-allocations" class="tab-content" style="display:none">
+      <div class="card" style="padding:20px">
+        <div class="table-container" style="margin:0">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>IP</th>
+                <th>Port</th>
+                <th>Alias</th>
+                <th>Server</th>
+              </tr>
+            </thead>
+            <tbody id="admin-node-alloc-tbody">
+              <tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text-secondary)"><span class="spinner"></span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="admin-node-tab-servers" class="tab-content" style="display:none">
+      <div class="card" style="padding:20px">
+        <div class="table-container" style="margin:0">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Identifier</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="admin-node-servers-tbody">
+              <tr><td colspan="4" style="text-align:center;padding:16px;color:var(--text-secondary)"><span class="spinner"></span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="admin-node-tab-settings" class="tab-content" style="display:none">
+      <div class="card" style="padding:24px;max-width:480px">
+        <h2 class="card-title" style="margin-bottom:16px">Node Availability</h2>
+        <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:20px">
+          When a node is set to <strong>Unavailable</strong>, new servers will not be created on it. Existing servers are not affected.
+        </p>
+        <div id="admin-node-settings-form">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+            <label class="toggle-switch" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
+              <input type="checkbox" id="node-unavailable-toggle" style="opacity:0;width:0;height:0">
+              <span class="toggle-slider" style="position:absolute;cursor:pointer;inset:0;background:var(--bg-secondary);border:1px solid var(--border);border-radius:24px;transition:0.2s"></span>
+            </label>
+            <div>
+              <div id="node-unavailable-label" style="font-weight:600;font-size:0.9rem">Available</div>
+              <div style="color:var(--text-secondary);font-size:0.8rem">Node is accepting new server deployments</div>
+            </div>
+          </div>
+          <div id="node-settings-error" class="auth-error" style="margin-bottom:12px"></div>
+          <button class="btn btn-primary" id="btn-save-node-settings" style="width:auto">Save Settings</button>
+        </div>
+      </div>
+    </div>
+  `;
+  initIcons();
+
+  try {
+    const [nodeData, allocData, serversData, settingsData] = await Promise.all([
+      adminApi(`/nodes/${nodeId}`),
+      adminApi(`/nodes/${nodeId}/allocations`).catch(() => ({ allocations: [] })),
+      adminApi(`/nodes/${nodeId}/servers`).catch(() => ({ servers: [] })),
+      adminApi(`/nodes/${nodeId}/settings`).catch(() => ({ settings: { unavailable: false } })),
+    ]);
+
+    const n = nodeData.node;
+    const nameEl = $a('#admin-node-name');
+    if (nameEl) nameEl.textContent = escapeHtml(n.name);
+
+    const detailsEl = $a('#admin-node-details');
+    if (detailsEl) {
+      detailsEl.innerHTML = ahtml`
+        <div style="display:grid;gap:8px;font-size:0.88rem">
+          <div><span style="color:var(--text-secondary)">FQDN:</span> <strong>${escapeHtml(n.fqdn)}</strong></div>
+          <div><span style="color:var(--text-secondary)">Scheme:</span> ${n.scheme || 'https'}</div>
+          <div><span style="color:var(--text-secondary)">Port:</span> ${n.port || '—'}</div>
+          <div><span style="color:var(--text-secondary)">Daemon Token:</span> <span style="font-family:monospace;font-size:0.8rem">${n.daemon_token ? '••••••••' : '—'}</span></div>
+          <div><span style="color:var(--text-secondary)">Status:</span> ${n.is_online !== undefined ? (n.is_online ? '<span style="color:var(--accent-green)">Online</span>' : '<span style="color:var(--accent-red)">Offline</span>') : '—'}</div>
+          <div><span style="color:var(--text-secondary)">Communication:</span> ${n.communications || '—'}</div>
+        </div>
+      `;
+    }
+
+    const resEl = $a('#admin-node-resources');
+    if (resEl) {
+      const memTotal = n.memory ? Math.round(n.memory / 1024) : 0;
+      const memUsed = n.memory_allocated ? Math.round(n.memory_allocated / 1024) : 0;
+      const diskTotal = n.disk ? (n.disk / 1024).toFixed(1) : 0;
+      const diskUsed = n.disk_allocated ? (n.disk_allocated / 1024).toFixed(1) : 0;
+      resEl.innerHTML = ahtml`
+        <div style="display:grid;gap:12px;font-size:0.88rem">
+          <div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>RAM</span><span>${memUsed} / ${memTotal} MB</span></div>
+            <div style="background:var(--bg-secondary);border-radius:4px;height:8px;overflow:hidden"><div style="background:var(--accent-1);height:100%;width:${memTotal > 0 ? (memUsed / memTotal * 100) : 0}%;border-radius:4px"></div></div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Disk</span><span>${diskUsed} / ${diskTotal} GB</span></div>
+            <div style="background:var(--bg-secondary);border-radius:4px;height:8px;overflow:hidden"><div style="background:var(--accent-3);height:100%;width:${diskTotal > 0 ? (diskUsed / diskTotal * 100) : 0}%;border-radius:4px"></div></div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>CPU</span><span>${n.cpu || 0}%</span></div>
+            <div style="background:var(--bg-secondary);border-radius:4px;height:8px;overflow:hidden"><div style="background:var(--accent-2);height:100%;width:${n.cpu || 0}%;border-radius:4px"></div></div>
+          </div>
+          <div style="margin-top:4px"><span style="color:var(--text-secondary)">Allocation Count:</span> <strong>${n.allocation_count ?? '—'}</strong></div>
+        </div>
+      `;
+    }
+
+    const allocTbody = $a('#admin-node-alloc-tbody');
+    if (allocTbody) {
+      const allocs = allocData.allocations || [];
+      if (allocs.length === 0) {
+        allocTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text-secondary)">No allocations found.</td></tr>';
+      } else {
+        allocTbody.innerHTML = allocs.map(a => ahtml`
+          <tr>
+            <td>${a.id}</td>
+            <td><span class="server-detail-tag">${escapeHtml(a.ip)}</span></td>
+            <td>${a.port}</td>
+            <td>${a.alias ? escapeHtml(a.alias) : '—'}</td>
+            <td>${a.server ? `<span style="color:var(--accent-1)">${a.server}</span>` : '<span style="color:var(--text-secondary)">Free</span>'}</td>
+          </tr>
+        `).join('');
+      }
+    }
+
+    const serversTbody = $a('#admin-node-servers-tbody');
+    if (serversTbody) {
+      const servers = serversData.servers || [];
+      if (servers.length === 0) {
+        serversTbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:16px;color:var(--text-secondary)">No servers on this node.</td></tr>';
+      } else {
+        serversTbody.innerHTML = servers.map(s => ahtml`
+          <tr>
+            <td>${s.id}</td>
+            <td>${escapeHtml(s.name)}</td>
+            <td><span class="server-detail-tag">${escapeHtml(s.identifier)}</span></td>
+            <td><span class="server-detail-tag">${s.status || '—'}</span></td>
+          </tr>
+        `).join('');
+      }
+    }
+
+    const toggle = $a('#node-unavailable-toggle');
+    const label = $a('#node-unavailable-label');
+    const isUnavailable = !!settingsData.settings?.unavailable;
+    if (toggle) {
+      toggle.checked = isUnavailable;
+      updateNodeSettingsLabel(isUnavailable);
+      toggle.addEventListener('change', () => updateNodeSettingsLabel(toggle.checked));
+    }
+
+    const saveBtn = $a('#btn-save-node-settings');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async () => {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Saving...';
+        const errEl = $a('#node-settings-error');
+        if (errEl) errEl.classList.remove('show');
+        try {
+          await adminApi(`/nodes/${nodeId}/settings`, {
+            method: 'PUT',
+            body: JSON.stringify({ unavailable: toggle.checked }),
+          });
+          saveBtn.innerHTML = 'Saved!';
+          setTimeout(() => { saveBtn.disabled = false; saveBtn.innerHTML = 'Save Settings'; }, 1500);
+        } catch (err) {
+          if (errEl) { errEl.textContent = err.message; errEl.classList.add('show'); }
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = 'Save Settings';
+        }
+      });
+    }
+
+    initNodeTabs(nodeId);
+  } catch (err) {
+    el.innerHTML = ahtml`
+      <div class="page-header">
+        <a href="/admin/nodes" onclick="event.preventDefault();adminNavigateTo('nodes')" class="btn btn-ghost btn-sm" style="display:inline-flex;width:auto;margin-bottom:16px">
+          <i data-lucide="arrow-left" style="width:14px;height:14px"></i>
+          Back to Nodes
+        </a>
+        <h1 class="page-title">Error</h1>
+        <p style="color:var(--accent-red)">${err.message}</p>
+      </div>
+    `;
+    initIcons();
+  }
+}
+
+function updateNodeSettingsLabel(isUnavailable) {
+  const label = $a('#node-unavailable-label');
+  const desc = label?.nextElementSibling;
+  if (label) {
+    label.textContent = isUnavailable ? 'Unavailable' : 'Available';
+    label.style.color = isUnavailable ? 'var(--accent-red)' : '';
+  }
+  if (desc) {
+    desc.textContent = isUnavailable
+      ? 'Node will be excluded from new server deployments'
+      : 'Node is accepting new server deployments';
+  }
+}
+
+function initNodeTabs(nodeId) {
+  const tabs = $a('#admin-node-tabs');
+  if (!tabs) return;
+  const indicator = $a('#admin-node-tab-indicator');
+  const btns = tabs.querySelectorAll('.tab');
+
+  function switchTab(tabBtn) {
+    const tabName = tabBtn.dataset.tab;
+    btns.forEach(t => t.classList.remove('active'));
+    tabBtn.classList.add('active');
+
+    document.querySelectorAll('#admin-page-node-detail .tab-content').forEach(c => c.style.display = 'none');
+    const target = $a('#admin-node-tab-' + tabName);
+    if (target) target.style.display = 'block';
+
+    if (indicator) {
+      indicator.style.left = tabBtn.offsetLeft + 'px';
+      indicator.style.width = tabBtn.offsetWidth + 'px';
+    }
+
+    history.pushState({ adminPage: 'node', nodeId, tab: tabName }, '', `/admin/node/${nodeId}/${tabName}`);
+  }
+
+  btns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.classList.contains('active')) return;
+      switchTab(btn);
+    });
+  });
+
+  const pathParts = window.location.pathname.replace('/admin/', '').split('/');
+  const tabFromUrl = pathParts[2];
+  if (tabFromUrl) {
+    const tabBtn = Array.from(btns).find(b => b.dataset.tab === tabFromUrl);
+    if (tabBtn) {
+      switchTab(tabBtn);
+      return;
+    }
+  }
+
+  const activeBtn = tabs.querySelector('.tab.active');
+  if (activeBtn && indicator) {
+    indicator.style.left = activeBtn.offsetLeft + 'px';
+    indicator.style.width = activeBtn.offsetWidth + 'px';
+  }
+}
+
 // ─── Common ─────────────────────────────────────────────
 function formatDateWithTooltip(d) {
   if (!d) return 'N/A';
@@ -1983,12 +2753,26 @@ window.addEventListener('popstate', () => {
         if (tabBtn) tabBtn.click();
       }, 50);
     }
+  } else if (basePage === 'node' && param) {
+    const nid = parseInt(param, 10);
+    $a('#admin-page-node-detail')?.classList.add('active');
+    renderAdminNodeDetail(nid);
+    const tab = pathParts[2];
+    if (tab) {
+      setTimeout(() => {
+        const tabBtn = document.querySelector('#admin-node-tabs .tab[data-tab="' + tab + '"]');
+        if (tabBtn) tabBtn.click();
+      }, 50);
+    }
+  } else if (basePage === 'nodes') {
+    adminNavigateTo('nodes');
   } else if (basePage === 'users') {
     adminNavigateTo('users');
   } else if (basePage === 'dashboard' || !basePage || basePage === 'login') {
     adminNavigateTo('dashboard');
   } else if (basePage === 'activity') {
-    adminNavigateTo('activity');
+    window.location.href = '/logs';
+    return;
   } else if (basePage === 'settings') {
     adminNavigateTo(pathParts.join('/'));
   } else {

@@ -1,5 +1,9 @@
 function initIcons() { if (window.lucide) lucide.createIcons(); }
 
+function siUrl(slug) {
+  return `https://cdn.simpleicons.org/${slug}`;
+}
+
 const API_BASE = window.location.origin;
 
 const state = {
@@ -12,6 +16,8 @@ const state = {
   notifications: [],
   unreadCount: 0,
   notifPanelOpen: false,
+  sidebarMode: 'main',
+  accountTab: 'info',
 };
 
 function setRgpdConsent(preferences) {
@@ -50,7 +56,17 @@ function renderCookieBanner() {
   });
 }
 
-const PTERO_URL = 'https://panel.zero-host.org';
+let PTERO_URL = '';
+
+async function fetchConfig() {
+  try {
+    const res = await fetch('/api/config');
+    const data = await res.json();
+    if (data.pteroUrl) PTERO_URL = data.pteroUrl;
+  } catch {}
+}
+
+fetchConfig();
 
 function openPyrodactylPanel(serverIdentifier) {
   const url = `${PTERO_URL}${serverIdentifier ? '/server/' + serverIdentifier : ''}`;
@@ -104,7 +120,7 @@ function md5(s) {
   const K = [0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3];
   s = unescape(encodeURIComponent(s));
   const len = s.length;
-  const msg = []; for(let i=0;i<len*2;i+=2) msg.push((s.charCodeAt(i/2)>>(8-(i%2)*8))&0xFF);
+  const msg = []; for(let i=0;i<len;i++) msg.push(s.charCodeAt(i));
   const bitLen = len * 8;
   msg.push(0x80);
   while((msg.length+8)%64!=0) msg.push(0);
@@ -126,24 +142,80 @@ function md5(s) {
 
 function gravatarUrl(email, size = 32) {
   if (!email) return '';
-  const hash = md5(email.trim().toLowerCase());
+  const hash = state.user?.gravatarHash || md5(email.trim().toLowerCase());
   return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=identicon`;
 }
 
-function avatarUrl(userId) {
-  return `${API_BASE}/api/auth/avatar/${userId}`;
+function base64UrlFromBuffer(buf) {
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-window.handleAvatarError = function(img) {
-  if (!img.dataset.fallbackTried) {
-    img.dataset.fallbackTried = 'gravatar';
-    img.src = gravatarUrl(state.user?.email, 32);
-  } else {
-    img.style.display = 'none';
-    const fallback = document.getElementById('avatar-fallback');
-    if (fallback) fallback.style.display = 'flex';
+function bufferFromBase64Url(str) {
+  str = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (str.length % 4) str += '=';
+  const binary = atob(str);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+function prepareWebAuthnOptions(opts) {
+  const o = JSON.parse(JSON.stringify(opts));
+  if (o.challenge) o.challenge = bufferFromBase64Url(o.challenge);
+  if (o.user?.id) o.user.id = bufferFromBase64Url(o.user.id);
+  if (o.excludeCredentials) {
+    o.excludeCredentials = o.excludeCredentials.map(c => ({
+      ...c,
+      id: typeof c.id === 'string' ? bufferFromBase64Url(c.id) : c.id,
+    }));
   }
-};
+  if (o.allowCredentials) {
+    o.allowCredentials = o.allowCredentials.map(c => ({
+      ...c,
+      id: typeof c.id === 'string' ? bufferFromBase64Url(c.id) : c.id,
+    }));
+  }
+  return o;
+}
+
+function serializeCredential(cred) {
+  const res = {};
+  for (const key of Object.keys(cred)) {
+    if (key === 'response') {
+      res.response = {};
+      for (const rKey of Object.keys(cred.response)) {
+        const val = cred.response[rKey];
+        if (val instanceof ArrayBuffer || val instanceof Uint8Array) {
+          res.response[rKey] = base64UrlFromBuffer(val);
+        } else if (typeof val === 'function') {
+          continue;
+        } else {
+          res.response[rKey] = val;
+        }
+      }
+      if (cred.response.transports && !res.response.transports) {
+        res.response.transports = cred.response.transports;
+      }
+      if (typeof cred.response.getTransports === 'function') {
+        res.response.transports = cred.response.getTransports();
+      }
+    } else if (key === 'rawId') {
+      res.rawId = base64UrlFromBuffer(cred.rawId);
+    } else if (key === 'id') {
+      res.id = cred.id;
+    } else if (key === 'type') {
+      res.type = cred.type;
+    } else if (key === 'clientExtensionResults') {
+      res.clientExtensionResults = cred.clientExtensionResults || {};
+    } else if (typeof cred[key] !== 'function') {
+      res[key] = cred[key];
+    }
+  }
+  return res;
+}
 
 function escapeHtml(str) {
   if (typeof str !== 'string') return '';
@@ -447,7 +519,7 @@ function renderLoginPage() {
           <div class="auth-error"></div>
           <div class="form-group">
             <label for="login-email">Email</label>
-            <input type="email" id="login-email" placeholder="your@email.com" required autocomplete="email" />
+            <input type="email" id="login-email" placeholder="your@email.com" required autocomplete="webauthn" />
           </div>
           <div class="form-group">
             <label for="login-password">Password</label>
@@ -456,7 +528,13 @@ function renderLoginPage() {
           <button type="submit" class="btn btn-primary btn-full" id="login-btn">
             Sign In
           </button>
-
+          <div style="position:relative;margin:12px 0;text-align:center">
+            <span style="background:var(--card-bg);padding:0 12px;color:var(--text-muted);font-size:0.8rem">or</span>
+          </div>
+          <button type="button" class="btn btn-ghost btn-full" id="passkey-login-btn" style="border:1px solid var(--border)">
+            <i data-lucide="fingerprint" style="width:16px;height:16px"></i>
+            Sign in with Passkey
+          </button>
         </form>
         <div class="auth-footer">
           Don't have an account? <a href="/signup" id="go-register">Create one</a>
@@ -466,10 +544,13 @@ function renderLoginPage() {
   `;
 
   $('#login-form').addEventListener('submit', handleLogin);
+  $('#passkey-login-btn').addEventListener('click', handlePasskeyLogin);
   $('#go-register').addEventListener('click', (e) => {
     e.preventDefault();
     navigateTo('signup');
   });
+
+  setupPasskeyAutofill();
 }
 
 function renderRegisterPage() {
@@ -553,6 +634,85 @@ async function handleLogin(e) {
   } finally {
     btn.disabled = false;
     btn.innerHTML = 'Sign In';
+  }
+}
+
+async function completePasskeyLogin(credential) {
+  const data = await api('/auth/passkeys/login/complete', {
+    method: 'POST',
+    body: JSON.stringify({
+      response: serializeCredential(credential),
+    }),
+  });
+  state.token = data.token;
+  state.user = data.user;
+  localStorage.setItem('zh_token', data.token);
+  localStorage.setItem('zh_user', JSON.stringify(data.user));
+  history.replaceState({ page: 'overview' }, '', '/');
+  renderDashboard();
+}
+
+let passkeyAbortController = null;
+
+async function setupPasskeyAutofill() {
+  if (passkeyAbortController) {
+    passkeyAbortController.abort();
+    passkeyAbortController = null;
+  }
+  if (!navigator.credentials || typeof navigator.credentials.get !== 'function') return;
+
+  try {
+    const beginData = await api('/auth/passkeys/login/begin', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+
+    passkeyAbortController = new AbortController();
+    const credential = await navigator.credentials.get({
+      publicKey: prepareWebAuthnOptions(beginData.options),
+      mediation: 'conditional',
+      signal: passkeyAbortController.signal,
+    });
+
+    if (credential) {
+      await completePasskeyLogin(credential);
+    }
+  } catch (err) {
+    if (err.name === 'AbortError' || err.name === 'NotAllowedError') return;
+    console.error('Passkey autofill error:', err.message);
+  }
+}
+
+async function handlePasskeyLogin() {
+  const btn = $('#passkey-login-btn');
+  const errorEl = $('#login-form .auth-error');
+  if (errorEl) errorEl.classList.remove('show');
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  try {
+    const email = $('#login-email').value.trim();
+    const body = email ? { email } : {};
+    const beginData = await api('/auth/passkeys/login/begin', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+
+    const credential = await navigator.credentials.get({
+      publicKey: prepareWebAuthnOptions(beginData.options),
+    });
+
+    await completePasskeyLogin(credential);
+  } catch (err) {
+    if (errorEl) {
+      errorEl.textContent = err.message;
+      errorEl.classList.add('show');
+    }
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="fingerprint" style="width:16px;height:16px"></i> Sign in with Passkey';
+    initIcons();
   }
 }
 
@@ -685,64 +845,36 @@ async function renderDashboard() {
             <span class="sidebar-logo-text">Zero<span style="color:var(--accent-3)">Host</span></span>
           </a>
         </div>
-        <nav class="sidebar-nav">
-          <div class="nav-indicator" id="nav-indicator"></div>
-          <div class="nav-section-label">Main</div>
-          <a class="nav-item active" data-page="overview" href="/">
-            <i data-lucide="grid-3x3"></i>
-            Overview
-          </a>
-          <a class="nav-item" data-page="servers" href="/servers">
-            <i data-lucide="server"></i>
-            My Servers
-          </a>
-          <a class="nav-item" id="nav-notifications" href="#">
-            <span style="position:relative;display:inline-flex">
-              <i data-lucide="bell"></i>
-              <span class="notif-badge" id="notif-badge"></span>
-            </span>
-            Notifications
-          </a>
-          <div class="nav-section-label">Actions</div>
-          <a class="nav-item" data-page="create" href="/create">
-            <i data-lucide="plus"></i>
-            Create Server
-          </a>
-          <div class="nav-section-label">Links</div>
-          <a class="nav-item" href="https://hub.zero-host.org" target="_blank">
-            <i data-lucide="globe"></i>
-            Links Hub
-          </a>
-          <a class="nav-item" href="${window.location.hostname === 'beta.zero-host.org' ? 'https://dashboard.zero-host.org' : 'https://beta.zero-host.org'}" target="_blank">
-            <i data-lucide="globe"></i>
-            ${window.location.hostname === 'beta.zero-host.org' ? 'Switch to Stable' : 'Switch to Beta'}
-          </a>
-          ${state.user?.isAdmin ? html`
-          <a class="nav-item" href="/admin">
-            <i data-lucide="shield"></i>
-            Switch Admin
-          </a>
-          ` : ''}
-        </nav>
+        <nav class="sidebar-nav" id="sidebar-nav"></nav>
         <div class="sidebar-tooltip" id="sidebar-tooltip"></div>
         <div class="sidebar-footer">
-          <div class="user-info" id="sidebar-user-info" style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer">
-            <div style="display:flex;align-items:center;gap:10px">
-              <div class="user-avatar" id="avatar-container"><img src="${avatarUrl(state.user?.id)}" alt="" width="32" height="32" style="border-radius:50%;width:32px;height:32px;object-fit:cover" onerror="handleAvatarError(this)"/><span id="avatar-fallback" style="display:none">${state.user?.username?.[0]?.toUpperCase() || 'U'}</span></div>
-              <div>
-                <div class="user-name">${state.user?.username || 'User'}</div>
-                <div class="user-email">${state.user?.email || ''}</div>
+          <div class="sidebar-user-wrapper">
+            <div class="user-info" id="sidebar-user-info" style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer">
+              <div style="display:flex;align-items:center;gap:10px">
+                <div class="user-avatar" id="avatar-container"><img src="${gravatarUrl(state.user?.email, 32)}" alt="" width="32" height="32" style="border-radius:50%;width:32px;height:32px;object-fit:cover"/></div>
+                <div>
+                  <div class="user-name">${state.user?.username || 'User'}</div>
+                  <div class="user-email">${state.user?.email || ''}</div>
+                </div>
               </div>
+
             </div>
-            <div id="logout-btn" style="cursor:pointer;color:var(--text-muted);display:flex;align-items:center;padding:6px;border-radius:var(--radius-sm);transition:all var(--transition)" title="Sign Out">
-              <i data-lucide="log-out" style="width:18px;height:18px"></i>
+            <div class="sidebar-user-dropdown" id="sidebar-user-dropdown">
+              <a class="sidebar-user-dropdown-item" id="user-dropdown-settings">
+                <i data-lucide="settings" style="width:16px;height:16px"></i>
+                Settings
+              </a>
+              <a class="sidebar-user-dropdown-item" id="user-dropdown-logout">
+                <i data-lucide="log-out" style="width:16px;height:16px"></i>
+                Logout
+              </a>
             </div>
           </div>
           <div style="border-top:1px solid var(--border);margin:6px -12px 0"></div>
           <div style="padding:8px 12px 0;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
 
           </div>
-          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v1.0.3</div>
+          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v1.0.4</div>
         </div>
         <div class="sidebar-resizer" id="sidebar-resizer"></div>
       </aside>
@@ -782,31 +914,30 @@ async function renderDashboard() {
     </div>
   `;
 
-  document.querySelectorAll('.nav-item[data-page]').forEach(item => {
-    item.addEventListener('click', (e) => {
-      e.preventDefault();
-      const page = item.dataset.page;
-      navigateTo(page);
-    });
+  $('#sidebar-user-info').addEventListener('click', (e) => {
+    if (e.target.closest('.sidebar-user-dropdown')) return;
+    if ($('#sidebar').classList.contains('collapsed')) {
+      navigateTo('account/info');
+    } else {
+      toggleUserDropdown();
+    }
   });
 
-  $('#logout-btn').addEventListener('click', async () => {
+  $('#user-dropdown-settings').addEventListener('click', (e) => {
+    e.preventDefault();
+    closeUserDropdown();
+    navigateTo('account/info');
+  });
+
+  $('#user-dropdown-logout').addEventListener('click', async (e) => {
+    e.preventDefault();
+    closeUserDropdown();
     try { await api('/auth/logout', { method: 'POST' }); } catch {}
     state.token = null;
     state.user = null;
     localStorage.removeItem('zh_token');
     localStorage.removeItem('zh_user');
     navigateTo('login');
-  });
-
-  $('#sidebar-user-info').addEventListener('click', (e) => {
-    if (e.target.closest('#logout-btn')) return;
-    navigateTo('account');
-  });
-
-  $('#nav-notifications').addEventListener('click', (e) => {
-    e.preventDefault();
-    toggleNotifPanel();
   });
 
   $('#notif-backdrop').addEventListener('click', closeNotifPanel);
@@ -825,6 +956,8 @@ async function renderDashboard() {
   initSidebarResize();
 
   initSidebarTooltip();
+
+  renderSidebarNav();
 
   initIcons();
 
@@ -884,8 +1017,132 @@ function initSidebarTooltip() {
   });
 }
 
+function renderSidebarNav() {
+  const nav = $('#sidebar-nav');
+  if (!nav) return;
+
+  if (state.sidebarMode === 'account') {
+    nav.innerHTML = html`
+      <div class="nav-indicator" id="nav-indicator"></div>
+      <div class="nav-section-label">Account</div>
+      <a class="nav-item ${state.accountTab === 'info' ? 'active' : ''}" data-account-page="info" href="/account/info">
+        <i data-lucide="user"></i>
+        Account Info
+      </a>
+      <a class="nav-item ${state.accountTab === 'security' ? 'active' : ''}" data-account-page="security" href="/account/security">
+        <i data-lucide="lock"></i>
+        Security
+      </a>
+      <a class="nav-item ${state.accountTab === 'logs' ? 'active' : ''}" data-account-page="logs" href="/account/logs">
+        <i data-lucide="file-text"></i>
+        Logs
+      </a>
+      <a class="nav-item ${state.accountTab === 'dangerous' ? 'active' : ''}" data-account-page="dangerous" href="/account/dangerous">
+        <i data-lucide="triangle-alert"></i>
+        Dangerous
+      </a>
+      <div style="margin-top:auto;padding-top:16px;border-top:1px solid var(--border);margin-left:12px;margin-right:12px"></div>
+      <a class="nav-item" data-page="overview" href="/">
+        <i data-lucide="arrow-left"></i>
+        Back to Dashboard
+      </a>
+    `;
+  } else {
+    nav.innerHTML = html`
+      <div class="nav-indicator" id="nav-indicator"></div>
+      <div class="nav-section-label">Main</div>
+      <a class="nav-item ${state.currentPage === 'overview' ? 'active' : ''}" data-page="overview" href="/">
+        <i data-lucide="grid-3x3"></i>
+        Overview
+      </a>
+      <a class="nav-item ${state.currentPage === 'servers' ? 'active' : ''}" data-page="servers" href="/servers">
+        <i data-lucide="server"></i>
+        My Servers
+      </a>
+      <a class="nav-item" id="nav-notifications" href="#">
+        <span style="position:relative;display:inline-flex">
+          <i data-lucide="bell"></i>
+          <span class="notif-badge" id="notif-badge"></span>
+        </span>
+        Notifications
+      </a>
+      <div class="nav-section-label">Actions</div>
+      <a class="nav-item ${state.currentPage === 'create' ? 'active' : ''}" data-page="create" href="/create">
+        <i data-lucide="plus"></i>
+        Create Server
+      </a>
+      <div class="nav-section-label">Links</div>
+      <a class="nav-item" href="https://hub.zero-host.org" target="_blank">
+        <i data-lucide="globe"></i>
+        Links Hub
+      </a>
+      <a class="nav-item" href="${window.location.hostname === 'beta.zero-host.org' ? 'https://dashboard.zero-host.org' : 'https://beta.zero-host.org'}" target="_blank">
+        <i data-lucide="globe"></i>
+        ${window.location.hostname === 'beta.zero-host.org' ? 'Switch to Stable' : 'Switch to Beta'}
+      </a>
+      ${state.user?.isAdmin ? html`
+      <a class="nav-item" href="/admin">
+        <i data-lucide="shield"></i>
+        Switch Admin
+      </a>
+      ` : ''}
+    `;
+  }
+
+  document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.preventDefault();
+      navigateTo(item.dataset.page);
+    });
+  });
+
+  document.querySelectorAll('.nav-item[data-account-page]').forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.preventDefault();
+      navigateTo('account/' + item.dataset.accountPage);
+    });
+  });
+
+  const notifItem = document.querySelector('#nav-notifications');
+  if (notifItem) {
+    notifItem.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggleNotifPanel();
+    });
+  }
+
+  updateNavIndicator();
+  initIcons();
+}
+
+let userDropdownOpen = false;
+
+function toggleUserDropdown() {
+  const dropdown = $('#sidebar-user-dropdown');
+  if (!dropdown) return;
+  userDropdownOpen = !userDropdownOpen;
+  dropdown.classList.toggle('open', userDropdownOpen);
+}
+
+function closeUserDropdown() {
+  const dropdown = $('#sidebar-user-dropdown');
+  if (!dropdown) return;
+  userDropdownOpen = false;
+  dropdown.classList.remove('open');
+}
+
+document.addEventListener('click', (e) => {
+  if (userDropdownOpen && !e.target.closest('.sidebar-user-wrapper')) {
+    closeUserDropdown();
+  }
+});
+
 function navigateTo(page) {
   if (state.notifPanelOpen) closeNotifPanel();
+  if (passkeyAbortController) {
+    passkeyAbortController.abort();
+    passkeyAbortController = null;
+  }
   const parts = page.split('/');
   let basePage = parts[0] || 'overview';
   const param = parts[1];
@@ -927,8 +1184,16 @@ function navigateTo(page) {
   state.currentPage = basePage;
   state.serverId = param ? parseInt(param) : null;
   state.serverDetailTab = tab || 'info';
+
+  const isAccountPage = basePage === 'account';
+  const newSidebarMode = isAccountPage ? 'account' : 'main';
+  if (state.sidebarMode !== newSidebarMode) {
+    state.sidebarMode = newSidebarMode;
+    renderSidebarNav();
+  }
+
   const url = basePage === 'overview' && !param ? '/' : `/${page}`;
-  history.pushState({ page: basePage, serverId: state.serverId }, '', url);
+  history.pushState({ page: basePage, serverId: state.serverId, sidebarMode: state.sidebarMode }, '', url);
 
   if (basePage === 'server' && state.serverId) {
     const targetPage = $('#page-server-detail');
@@ -975,9 +1240,9 @@ function navigateTo(page) {
     }
     else if (basePage === 'pyrodactyl') renderPyrodactyl();
     else if (basePage === 'account') {
-      if (param === 'edit') renderAccountEdit();
-      else if (param === 'dangerous') renderDangerous();
-      else renderAccount();
+      const accountTab = param || 'info';
+      state.accountTab = accountTab;
+      renderAccountTab(accountTab);
     } else if (basePage === 'logs') {
       renderLog();
     }
@@ -1028,6 +1293,13 @@ window.addEventListener('popstate', () => {
   state.serverId = param ? parseInt(param) : null;
   state.serverDetailTab = tab || 'info';
 
+  const isAccountPage = basePage === 'account';
+  const newSidebarMode = isAccountPage ? 'account' : 'main';
+  if (state.sidebarMode !== newSidebarMode) {
+    state.sidebarMode = newSidebarMode;
+    renderSidebarNav();
+  }
+
   if (basePage === 'server' && state.serverId) {
     const targetPage = $('#page-server-detail');
     if (targetPage) targetPage.classList.add('active');
@@ -1073,9 +1345,9 @@ window.addEventListener('popstate', () => {
     }
     else if (basePage === 'pyrodactyl') renderPyrodactyl();
     else if (basePage === 'account') {
-      if (param === 'edit') renderAccountEdit();
-      else if (param === 'dangerous') renderDangerous();
-      else renderAccount();
+      const accountTab = param || 'info';
+      state.accountTab = accountTab;
+      renderAccountTab(accountTab);
     } else if (basePage === 'logs') {
       renderLog();
     }
@@ -1539,15 +1811,19 @@ function renderNestStep() {
     <div class="wizard-step-title">Choose a Nest</div>
     <p class="wizard-step-desc">Select the type of server you want to create</p>
     <div class="nest-grid">
-      ${createState.nests.map(n => html`
-        <div class="nest-card ${createState.selectedNest?.pteroNestId === n.pteroNestId ? 'selected' : ''}" data-nest-id="${n.pteroNestId}">
-          <div class="nest-card-logo">
-            ${n.logo ? html`<img src="${n.logo}" alt="" />` : html`<i data-lucide="box" style="width:40px;height:40px;color:var(--text-secondary)"></i>`}
+      ${createState.nests.map(n => {
+        const unavail = n.unavailable;
+        return html`
+          <div class="nest-card ${unavail ? 'unavailable' : ''} ${createState.selectedNest?.pteroNestId === n.pteroNestId ? 'selected' : ''}" data-nest-id="${n.pteroNestId}" ${unavail ? 'style="opacity:0.5;pointer-events:none"' : ''}>
+            <div class="nest-card-logo">
+              ${n.logo ? (n.logo.startsWith('si:') ? html`<img src="${siUrl(n.logo.slice(3))}" alt="" />` : n.logo.startsWith('lucide:') ? html`<i data-lucide="${n.logo.slice(7)}" style="width:40px;height:40px"></i>` : html`<img src="${n.logo}" alt="" />`) : html`<i data-lucide="box" style="width:40px;height:40px;color:var(--text-secondary)"></i>`}
+            </div>
+            <div class="nest-card-name">${escapeHtml(n.name)}</div>
+            ${n.description ? html`<div class="nest-card-desc">${escapeHtml(n.description)}</div>` : ''}
+            ${unavail ? html`<div class="nest-card-badge" style="margin-top:8px;display:inline-block;padding:2px 10px;border-radius:12px;font-size:0.75rem;font-weight:600;background:rgba(239,68,68,0.15);color:var(--accent-red)">Unavailable</div>` : ''}
           </div>
-          <div class="nest-card-name">${escapeHtml(n.name)}</div>
-          ${n.description ? html`<div class="nest-card-desc">${escapeHtml(n.description)}</div>` : ''}
-        </div>
-      `).join('')}
+        `;
+      }).join('')}
     </div>
     <div class="wizard-actions">
       <button class="btn btn-primary" id="wizard-next-btn" ${createState.selectedNest ? '' : 'disabled'}>
@@ -1566,14 +1842,16 @@ function renderEggStep() {
   const eggCards = nest.eggs.map(e => {
     const dockerImages = e.dockerImages || {};
     const images = Object.entries(dockerImages);
+    const unavail = e.unavailable;
     return html`
-      <div class="egg-card ${createState.selectedEgg?.eggId === e.eggId ? 'selected' : ''}" data-egg-id="${e.eggId}">
+      <div class="egg-card ${unavail ? 'unavailable' : ''} ${createState.selectedEgg?.eggId === e.eggId ? 'selected' : ''}" data-egg-id="${e.eggId}" ${unavail ? 'style="opacity:0.5;pointer-events:none"' : ''}>
         <div class="egg-card-logo">
-          ${e.logo ? html`<img src="${e.logo}" alt="" />` : html`<i data-lucide="egg" style="width:32px;height:32px;color:var(--text-secondary)"></i>`}
+          ${e.logo ? (e.logo.startsWith('si:') ? html`<img src="${siUrl(e.logo.slice(3))}" alt="" />` : e.logo.startsWith('lucide:') ? html`<i data-lucide="${e.logo.slice(7)}" style="width:32px;height:32px"></i>` : html`<img src="${e.logo}" alt="" />`) : html`<i data-lucide="egg" style="width:32px;height:32px;color:var(--text-secondary)"></i>`}
         </div>
         <div class="egg-card-info">
           <div class="egg-card-name">${escapeHtml(e.name)}</div>
           ${e.description ? html`<div class="egg-card-desc">${escapeHtml(e.description)}</div>` : ''}
+          ${unavail ? html`<div class="egg-card-badge" style="margin-top:6px;display:inline-block;padding:2px 10px;border-radius:12px;font-size:0.75rem;font-weight:600;background:rgba(239,68,68,0.15);color:var(--accent-red)">Unavailable</div>` : ''}
         </div>
       </div>
     `;
@@ -1884,248 +2162,231 @@ function renderPyrodactyl() {
 }
 
 // ===== ACCOUNT PAGE =====
-function renderAccount() {
+function renderAccountTab(tab) {
   const el = $('#page-account');
+  state.accountTab = tab;
+
+  const pageTitle = {
+    info: 'Account Info',
+    security: 'Security',
+    logs: 'Activity Log',
+    dangerous: 'Dangerous Zone',
+  }[tab] || 'Account';
+
+  const pageSubtitle = {
+    info: 'Manage your account details and API keys',
+    security: 'Password and authentication settings',
+    logs: 'All account activity',
+    dangerous: 'Delete your account or export your data (RGPD)',
+  }[tab] || '';
+
   el.innerHTML = html`
     <div class="page-header">
-      <h1 class="page-title">Account</h1>
-      <p class="page-subtitle">Manage your account settings</p>
+      <h1 class="page-title">${pageTitle}</h1>
+      <p class="page-subtitle">${pageSubtitle}</p>
     </div>
-    <div class="account-grid">
-      <div class="card account-menu-card" id="account-menu-edit" style="cursor:pointer">
-        <div class="account-menu-item">
-          <div class="account-menu-icon">
-            <i data-lucide="edit" style="width:22px;height:22px"></i>
-          </div>
-          <div class="account-menu-text">
-            <div class="account-menu-title">Change Account Info</div>
-            <div class="account-menu-desc">Update your email address or password</div>
-          </div>
-          <i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--text-muted);flex-shrink:0"></i>
-        </div>
-      </div>
-
-      <div class="card account-menu-card" id="account-menu-logs" style="cursor:pointer">
-        <div class="account-menu-item">
-          <div class="account-menu-icon">
-            <i data-lucide="file-text" style="width:22px;height:22px"></i>
-          </div>
-          <div class="account-menu-text">
-            <div class="account-menu-title">Activity Log</div>
-            <div class="account-menu-desc">View all account activity</div>
-          </div>
-          <i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--text-muted);flex-shrink:0"></i>
-        </div>
-      </div>
-
-      <div class="card account-menu-card" id="account-menu-logout" style="cursor:pointer">
-        <div class="account-menu-item">
-          <div class="account-menu-icon" style="color:var(--accent-red)">
-            <i data-lucide="log-out" style="width:22px;height:22px"></i>
-          </div>
-          <div class="account-menu-text">
-            <div class="account-menu-title">Sign Out</div>
-            <div class="account-menu-desc">Logout from your account</div>
-          </div>
-          <i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--text-muted);flex-shrink:0"></i>
-        </div>
-      </div>
-
-      <div class="card account-menu-card" id="account-menu-dangerous" style="cursor:pointer">
-        <div class="account-menu-item">
-          <div class="account-menu-icon" style="color:var(--accent-red)">
-            <i data-lucide="triangle-alert" style="width:22px;height:22px"></i>
-          </div>
-          <div class="account-menu-text">
-            <div class="account-menu-title">Dangerous Zone & Export Account Data</div>
-            <div class="account-menu-desc">Delete your account or export your personal data (RGPD)</div>
-          </div>
-          <i data-lucide="chevron-right" style="width:18px;height:18px;color:var(--text-muted);flex-shrink:0"></i>
-        </div>
-      </div>
-    </div>
+    <div class="account-grid" id="account-tab-content"></div>
   `;
 
-  $('#account-menu-edit').addEventListener('click', () => navigateTo('account/edit'));
-  $('#account-menu-logs').addEventListener('click', () => navigateTo('logs'));
-  $('#account-menu-dangerous').addEventListener('click', () => navigateTo('account/dangerous'));
-  $('#account-menu-logout').addEventListener('click', async () => {
-    initIcons();
-    try { await api('/auth/logout', { method: 'POST' }); } catch {}
-    state.token = null;
-    state.user = null;
-    localStorage.removeItem('zh_token');
-    localStorage.removeItem('zh_user');
-    navigateTo('login');
+  if (tab === 'info') renderAccountInfoTab();
+  else if (tab === 'security') renderAccountSecurityTab();
+  else if (tab === 'logs') renderAccountLogsTab();
+  else if (tab === 'dangerous') renderAccountDangerousTab();
+
+  initIcons();
+
+  document.querySelectorAll('.nav-item[data-account-page]').forEach(n => {
+    n.classList.toggle('active', n.dataset.accountPage === tab);
   });
+  updateNavIndicator();
 }
 
-function renderAccountEdit() {
-  const el = $('#page-account');
-  el.innerHTML = html`
-    <div class="page-header" style="display:flex;align-items:center;gap:12px">
-      <a href="/account" onclick="event.preventDefault();navigateTo('account')" style="color:var(--text-muted);display:flex;padding:4px;border-radius:var(--radius-sm);cursor:pointer">
-        <i data-lucide="arrow-left" style="width:20px;height:20px"></i>
-      </a>
-      <div>
-        <h1 class="page-title" style="margin:0">Change Account Info</h1>
-        <p class="page-subtitle" style="margin:0">Update your email address or password</p>
+function renderAccountInfoTab() {
+  const container = $('#account-tab-content');
+  container.innerHTML = html`
+    <div class="card">
+      <h2 class="card-title" style="margin-bottom:20px">Profile Picture</h2>
+      <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin-bottom:12px">
+        Your profile picture is provided by <a href="https://gravatar.com" target="_blank">Gravatar</a>.
+        To change it, update your avatar on <a href="https://gravatar.com" target="_blank">gravatar.com</a> using this account's email address.
+      </p>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
+        <img src="${gravatarUrl(state.user?.email, 64)}" alt="" width="64" height="64" style="border-radius:8px;width:64px;height:64px;object-fit:cover" />
+        <div>
+          <div style="font-weight:500">${state.user?.email || ''}</div>
+          <div style="font-size:0.82rem;color:var(--text-muted)">Gravatar</div>
+        </div>
       </div>
     </div>
-    <div class="account-grid">
-      <div class="card">
-        <h2 class="card-title" style="margin-bottom:20px">Profile Picture</h2>
-        <div class="avatar-upload">
-          <div class="avatar-upload-preview">
-            <img id="avatar-preview-img" src="${avatarUrl(state.user?.id)}" alt="" onerror="this.style.display='none';document.getElementById('avatar-preview-placeholder').style.display='flex'" onload="document.getElementById('avatar-preview-placeholder').style.display='none'" />
-            <div class="avatar-upload-placeholder" id="avatar-preview-placeholder">${state.user?.username?.[0]?.toUpperCase() || 'U'}</div>
-          </div>
-          <div class="avatar-upload-info">
-            <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin-bottom:12px">
-              Upload a profile picture. Supported formats: PNG, JPEG, GIF, WebP. Max size: 2MB.
-            </p>
-            <input type="file" id="avatar-file-input" accept="image/png,image/jpeg,image/gif,image/webp" hidden />
-            <div style="display:flex;gap:8px">
-              <button class="btn btn-primary" id="avatar-choose-btn">Choose Image</button>
-              <button class="btn btn-primary" id="avatar-upload-btn" disabled style="display:none">Upload</button>
-            </div>
-            <div id="avatar-status" style="margin-top:8px;font-size:0.82rem;color:var(--text-muted)"></div>
-          </div>
+
+    <div class="card">
+      <h2 class="card-title" style="margin-bottom:20px">Change Email</h2>
+      <form id="change-email-form" style="width:100%">
+        <div class="form-group">
+          <label for="acc-new-email">New Email</label>
+          <input type="email" id="acc-new-email" placeholder="${state.user?.email || 'Enter new email'}" required />
         </div>
-      </div>
-
-      <div class="card">
-        <h2 class="card-title" style="margin-bottom:20px">Change Email</h2>
-        <form id="change-email-form" style="width:100%">
-          <div class="form-group">
-            <label for="acc-new-email">New Email</label>
-            <input type="email" id="acc-new-email" placeholder="${state.user?.email || 'Enter new email'}" required />
-          </div>
-          <div class="form-group">
-            <label for="acc-email-pw">Current Password</label>
-            <input type="password" id="acc-email-pw" placeholder="Enter your password" required autocomplete="current-password" />
-          </div>
-          <button type="submit" class="btn btn-primary btn-full" id="change-email-btn">Change Email</button>
-        </form>
-      </div>
-
-      <div class="card">
-        <h2 class="card-title" style="margin-bottom:20px">Change Password</h2>
-        <form id="change-password-form" style="width:100%">
-          <div class="form-group">
-            <label for="acc-current-pw">Current Password</label>
-            <input type="password" id="acc-current-pw" placeholder="Enter current password" required autocomplete="current-password" />
-          </div>
-          <div class="form-group">
-            <label for="acc-new-pw">New Password</label>
-            <input type="password" id="acc-new-pw" placeholder="At least 8 characters" required autocomplete="new-password" />
-          </div>
-          <div class="form-group">
-            <label for="acc-confirm-pw">Confirm New Password</label>
-            <input type="password" id="acc-confirm-pw" placeholder="Repeat new password" required autocomplete="new-password" />
-          </div>
-          <button type="submit" class="btn btn-primary btn-full" id="change-pw-btn">Change Password</button>
-        </form>
-      </div>
-
-      <div class="card">
-        <h2 class="card-title" style="margin-bottom:20px">Pyrodactyl API Key</h2>
-        <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin-bottom:16px">
-          Add your Pyrodactyl Client API key to enable live resource monitoring and server power state detection directly in the dashboard.
-          Generate one at <a href="https://panel.zero-host.org/account/api" target="_blank">panel.zero-host.org/account/api</a>.
-        </p>
-        <div id="api-key-section-content">
-          <form id="api-key-form" style="width:100%">
-            <div class="form-group">
-              <label for="ptero-api-key-input">API Key</label>
-              <input type="password" id="ptero-api-key-input" placeholder="ptla_..." autocomplete="off" />
-            </div>
-            <button type="submit" class="btn btn-primary btn-full" id="save-api-key-btn">Save</button>
-          </form>
-          <div id="api-key-status" style="margin-top:8px;font-size:0.82rem;color:var(--text-muted)"></div>
+        <div class="form-group">
+          <label for="acc-email-pw">Current Password</label>
+          <input type="password" id="acc-email-pw" placeholder="Enter your password" required autocomplete="current-password" />
         </div>
+        <button type="submit" class="btn btn-primary btn-full" id="change-email-btn">Change Email</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2 class="card-title" style="margin-bottom:20px">Pyrodactyl API Key</h2>
+      <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin-bottom:16px">
+        Add your Pyrodactyl Client API key to enable live resource monitoring and server power state detection directly in the dashboard.
+        Generate one at <a href="https://panel.zero-host.org/account/api" target="_blank">panel.zero-host.org/account/api</a>.
+      </p>
+      <div id="api-key-section-content">
+        <form id="api-key-form" style="width:100%">
+          <div class="form-group">
+            <label for="ptero-api-key-input">API Key</label>
+            <input type="password" id="ptero-api-key-input" placeholder="ptla_..." autocomplete="off" />
+          </div>
+          <button type="submit" class="btn btn-primary btn-full" id="save-api-key-btn">Save</button>
+        </form>
+        <div id="api-key-status" style="margin-top:8px;font-size:0.82rem;color:var(--text-muted)"></div>
       </div>
     </div>
   `;
 
   $('#change-email-form').addEventListener('submit', handleChangeEmail);
-  $('#change-password-form').addEventListener('submit', handleChangePassword);
   $('#api-key-form').addEventListener('submit', handleSaveApiKey);
-
-  $('#avatar-choose-btn').addEventListener('click', () => {
-    $('#avatar-file-input').click();
-  });
-
-  $('#avatar-file-input').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const validTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
-      $('#avatar-status').textContent = 'Invalid file type. Please use PNG, JPEG, GIF, or WebP.';
-      $('#avatar-status').style.color = 'var(--accent-red)';
-      return;
-    }
-
-    if (file.size > 2 * 1024 * 1024) {
-      $('#avatar-status').textContent = 'File too large. Maximum size is 2MB.';
-      $('#avatar-status').style.color = 'var(--accent-red)';
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      $('#avatar-preview-img').src = ev.target.result;
-      $('#avatar-preview-img').style.display = 'block';
-      $('#avatar-preview-placeholder').style.display = 'none';
-      $('#avatar-upload-btn').style.display = 'inline-flex';
-      $('#avatar-upload-btn').disabled = false;
-      $('#avatar-status').textContent = 'Click "Upload" to save your new profile picture.';
-      $('#avatar-status').style.color = 'var(--text-muted)';
-    };
-    reader.readAsDataURL(file);
-  });
-
-  $('#avatar-upload-btn').addEventListener('click', handleAvatarUpload);
-
   checkApiKeyStatus();
-  initIcons();
 }
 
-async function handleAvatarUpload() {
-  const btn = $('#avatar-upload-btn');
-  const status = $('#avatar-status');
-  const img = $('#avatar-preview-img');
+function renderAccountSecurityTab() {
+  const container = $('#account-tab-content');
+  container.innerHTML = html`
+    <div class="card">
+      <h2 class="card-title" style="margin-bottom:20px">Change Password</h2>
+      <form id="change-password-form" style="width:100%">
+        <div class="form-group">
+          <label for="acc-current-pw">Current Password</label>
+          <input type="password" id="acc-current-pw" placeholder="Enter current password" required autocomplete="current-password" />
+        </div>
+        <div class="form-group">
+          <label for="acc-new-pw">New Password</label>
+          <input type="password" id="acc-new-pw" placeholder="At least 8 characters" required autocomplete="new-password" />
+        </div>
+        <div class="form-group">
+          <label for="acc-confirm-pw">Confirm New Password</label>
+          <input type="password" id="acc-confirm-pw" placeholder="Repeat new password" required autocomplete="new-password" />
+        </div>
+        <button type="submit" class="btn btn-primary btn-full" id="change-pw-btn">Change Password</button>
+      </form>
+    </div>
 
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>';
-  status.textContent = '';
+    <div class="card">
+      <h2 class="card-title" style="margin-bottom:20px">Passkeys</h2>
+      <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin-bottom:16px">
+        Passkeys let you sign in without a password using your device's built-in authentication
+        (fingerprint, face recognition, or PIN).
+      </p>
+      <div id="passkey-section-content">
+        <div id="passkey-list" style="margin-bottom:16px">
+          <p style="color:var(--text-muted);font-size:0.85rem">Loading...</p>
+        </div>
+        <button class="btn btn-primary btn-full" id="register-passkey-btn">
+          <i data-lucide="fingerprint" style="width:16px;height:16px"></i>
+          Register a New Passkey
+        </button>
+        <div id="passkey-status" style="margin-top:8px;font-size:0.82rem;color:var(--text-muted)"></div>
+      </div>
+    </div>
+  `;
+
+  $('#change-password-form').addEventListener('submit', handleChangePassword);
+  $('#register-passkey-btn').addEventListener('click', handleRegisterPasskey);
+  loadPasskeys();
+}
+
+function renderAccountLogsTab() {
+  const container = $('#account-tab-content');
+  container.innerHTML = html`
+    <div class="card" style="margin-bottom:20px">
+      <div id="log-list">
+        <div style="text-align:center;padding:24px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</div>
+      </div>
+    </div>
+  `;
+  fetchAccountLogs();
+}
+
+async function fetchAccountLogs(pageNum) {
+  pageNum = pageNum || 1;
+  const limit = 50;
+  const offset = (pageNum - 1) * limit;
+  const list = $('#log-list');
+  if (!list) return;
 
   try {
-    const data = await api('/auth/upload-avatar', {
-      method: 'POST',
-      body: JSON.stringify({ image: img.src }),
-    });
-    showToast('Profile picture updated successfully', 'success');
-    status.textContent = 'Profile picture updated!';
-    status.style.color = 'var(--accent-green)';
-    btn.style.display = 'none';
+    const data = await api(`/activity?limit=${limit}&offset=${offset}`);
 
-    const sidebarImg = document.querySelector('#avatar-container img');
-    if (sidebarImg) {
-      sidebarImg.src = avatarUrl(state.user.id);
-      sidebarImg.dataset.fallbackTried = '';
-      sidebarImg.style.display = '';
-      const fallback = document.getElementById('avatar-fallback');
-      if (fallback) fallback.style.display = 'none';
+    if (data.activities.length === 0) {
+      list.innerHTML = '<div class="activity-empty">No activity found.</div>';
+      return;
     }
+
+    const pageInfo = data.totalPages > 1 ? html`
+      <div class="log-pagination">
+        <button class="btn btn-ghost btn-sm" onclick="fetchAccountLogs(${pageNum - 1})" ${pageNum <= 1 ? 'disabled' : ''}>Previous</button>
+        <span class="log-pagination-info">Page ${data.page} of ${data.totalPages} (${data.total} total)</span>
+        <button class="btn btn-ghost btn-sm" onclick="fetchAccountLogs(${pageNum + 1})" ${pageNum >= data.totalPages ? 'disabled' : ''}>Next</button>
+      </div>
+    ` : '';
+
+    list.innerHTML = html`
+      ${pageInfo}
+      <div class="activity-list">
+        ${data.activities.map(a => html`
+          <div class="activity-item">
+            <div class="activity-icon activity-icon-${a.action}">${activityIcons[a.action] || ''}</div>
+            <div class="activity-content">
+              <div class="activity-action">${escapeHtml(getActionLabel(a.action))}</div>
+              <div class="activity-details">${escapeHtml(a.details || '')}</div>
+            </div>
+            <div class="activity-time">${formatRelativeTime(a.created_at)}</div>
+          </div>
+        `).join('')}
+      </div>
+      ${pageInfo}
+    `;
+    initIcons();
   } catch (err) {
-    status.textContent = err.message;
-    status.style.color = 'var(--accent-red)';
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = 'Upload';
+    if (list) list.innerHTML = '<div class="activity-empty">Could not load activity log.</div>';
   }
+}
+
+function renderAccountDangerousTab() {
+  const container = $('#account-tab-content');
+  container.innerHTML = html`
+    <div class="card" style="border-color:rgba(239,68,68,0.3)">
+      <h2 class="card-title" style="margin-bottom:8px">Delete Account</h2>
+      <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:20px;line-height:1.6">
+        This action is irreversible. All your servers will be deleted and your account will be permanently removed.
+      </p>
+      <button class="btn btn-danger btn-full" id="delete-account-btn">Delete My Account</button>
+    </div>
+
+    <div class="card">
+      <h2 class="card-title" style="margin-bottom:8px">Data Export (RGPD)</h2>
+      <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:20px;line-height:1.6">
+        Under Article 15 and 20 of the RGPD, you have the right to access and port your personal data. Click below to download a copy of all data we hold about you.
+      </p>
+      <button class="btn btn-primary btn-full" id="export-data-btn">
+        <i data-lucide="download" style="width:18px;height:18px"></i>
+        Export My Data
+      </button>
+    </div>
+  `;
+
+  $('#delete-account-btn').addEventListener('click', handleDeleteAccountClick);
+  $('#export-data-btn').addEventListener('click', handleExportData);
+  initIcons();
 }
 
 async function handleSaveApiKey(e) {
@@ -2203,6 +2464,106 @@ function renderApiKeyForm() {
     <div id="api-key-status" style="margin-top:8px;font-size:0.82rem;color:var(--text-muted)"></div>
   `;
   $('#api-key-form').addEventListener('submit', handleSaveApiKey);
+}
+
+async function loadPasskeys() {
+  try {
+    const data = await api('/auth/passkeys');
+    const list = $('#passkey-list');
+    if (!list) return;
+    if (!data.passkeys.length) {
+      list.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem">No passkeys registered yet.</p>';
+      return;
+    }
+    list.innerHTML = data.passkeys.map(p => html`
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg-secondary);border-radius:var(--radius-sm);margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <i data-lucide="fingerprint" style="width:18px;height:18px;color:var(--accent-1)"></i>
+          <div>
+            <div style="font-size:0.9rem;font-weight:500">${p.name || 'Passkey'}</div>
+            <div style="font-size:0.75rem;color:var(--text-muted)">${formatDate(p.created_at)}</div>
+          </div>
+        </div>
+        <button class="btn btn-danger btn-sm" data-passkey-id="${p.id}" style="width:auto;padding:6px 12px;font-size:0.8rem">Delete</button>
+      </div>
+    `).join('');
+    list.querySelectorAll('[data-passkey-id]').forEach(btn => {
+      btn.addEventListener('click', () => handleDeletePasskey(btn.dataset.passkeyId));
+    });
+    initIcons();
+  } catch (err) {
+    const list = $('#passkey-list');
+    if (list) list.innerHTML = `<p style="color:var(--accent-red);font-size:0.85rem">Failed to load passkeys: ${err.message}</p>`;
+  }
+}
+
+async function handleRegisterPasskey() {
+  const btn = $('#register-passkey-btn');
+  const status = $('#passkey-status');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  status.textContent = '';
+
+  try {
+    const beginData = await api('/auth/passkeys/register/begin', {
+      method: 'POST',
+    });
+
+    const credential = await navigator.credentials.create({
+      publicKey: prepareWebAuthnOptions(beginData.options),
+    });
+
+    await api('/auth/passkeys/register/complete', {
+      method: 'POST',
+      body: JSON.stringify({ response: serializeCredential(credential) }),
+    });
+
+    showToast('Passkey registered successfully', 'success');
+    status.textContent = 'Passkey registered!';
+    status.style.color = 'var(--accent-green)';
+    loadPasskeys();
+  } catch (err) {
+    status.textContent = err.message;
+    status.style.color = 'var(--accent-red)';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="fingerprint" style="width:16px;height:16px"></i> Register a New Passkey';
+    initIcons();
+  }
+}
+
+async function handleDeletePasskey(id) {
+  const overlay = $('#modal-overlay');
+  const content = $('#modal-content');
+  content.innerHTML = html`
+    <div class="modal-title">Delete Passkey</div>
+    <p style="color:var(--text-secondary);line-height:1.6;margin-bottom:16px">
+      Are you sure you want to delete this passkey? You will no longer be able to use it to sign in.
+    </p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-full modal-cancel-btn">Cancel</button>
+      <button class="btn btn-danger btn-full" id="confirm-delete-passkey-btn">Delete</button>
+    </div>
+  `;
+  overlay.classList.add('open');
+
+  const confirmBtn = $('#confirm-delete-passkey-btn');
+  const newBtn = confirmBtn.cloneNode(true);
+  confirmBtn.replaceWith(newBtn);
+  newBtn.addEventListener('click', async () => {
+    overlay.classList.remove('open');
+    try {
+      await api(`/auth/passkeys/${id}`, { method: 'DELETE' });
+      showToast('Passkey deleted', 'info');
+      loadPasskeys();
+    } catch (err) {
+      const status = $('#passkey-status');
+      if (status) {
+        status.textContent = err.message;
+        status.style.color = 'var(--accent-red)';
+      }
+    }
+  });
 }
 
 function handleModifyApiKey() {
@@ -2316,6 +2677,9 @@ async function handleChangeEmail(e) {
     $('#acc-new-email').value = '';
     $('#acc-email-pw').value = '';
     showToast('Email updated successfully', 'success');
+
+    const sidebarImg = document.querySelector('#avatar-container img');
+    if (sidebarImg) sidebarImg.src = gravatarUrl(state.user.email, 32);
   } catch (err) {
     showToast(err.message, 'error');
   } finally {
@@ -2362,44 +2726,6 @@ async function handleChangePassword(e) {
     btn.disabled = false;
     btn.innerHTML = 'Change Password';
   }
-}
-
-function renderDangerous() {
-  const el = $('#page-account');
-  el.innerHTML = html`
-    <div class="page-header" style="display:flex;align-items:center;gap:12px">
-      <a href="/account" onclick="event.preventDefault();navigateTo('account')" style="color:var(--text-muted);display:flex;padding:4px;border-radius:var(--radius-sm);cursor:pointer">
-        <i data-lucide="arrow-left" style="width:20px;height:20px"></i>
-      </a>
-      <div>
-        <h1 class="page-title" style="margin:0">Dangerous Zone & Export Account Data</h1>
-        <p class="page-subtitle" style="margin:0">Delete your account or export your personal data (RGPD)</p>
-      </div>
-    </div>
-    <div class="account-grid">
-      <div class="card" style="border-color:rgba(239,68,68,0.3)">
-        <h2 class="card-title" style="margin-bottom:8px">Delete Account</h2>
-        <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:20px;line-height:1.6">
-          This action is irreversible. All your servers will be deleted and your account will be permanently removed.
-        </p>
-        <button class="btn btn-danger btn-full" id="delete-account-btn">Delete My Account</button>
-      </div>
-
-      <div class="card">
-        <h2 class="card-title" style="margin-bottom:8px">Data Export (RGPD)</h2>
-        <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:20px;line-height:1.6">
-          Under Article 15 and 20 of the RGPD, you have the right to access and port your personal data. Click below to download a copy of all data we hold about you.
-        </p>
-        <button class="btn btn-primary btn-full" id="export-data-btn">
-          <i data-lucide="download" style="width:18px;height:18px"></i>
-          Export My Data
-        </button>
-      </div>
-    </div>
-  `;
-  $('#delete-account-btn').addEventListener('click', handleDeleteAccountClick);
-  $('#export-data-btn').addEventListener('click', handleExportData);
-  initIcons();
 }
 
 function handleDeleteAccountClick() {
@@ -2711,9 +3037,9 @@ async function fetchLiveResources(identifier) {
         <div class="empty-state" style="padding:24px">
           <div class="empty-state-title" style="font-size:0.95rem">No live data</div>
           <div class="empty-state-desc" style="font-size:0.82rem">
-            ${data.error || 'Add your Pyrodactyl API key in Account → Linked Accounts to enable live monitoring.'}
+            ${data.error || 'Add your Pyrodactyl API key in Account → Account Info to enable live monitoring.'}
           </div>
-          <button class="btn btn-primary btn-sm" onclick="navigateTo('account/edit')" style="margin-top:8px;width:auto">Configure API Key</button>
+          <button class="btn btn-primary btn-sm" onclick="navigateTo('account/info')" style="margin-top:8px;width:auto">Configure API Key</button>
         </div>
       `;
       return;

@@ -241,7 +241,7 @@ export async function getServerById(serverId) {
   return server;
 }
 
-export async function createPteroServer({ name, userId, eggId, nestId, environment, startup, dockerImage, customLimits }) {
+export async function createPteroServer({ name, userId, eggId, nestId, environment, startup, dockerImage, customLimits, deployLocations }) {
   const limits = { ...SERVER_LIMITS, ...customLimits };
   const body = {
     name,
@@ -253,7 +253,7 @@ export async function createPteroServer({ name, userId, eggId, nestId, environme
     limits,
     feature_limits: FEATURE_LIMITS,
     deploy: {
-      locations: DEPLOY_LOCATIONS,
+      locations: deployLocations || DEPLOY_LOCATIONS,
       dedicated_ip: false,
       port_range: [],
     },
@@ -365,6 +365,65 @@ export async function updatePteroEmail(userId, email) {
 
 export async function deletePteroUser(userId) {
   await pteroFetch(`/users/${userId}`, { method: 'DELETE' });
+}
+
+export async function getAllNodes() {
+  let allNodes = [];
+  let page = 1;
+  let hasMore = true;
+  const MAX_PAGES = 20;
+  while (hasMore && page <= MAX_PAGES) {
+    const data = await pteroFetch(`/nodes?page=${page}&per_page=50`);
+    const nodes = data.data.map(n => n.attributes);
+    allNodes = allNodes.concat(nodes);
+    if (data.meta?.pagination?.total_pages > page) {
+      page++;
+    } else {
+      hasMore = false;
+    }
+  }
+  return allNodes;
+}
+
+export async function getNodeDetail(nodeId) {
+  const data = await pteroFetch(`/nodes/${nodeId}`);
+  return data.attributes;
+}
+
+export async function getNodeAllocations(nodeId) {
+  let allAllocs = [];
+  let page = 1;
+  let hasMore = true;
+  const MAX_PAGES = 20;
+  while (hasMore && page <= MAX_PAGES) {
+    const data = await pteroFetch(`/nodes/${nodeId}/allocations?page=${page}&per_page=100`);
+    const allocs = data.data.map(a => a.attributes);
+    allAllocs = allAllocs.concat(allocs);
+    if (data.meta?.pagination?.total_pages > page) {
+      page++;
+    } else {
+      hasMore = false;
+    }
+  }
+  return allAllocs;
+}
+
+export async function getNodeServers(nodeId) {
+  let allServers = [];
+  let page = 1;
+  let hasMore = true;
+  const MAX_PAGES = 20;
+  while (hasMore && page <= MAX_PAGES) {
+    const data = await pteroFetch(`/nodes/${nodeId}/servers?page=${page}&per_page=50`);
+    const servers = data.data.map(s => s.attributes);
+    allServers = allServers.concat(servers);
+    if (data.meta?.pagination?.total_pages > page) {
+      page++;
+    } else {
+      hasMore = false;
+    }
+  }
+  return allServers;
 }
 
 export async function getAllEggs(nestIds = []) {

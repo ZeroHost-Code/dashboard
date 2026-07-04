@@ -1,6 +1,8 @@
 # ZeroHost Dashboard
 
-Game server management dashboard for the ZeroHost platform. Provides user-facing server lifecycle management (creation, renewal, suspension, deletion) backed by a Pyrodactyl/Pterodactyl panel API.
+Game server management dashboard for the ZeroHost platform. Provides user-facing server lifecycle management (creation, renewal, suspension, deletion) backed by a panel API.
+
+[![ZeroHost](https://img.zero-host.org/assets/github.png)](https://github.com/ZeroHost-Code/legal/blob/main/zhsl.md)
 
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/3bf1a711-9923-4089-8a12-94bbc134c41b" />
 
@@ -8,6 +10,7 @@ Game server management dashboard for the ZeroHost platform. Provides user-facing
 
 ## Table of Contents
 
+- [Panel Compatibility](#panel-compatibility)
 - [Architecture Overview](#architecture-overview)
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
@@ -21,6 +24,15 @@ Game server management dashboard for the ZeroHost platform. Provides user-facing
 - [Deployment](#deployment)
 
 ---
+
+## Panel Compatibility
+
+| Panel | Status |
+|---|---|
+| Pterodactyl | ⚠️ Not fully tested |
+| Pyrodactyl | ✅ Tested — working |
+| Hydrodactyl | ✅ Tested — working |
+| Pelican | ❓ Not tested |
 
 ## Architecture Overview
 
@@ -543,9 +555,3 @@ Two deployment workflows are configured:
 - **deploy-main.yml**: Triggered on push to `main` branch.
 
 Both use SSH credentials configured as GitHub repository secrets (`SSH_HOST`, `SSH_USER`, `SSH_PASSWORD`, `SSH_PORT`).
-
----
-
-## GH Stats
-
-![Alt](https://repobeats.axiom.co/api/embed/2f957f930d36f4a2913f8aeb07712cedbd4b38c5.svg "Repobeats analytics image")

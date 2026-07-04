@@ -2,9 +2,9 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requireAdmin } from '../middleware/auth.js';
 import { query } from '../config/db.js';
-import { getAllServers, getServerById, getEgg, getPteroNests, getPteroNestEggs, suspendPteroServer, unsuspendPteroServer, deletePteroServer, deletePteroUser, updatePteroServerBuild, getPergoServerIdsByEgg } from '../services/pyrodactyl.js';
+import { getAllServers, getServerById, getEgg, getPteroNests, getPteroNestEggs, suspendPteroServer, unsuspendPteroServer, deletePteroServer, deletePteroUser, updatePteroServerBuild, getPergoServerIdsByEgg, getAllNodes, getNodeDetail, getNodeAllocations, getNodeServers } from '../services/pyrodactyl.js';
 import { verifyCap } from '../config/cap.js';
 import { logActivity } from '../services/activity.js';
 import { createNotification } from '../services/notification.js';
@@ -21,13 +21,6 @@ const adminLoginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-
-function requireAdmin(req, res, next) {
-  if (!req.user?.isAdmin) {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
-  next();
-}
 
 router.post('/login', adminLoginLimiter, async (req, res) => {
   try {
@@ -63,7 +56,7 @@ router.post('/login', adminLoginLimiter, async (req, res) => {
     }
 
     const token = jwt.sign(
-      { userId: user.id, email: user.email, username: user.username, pteroId: user.ptero_user_id, isAdmin: true, tokenVersion: user.token_version },
+      { userId: user.id, email: user.email, username: user.username, pteroId: user.ptero_user_id, isAdmin: true, restricted: false, tokenVersion: user.token_version },
       JWT_SECRET,
       { expiresIn: '2h', algorithm: 'HS256' }
     );
@@ -260,6 +253,117 @@ router.delete('/servers/:id', authenticateToken, requireAdmin, async (req, res) 
   } catch (err) {
     console.error('Admin delete error:', err.message);
     res.status(500).json({ error: 'Failed to delete server: ' + err.message });
+  }
+});
+
+// ─── Nodes ──────────────────────────────────────────────
+router.get('/nodes', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const nodes = await getAllNodes();
+    res.json({ nodes });
+  } catch (err) {
+    console.error('Admin nodes list error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch nodes' });
+  }
+});
+
+router.get('/nodes/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const nodeId = parseInt(req.params.id, 10);
+    if (isNaN(nodeId)) {
+      return res.status(400).json({ error: 'Invalid node ID' });
+    }
+
+    const node = await getNodeDetail(nodeId);
+    res.json({ node });
+  } catch (err) {
+    console.error('Admin node detail error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch node details' });
+  }
+});
+
+router.get('/nodes/:id/allocations', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const nodeId = parseInt(req.params.id, 10);
+    if (isNaN(nodeId)) {
+      return res.status(400).json({ error: 'Invalid node ID' });
+    }
+
+    const allocations = await getNodeAllocations(nodeId);
+    res.json({ allocations });
+  } catch (err) {
+    console.error('Admin node allocations error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch node allocations' });
+  }
+});
+
+router.get('/nodes/:id/servers', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const nodeId = parseInt(req.params.id, 10);
+    if (isNaN(nodeId)) {
+      return res.status(400).json({ error: 'Invalid node ID' });
+    }
+
+    const servers = await getNodeServers(nodeId);
+    res.json({ servers });
+  } catch (err) {
+    console.error('Admin node servers error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch node servers' });
+  }
+});
+
+router.get('/nodes/:id/settings', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const nodeId = parseInt(req.params.id, 10);
+    if (isNaN(nodeId)) {
+      return res.status(400).json({ error: 'Invalid node ID' });
+    }
+
+    const rows = await query('SELECT * FROM node_settings WHERE ptero_node_id = ?', [nodeId]);
+    if (rows.length === 0) {
+      return res.json({ settings: { ptero_node_id: nodeId, unavailable: false } });
+    }
+    res.json({ settings: rows[0] });
+  } catch (err) {
+    console.error('Admin node settings error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch node settings' });
+  }
+});
+
+router.put('/nodes/:id/settings', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const nodeId = parseInt(req.params.id, 10);
+    if (isNaN(nodeId)) {
+      return res.status(400).json({ error: 'Invalid node ID' });
+    }
+
+    const { unavailable } = req.body;
+    if (typeof unavailable !== 'boolean') {
+      return res.status(400).json({ error: 'unavailable must be a boolean' });
+    }
+
+    const existing = await query('SELECT id FROM node_settings WHERE ptero_node_id = ?', [nodeId]);
+    if (existing.length === 0) {
+      await query('INSERT INTO node_settings (ptero_node_id, unavailable) VALUES (?, ?)', [nodeId, unavailable ? 1 : 0]);
+    } else {
+      await query('UPDATE node_settings SET unavailable = ? WHERE ptero_node_id = ?', [unavailable ? 1 : 0, nodeId]);
+    }
+
+    await logActivity(req.user.userId, 'admin_node_settings', `${unavailable ? 'Disabled' : 'Enabled'} node #${nodeId}`);
+    res.json({ success: true, unavailable });
+  } catch (err) {
+    console.error('Admin node settings update error:', err.message);
+    res.status(500).json({ error: 'Failed to update node settings' });
+  }
+});
+
+router.get('/nodes/unavailable', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const rows = await query('SELECT ptero_node_id FROM node_settings WHERE unavailable = 1');
+    res.json({ nodeIds: rows.map(r => r.ptero_node_id) });
+  } catch (err) {
+    console.error('Admin unavailable nodes error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch unavailable nodes' });
   }
 });
 
@@ -642,7 +746,7 @@ router.post('/settings/nests', authenticateToken, requireAdmin, async (req, res)
 router.put('/settings/nests/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const { name, logo, description } = req.body;
+    const { name, logo, description, unavailable } = req.body;
     if (name !== undefined && (typeof name !== 'string' || name.trim().length === 0)) return res.status(400).json({ error: 'Name cannot be empty' });
     if (name && name.trim().length > 255) return res.status(400).json({ error: 'Name must be 255 characters or less' });
     const updates = [];
@@ -650,6 +754,7 @@ router.put('/settings/nests/:id', authenticateToken, requireAdmin, async (req, r
     if (name !== undefined) { updates.push('name = ?'); params.push(name.trim()); }
     if (logo !== undefined) { updates.push('logo = ?'); params.push(logo || null); }
     if (description !== undefined) { updates.push('description = ?'); params.push(description || null); }
+    if (unavailable !== undefined) { updates.push('unavailable = ?'); params.push(unavailable ? 1 : 0); }
     if (updates.length === 0) return res.status(400).json({ error: 'No fields to update' });
     params.push(id);
     await query(`UPDATE nests SET ${updates.join(', ')} WHERE id = ?`, params);
@@ -711,13 +816,14 @@ router.put('/settings/eggs/:nestId/:eggId', authenticateToken, requireAdmin, asy
     const nestId = parseInt(req.params.nestId, 10);
     const eggId = parseInt(req.params.eggId, 10);
     if (isNaN(nestId) || isNaN(eggId)) return res.status(400).json({ error: 'Invalid nest or egg ID' });
-    const { cpu_limit, memory_limit, disk_limit, logo } = req.body;
+    const { cpu_limit, memory_limit, disk_limit, logo, unavailable } = req.body;
 
     const sanitized = {
       cpu_limit: (cpu_limit != null && !isNaN(Number(cpu_limit))) ? Number(cpu_limit) : null,
       memory_limit: (memory_limit != null && !isNaN(Number(memory_limit))) ? Number(memory_limit) : null,
       disk_limit: (disk_limit != null && !isNaN(Number(disk_limit))) ? Number(disk_limit) : null,
       logo: logo !== undefined ? (logo || null) : undefined,
+      unavailable: unavailable !== undefined ? (unavailable ? 1 : 0) : undefined,
     };
 
     if (sanitized.cpu_limit != null && sanitized.cpu_limit < 0) return res.status(400).json({ error: 'CPU limit cannot be negative' });
@@ -729,12 +835,14 @@ router.put('/settings/eggs/:nestId/:eggId', authenticateToken, requireAdmin, asy
       const updates = ['cpu_limit = ?', 'memory_limit = ?', 'disk_limit = ?'];
       const vals = [sanitized.cpu_limit, sanitized.memory_limit, sanitized.disk_limit];
       if (sanitized.logo !== undefined) { updates.push('logo = ?'); vals.push(sanitized.logo); }
+      if (sanitized.unavailable !== undefined) { updates.push('unavailable = ?'); vals.push(sanitized.unavailable); }
       vals.push(existing.id);
       await query(`UPDATE egg_resources SET ${updates.join(', ')} WHERE id = ?`, vals);
     } else {
       const cols = ['ptero_nest_id', 'ptero_egg_id', 'cpu_limit', 'memory_limit', 'disk_limit'];
       const vals = [nestId, eggId, sanitized.cpu_limit, sanitized.memory_limit, sanitized.disk_limit];
       if (sanitized.logo !== undefined) { cols.push('logo'); vals.push(sanitized.logo); }
+      if (sanitized.unavailable !== undefined) { cols.push('unavailable'); vals.push(sanitized.unavailable); }
       await query(`INSERT INTO egg_resources (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`, vals);
     }
     res.json({ success: true });
