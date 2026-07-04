@@ -98,6 +98,15 @@ const tables = {
       { name: 'created_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
     ],
   },
+  node_settings: {
+    columns: [
+      { name: 'id', def: 'INT AUTO_INCREMENT PRIMARY KEY' },
+      { name: 'ptero_node_id', def: 'INT NOT NULL UNIQUE' },
+      { name: 'unavailable', def: 'TINYINT(1) NOT NULL DEFAULT 0' },
+      { name: 'created_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
+      { name: 'updated_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP' },
+    ],
+  },
 
 };
 
@@ -132,6 +141,7 @@ const constraints = [
   { table: 'passkeys', sql: 'ALTER TABLE passkeys ADD INDEX idx_passkey_user (user_id)', name: 'idx_passkey_user' },
   { table: 'passkeys', sql: 'ALTER TABLE passkeys ADD INDEX idx_passkey_credential (credential_id(255))', name: 'idx_passkey_credential' },
   { table: 'passkeys', sql: 'ALTER TABLE passkeys ADD CONSTRAINT fk_passkey_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE', name: 'fk_passkey_user' },
+  { table: 'node_settings', sql: 'ALTER TABLE node_settings ADD INDEX idx_node_settings_node (ptero_node_id)', name: 'idx_node_settings_node' },
 ];
 
 export async function migrate() {

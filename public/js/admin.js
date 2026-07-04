@@ -2046,61 +2046,99 @@ async function renderAdminNodeDetail(nodeId) {
       <h1 class="page-title" style="margin-bottom:0">Node #${nodeId}</h1>
       <p class="page-subtitle" id="admin-node-name">Loading...</p>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px" id="admin-node-info-cards">
-      <div class="card" style="padding:20px">
-        <h3 style="color:var(--text-secondary);font-size:0.8rem;text-transform:uppercase;margin-bottom:12px">Details</h3>
-        <div id="admin-node-details"><span class="spinner"></span></div>
-      </div>
-      <div class="card" style="padding:20px">
-        <h3 style="color:var(--text-secondary);font-size:0.8rem;text-transform:uppercase;margin-bottom:12px">Resources</h3>
-        <div id="admin-node-resources"><span class="spinner"></span></div>
+    <div class="tabs" id="admin-node-tabs">
+      <button class="tab active" data-tab="info">Info</button>
+      <button class="tab" data-tab="allocations">Allocations</button>
+      <button class="tab" data-tab="servers">Servers</button>
+      <button class="tab" data-tab="settings">Settings</button>
+      <div class="tab-indicator" id="admin-node-tab-indicator"></div>
+    </div>
+
+    <div id="admin-node-tab-info" class="tab-content" style="display:block">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="card" style="padding:20px">
+          <h3 style="color:var(--text-secondary);font-size:0.8rem;text-transform:uppercase;margin-bottom:12px">Details</h3>
+          <div id="admin-node-details"><span class="spinner"></span></div>
+        </div>
+        <div class="card" style="padding:20px">
+          <h3 style="color:var(--text-secondary);font-size:0.8rem;text-transform:uppercase;margin-bottom:12px">Resources</h3>
+          <div id="admin-node-resources"><span class="spinner"></span></div>
+        </div>
       </div>
     </div>
-    <div class="card" style="padding:20px;margin-bottom:24px">
-      <h3 style="color:var(--text-secondary);font-size:0.8rem;text-transform:uppercase;margin-bottom:12px">Allocations</h3>
-      <div class="table-container" style="margin:0">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>IP</th>
-              <th>Port</th>
-              <th>Alias</th>
-              <th>Server</th>
-            </tr>
-          </thead>
-          <tbody id="admin-node-alloc-tbody">
-            <tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text-secondary)"><span class="spinner"></span></td></tr>
-          </tbody>
-        </table>
+
+    <div id="admin-node-tab-allocations" class="tab-content" style="display:none">
+      <div class="card" style="padding:20px">
+        <div class="table-container" style="margin:0">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>IP</th>
+                <th>Port</th>
+                <th>Alias</th>
+                <th>Server</th>
+              </tr>
+            </thead>
+            <tbody id="admin-node-alloc-tbody">
+              <tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text-secondary)"><span class="spinner"></span></td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
-    <div class="card" style="padding:20px">
-      <h3 style="color:var(--text-secondary);font-size:0.8rem;text-transform:uppercase;margin-bottom:12px">Servers on this Node</h3>
-      <div class="table-container" style="margin:0">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Name</th>
-              <th>Identifier</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="admin-node-servers-tbody">
-            <tr><td colspan="4" style="text-align:center;padding:16px;color:var(--text-secondary)"><span class="spinner"></span></td></tr>
-          </tbody>
-        </table>
+
+    <div id="admin-node-tab-servers" class="tab-content" style="display:none">
+      <div class="card" style="padding:20px">
+        <div class="table-container" style="margin:0">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Identifier</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="admin-node-servers-tbody">
+              <tr><td colspan="4" style="text-align:center;padding:16px;color:var(--text-secondary)"><span class="spinner"></span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="admin-node-tab-settings" class="tab-content" style="display:none">
+      <div class="card" style="padding:24px;max-width:480px">
+        <h2 class="card-title" style="margin-bottom:16px">Node Availability</h2>
+        <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:20px">
+          When a node is set to <strong>Unavailable</strong>, new servers will not be created on it. Existing servers are not affected.
+        </p>
+        <div id="admin-node-settings-form">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+            <label class="toggle-switch" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
+              <input type="checkbox" id="node-unavailable-toggle" style="opacity:0;width:0;height:0">
+              <span class="toggle-slider" style="position:absolute;cursor:pointer;inset:0;background:var(--bg-secondary);border:1px solid var(--border);border-radius:24px;transition:0.2s"></span>
+            </label>
+            <div>
+              <div id="node-unavailable-label" style="font-weight:600;font-size:0.9rem">Available</div>
+              <div style="color:var(--text-secondary);font-size:0.8rem">Node is accepting new server deployments</div>
+            </div>
+          </div>
+          <div id="node-settings-error" class="auth-error" style="margin-bottom:12px"></div>
+          <button class="btn btn-primary" id="btn-save-node-settings" style="width:auto">Save Settings</button>
+        </div>
       </div>
     </div>
   `;
   initIcons();
 
   try {
-    const [nodeData, allocData, serversData] = await Promise.all([
+    const [nodeData, allocData, serversData, settingsData] = await Promise.all([
       adminApi(`/nodes/${nodeId}`),
       adminApi(`/nodes/${nodeId}/allocations`).catch(() => ({ allocations: [] })),
       adminApi(`/nodes/${nodeId}/servers`).catch(() => ({ servers: [] })),
+      adminApi(`/nodes/${nodeId}/settings`).catch(() => ({ settings: { unavailable: false } })),
     ]);
 
     const n = nodeData.node;
@@ -2180,6 +2218,39 @@ async function renderAdminNodeDetail(nodeId) {
         `).join('');
       }
     }
+
+    const toggle = $a('#node-unavailable-toggle');
+    const label = $a('#node-unavailable-label');
+    const isUnavailable = !!settingsData.settings?.unavailable;
+    if (toggle) {
+      toggle.checked = isUnavailable;
+      updateNodeSettingsLabel(isUnavailable);
+      toggle.addEventListener('change', () => updateNodeSettingsLabel(toggle.checked));
+    }
+
+    const saveBtn = $a('#btn-save-node-settings');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async () => {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Saving...';
+        const errEl = $a('#node-settings-error');
+        if (errEl) errEl.classList.remove('show');
+        try {
+          await adminApi(`/nodes/${nodeId}/settings`, {
+            method: 'PUT',
+            body: JSON.stringify({ unavailable: toggle.checked }),
+          });
+          saveBtn.innerHTML = 'Saved!';
+          setTimeout(() => { saveBtn.disabled = false; saveBtn.innerHTML = 'Save Settings'; }, 1500);
+        } catch (err) {
+          if (errEl) { errEl.textContent = err.message; errEl.classList.add('show'); }
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = 'Save Settings';
+        }
+      });
+    }
+
+    initNodeTabs(nodeId);
   } catch (err) {
     el.innerHTML = ahtml`
       <div class="page-header">
@@ -2192,6 +2263,67 @@ async function renderAdminNodeDetail(nodeId) {
       </div>
     `;
     initIcons();
+  }
+}
+
+function updateNodeSettingsLabel(isUnavailable) {
+  const label = $a('#node-unavailable-label');
+  const desc = label?.nextElementSibling;
+  if (label) {
+    label.textContent = isUnavailable ? 'Unavailable' : 'Available';
+    label.style.color = isUnavailable ? 'var(--accent-red)' : '';
+  }
+  if (desc) {
+    desc.textContent = isUnavailable
+      ? 'Node will be excluded from new server deployments'
+      : 'Node is accepting new server deployments';
+  }
+}
+
+function initNodeTabs(nodeId) {
+  const tabs = $a('#admin-node-tabs');
+  if (!tabs) return;
+  const indicator = $a('#admin-node-tab-indicator');
+  const btns = tabs.querySelectorAll('.tab');
+
+  function switchTab(tabBtn) {
+    const tabName = tabBtn.dataset.tab;
+    btns.forEach(t => t.classList.remove('active'));
+    tabBtn.classList.add('active');
+
+    document.querySelectorAll('#admin-page-node-detail .tab-content').forEach(c => c.style.display = 'none');
+    const target = $a('#admin-node-tab-' + tabName);
+    if (target) target.style.display = 'block';
+
+    if (indicator) {
+      indicator.style.left = tabBtn.offsetLeft + 'px';
+      indicator.style.width = tabBtn.offsetWidth + 'px';
+    }
+
+    history.pushState({ adminPage: 'node', nodeId, tab: tabName }, '', `/admin/node/${nodeId}/${tabName}`);
+  }
+
+  btns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.classList.contains('active')) return;
+      switchTab(btn);
+    });
+  });
+
+  const pathParts = window.location.pathname.replace('/admin/', '').split('/');
+  const tabFromUrl = pathParts[2];
+  if (tabFromUrl) {
+    const tabBtn = Array.from(btns).find(b => b.dataset.tab === tabFromUrl);
+    if (tabBtn) {
+      switchTab(tabBtn);
+      return;
+    }
+  }
+
+  const activeBtn = tabs.querySelector('.tab.active');
+  if (activeBtn && indicator) {
+    indicator.style.left = activeBtn.offsetLeft + 'px';
+    indicator.style.width = activeBtn.offsetWidth + 'px';
   }
 }
 
@@ -2245,6 +2377,13 @@ window.addEventListener('popstate', () => {
     const nid = parseInt(param, 10);
     $a('#admin-page-node-detail')?.classList.add('active');
     renderAdminNodeDetail(nid);
+    const tab = pathParts[2];
+    if (tab) {
+      setTimeout(() => {
+        const tabBtn = document.querySelector('#admin-node-tabs .tab[data-tab="' + tab + '"]');
+        if (tabBtn) tabBtn.click();
+      }, 50);
+    }
   } else if (basePage === 'nodes') {
     adminNavigateTo('nodes');
   } else if (basePage === 'users') {

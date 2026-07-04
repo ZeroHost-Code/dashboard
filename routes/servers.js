@@ -11,6 +11,7 @@ import {
   unsuspendPteroServer,
   getEgg,
   getAllEggs,
+  getAllNodes,
 } from '../services/pyrodactyl.js';
 import { PTERO_URL, PANEL_DB_NAME } from '../config/pyrodactyl.js';
 import { query } from '../config/db.js';
@@ -258,6 +259,24 @@ router.post('/create', authenticateToken, requireNotRestricted, createServerLimi
       if (eggRes.disk_limit != null) customLimits.disk = eggRes.disk_limit;
     }
 
+    // Filter out unavailable nodes
+    let deployLocations;
+    try {
+      const unavailableRows = await query('SELECT ptero_node_id FROM node_settings WHERE unavailable = 1');
+      const unavailableIds = new Set(unavailableRows.map(r => r.ptero_node_id));
+      if (unavailableIds.size > 0) {
+        const allNodes = await getAllNodes();
+        const availableNodes = allNodes.filter(n => !unavailableIds.has(n.id));
+        const locationIds = [...new Set(availableNodes.map(n => n.location_id).filter(Boolean))];
+        if (locationIds.length === 0) {
+          return res.status(400).json({ error: 'No available nodes for deployment' });
+        }
+        deployLocations = locationIds;
+      }
+    } catch (err) {
+      console.warn('Failed to check unavailable nodes:', err.message);
+    }
+
     const server = await createPteroServer({
       name,
       userId: pteroId,
@@ -267,6 +286,7 @@ router.post('/create', authenticateToken, requireNotRestricted, createServerLimi
       startup: egg.startup,
       dockerImage,
       customLimits: Object.keys(customLimits).length > 0 ? customLimits : undefined,
+      deployLocations,
     });
 
     // Log server creation date

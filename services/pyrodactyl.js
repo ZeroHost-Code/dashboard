@@ -241,7 +241,7 @@ export async function getServerById(serverId) {
   return server;
 }
 
-export async function createPteroServer({ name, userId, eggId, nestId, environment, startup, dockerImage, customLimits }) {
+export async function createPteroServer({ name, userId, eggId, nestId, environment, startup, dockerImage, customLimits, deployLocations }) {
   const limits = { ...SERVER_LIMITS, ...customLimits };
   const body = {
     name,
@@ -253,7 +253,7 @@ export async function createPteroServer({ name, userId, eggId, nestId, environme
     limits,
     feature_limits: FEATURE_LIMITS,
     deploy: {
-      locations: DEPLOY_LOCATIONS,
+      locations: deployLocations || DEPLOY_LOCATIONS,
       dedicated_ip: false,
       port_range: [],
     },

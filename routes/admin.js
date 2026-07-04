@@ -312,6 +312,61 @@ router.get('/nodes/:id/servers', authenticateToken, requireAdmin, async (req, re
   }
 });
 
+router.get('/nodes/:id/settings', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const nodeId = parseInt(req.params.id, 10);
+    if (isNaN(nodeId)) {
+      return res.status(400).json({ error: 'Invalid node ID' });
+    }
+
+    const rows = await query('SELECT * FROM node_settings WHERE ptero_node_id = ?', [nodeId]);
+    if (rows.length === 0) {
+      return res.json({ settings: { ptero_node_id: nodeId, unavailable: false } });
+    }
+    res.json({ settings: rows[0] });
+  } catch (err) {
+    console.error('Admin node settings error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch node settings' });
+  }
+});
+
+router.put('/nodes/:id/settings', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const nodeId = parseInt(req.params.id, 10);
+    if (isNaN(nodeId)) {
+      return res.status(400).json({ error: 'Invalid node ID' });
+    }
+
+    const { unavailable } = req.body;
+    if (typeof unavailable !== 'boolean') {
+      return res.status(400).json({ error: 'unavailable must be a boolean' });
+    }
+
+    const existing = await query('SELECT id FROM node_settings WHERE ptero_node_id = ?', [nodeId]);
+    if (existing.length === 0) {
+      await query('INSERT INTO node_settings (ptero_node_id, unavailable) VALUES (?, ?)', [nodeId, unavailable ? 1 : 0]);
+    } else {
+      await query('UPDATE node_settings SET unavailable = ? WHERE ptero_node_id = ?', [unavailable ? 1 : 0, nodeId]);
+    }
+
+    await logActivity(req.user.userId, 'admin_node_settings', `${unavailable ? 'Disabled' : 'Enabled'} node #${nodeId}`);
+    res.json({ success: true, unavailable });
+  } catch (err) {
+    console.error('Admin node settings update error:', err.message);
+    res.status(500).json({ error: 'Failed to update node settings' });
+  }
+});
+
+router.get('/nodes/unavailable', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const rows = await query('SELECT ptero_node_id FROM node_settings WHERE unavailable = 1');
+    res.json({ nodeIds: rows.map(r => r.ptero_node_id) });
+  } catch (err) {
+    console.error('Admin unavailable nodes error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch unavailable nodes' });
+  }
+});
+
 // ─── Users ──────────────────────────────────────────────
 router.get('/users', authenticateToken, requireAdmin, async (req, res) => {
   try {
