@@ -27,6 +27,8 @@ const SIMPLE_ICONS = [
   { slug: 'amazoneks', label: 'EKS' },
   { slug: 'terraform', label: 'Terraform' },
   { slug: 'ansible', label: 'Ansible' },
+  { slug: 'database', label: 'Database' },
+  { slug: 'code', label: 'Code' },
   { slug: 'nginx', label: 'Nginx' },
   { slug: 'apache', label: 'Apache' },
   { slug: 'caddy', label: 'Caddy' },
