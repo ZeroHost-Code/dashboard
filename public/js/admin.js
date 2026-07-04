@@ -2433,9 +2433,9 @@ function showRenameNestModal(nestId, currentName, currentLogo, currentDescriptio
           <button type="button" class="${initialType === 'svg' ? 'active' : ''}" data-type="svg">Choose SVG</button>
         </div>
         <div id="nest-logo-url-section" style="display:${initialType === 'url' ? 'block' : 'none'}">
-          <input type="text" id="modal-edit-nest-logo" value="${isSvg ? '' : (currentLogo || '')}" placeholder="https://example.com/logo.png" style="width:100%" />
-          <div id="modal-nest-logo-preview" style="margin-top:8px;${currentLogo && !isSvg ? '' : 'display:none'}">
-            <img src="${isSvg ? '' : (currentLogo || '')}" alt="" style="max-width:64px;max-height:64px;object-fit:contain;border-radius:4px;border:1px solid var(--border)" />
+          <input type="text" id="modal-edit-nest-logo" value="${isIcon ? '' : (currentLogo || '')}" placeholder="https://example.com/logo.png" style="width:100%" />
+          <div id="modal-nest-logo-preview" style="margin-top:8px;${currentLogo && !isIcon ? '' : 'display:none'}">
+            <img src="${isIcon ? '' : (currentLogo || '')}" alt="" style="max-width:64px;max-height:64px;object-fit:contain;border-radius:4px;border:1px solid var(--border)" />
           </div>
         </div>
         <div id="nest-logo-svg-section" style="display:${initialType === 'svg' ? 'block' : 'none'}">
