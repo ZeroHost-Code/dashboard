@@ -1632,6 +1632,8 @@ async function renderAdminEggsSettings() {
       </tr>
     `).join('');
 
+    if (window.lucide) lucide.createIcons();
+
     tbody.querySelectorAll('.nest-unavailable-toggle').forEach(toggle => {
       toggle.addEventListener('change', async () => {
         const nestId = parseInt(toggle.dataset.id, 10);
