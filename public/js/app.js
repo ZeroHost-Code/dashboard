@@ -1816,7 +1816,7 @@ function renderNestStep() {
         return html`
           <div class="nest-card ${unavail ? 'unavailable' : ''} ${createState.selectedNest?.pteroNestId === n.pteroNestId ? 'selected' : ''}" data-nest-id="${n.pteroNestId}" ${unavail ? 'style="opacity:0.5;pointer-events:none"' : ''}>
             <div class="nest-card-logo">
-              ${n.logo ? (n.logo.startsWith('si:') ? html`<img src="${siUrl(n.logo.slice(3))}" alt="" />` : html`<img src="${n.logo}" alt="" />`) : html`<i data-lucide="box" style="width:40px;height:40px;color:var(--text-secondary)"></i>`}
+              ${n.logo ? (n.logo.startsWith('si:') ? html`<img src="${siUrl(n.logo.slice(3))}" alt="" />` : n.logo.startsWith('lucide:') ? html`<i data-lucide="${n.logo.slice(7)}" style="width:40px;height:40px"></i>` : html`<img src="${n.logo}" alt="" />`) : html`<i data-lucide="box" style="width:40px;height:40px;color:var(--text-secondary)"></i>`}
             </div>
             <div class="nest-card-name">${escapeHtml(n.name)}</div>
             ${n.description ? html`<div class="nest-card-desc">${escapeHtml(n.description)}</div>` : ''}

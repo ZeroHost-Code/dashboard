@@ -2413,9 +2413,11 @@ function showRenameNestModal(nestId, currentName, currentLogo, currentDescriptio
   const overlay = $a('#admin-modal-overlay');
   if (!content || !overlay) return;
 
-  const isSvg = currentLogo && currentLogo.startsWith('si:');
-  const initialType = isSvg ? 'svg' : 'url';
-  const initialSvgSlug = isSvg ? currentLogo.slice(3) : '';
+  const isLucide = currentLogo && currentLogo.startsWith('lucide:');
+  const isSi = currentLogo && currentLogo.startsWith('si:');
+  const isIcon = isLucide || isSi;
+  const initialType = isIcon ? 'svg' : 'url';
+  const initialSvgSlug = isLucide ? currentLogo.slice(7) : isSi ? currentLogo.slice(3) : '';
 
   content.innerHTML = ahtml`
     <div>
@@ -2437,12 +2439,12 @@ function showRenameNestModal(nestId, currentName, currentLogo, currentDescriptio
           </div>
         </div>
         <div id="nest-logo-svg-section" style="display:${initialType === 'svg' ? 'block' : 'none'}">
-          <div id="nest-svg-picker" class="svg-picker">
+          <div id="nest-lucide-picker" class="svg-picker">
             <input type="text" class="svg-picker-search" placeholder="Search icons..." />
-            <div class="svg-picker-grid">${renderSvgPickerGrid(initialSvgSlug)}</div>
+            <div class="svg-picker-grid">${renderLucidePickerGrid(initialSvgSlug)}</div>
           </div>
-          <div id="nest-svg-selected-preview" class="logo-preview-box" style="display:${initialSvgSlug ? 'flex' : 'none'}">
-            <img src="${initialSvgSlug ? siUrl(initialSvgSlug) : ''}" alt="" />
+          <div id="nest-lucide-selected-preview" class="logo-preview-box" style="display:${initialSvgSlug ? 'flex' : 'none'}">
+            <i data-lucide="${initialSvgSlug || ''}" style="width:32px;height:32px"></i>
             <span class="logo-preview-label">${initialSvgSlug || ''}</span>
             <button type="button" class="logo-preview-clear" id="nest-svg-clear"><i data-lucide="x" style="width:14px;height:14px"></i></button>
           </div>
@@ -2465,16 +2467,19 @@ function showRenameNestModal(nestId, currentName, currentLogo, currentDescriptio
   initIcons();
 
   (async () => {
-    const grid = $a('#nest-svg-picker .svg-picker-grid');
+    const grid = $a('#nest-lucide-picker .svg-picker-grid');
     if (grid) {
-      grid.innerHTML = await renderSvgPickerGridLoaded(initialSvgSlug);
-      initSvgPickerListeners($a('#nest-svg-picker'), (slug) => {
-        $a('#modal-edit-nest-svg-slug').value = slug;
-        const prev = $a('#nest-svg-selected-preview');
+      grid.innerHTML = await renderLucidePickerGridLoaded(initialSvgSlug);
+      if (window.lucide) lucide.createIcons({ nodes: [grid] });
+      initSvgPickerListeners($a('#nest-lucide-picker'), (name) => {
+        $a('#modal-edit-nest-svg-slug').value = name;
+        const prev = $a('#nest-lucide-selected-preview');
         if (prev) {
           prev.style.display = 'flex';
-          prev.querySelector('img').src = siUrl(slug);
-          prev.querySelector('.logo-preview-label').textContent = slug;
+          const iconEl = prev.querySelector('[data-lucide]');
+          if (iconEl) { iconEl.setAttribute('data-lucide', name); }
+          prev.querySelector('.logo-preview-label').textContent = name;
+          if (window.lucide) lucide.createIcons({ nodes: [prev] });
         }
       });
     }
@@ -2506,9 +2511,9 @@ function showRenameNestModal(nestId, currentName, currentLogo, currentDescriptio
 
   $a('#nest-svg-clear')?.addEventListener('click', () => {
     $a('#modal-edit-nest-svg-slug').value = '';
-    const prev = $a('#nest-svg-selected-preview');
+    const prev = $a('#nest-lucide-selected-preview');
     if (prev) prev.style.display = 'none';
-    $a('#nest-svg-picker')?.querySelectorAll('.svg-picker-item').forEach(i => i.classList.remove('selected'));
+    $a('#nest-lucide-picker')?.querySelectorAll('.svg-picker-item').forEach(i => i.classList.remove('selected'));
   });
 
   $a('#btn-confirm-rename-nest')?.addEventListener('click', async () => {
@@ -2517,7 +2522,7 @@ function showRenameNestModal(nestId, currentName, currentLogo, currentDescriptio
     let logo = null;
     if (type === 'svg') {
       const slug = $a('#modal-edit-nest-svg-slug').value.trim();
-      logo = slug ? `si:${slug}` : null;
+      logo = slug ? `lucide:${slug}` : null;
     } else {
       logo = $a('#modal-edit-nest-logo').value.trim() || null;
     }
