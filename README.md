@@ -544,6 +544,8 @@ Two deployment workflows are configured:
 
 Both use SSH credentials configured as GitHub repository secrets (`SSH_HOST`, `SSH_USER`, `SSH_PASSWORD`, `SSH_PORT`).
 
+---
+
 ## GH Stats
 
 ![Alt](https://repobeats.axiom.co/api/embed/2f957f930d36f4a2913f8aeb07712cedbd4b38c5.svg "Repobeats analytics image")
