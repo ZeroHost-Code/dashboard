@@ -20,153 +20,49 @@ function ahtml(strings, ...values) {
   return strings.reduce((acc, str, i) => acc + str + (values[i] ?? ''), '');
 }
 
-// ─── Simple Icons Library ─────────────────────────────────
-const SIMPLE_ICONS = [
-  { slug: 'docker', label: 'Docker' },
-  { slug: 'kubernetes', label: 'Kubernetes' },
-  { slug: 'amazoneks', label: 'EKS' },
-  { slug: 'terraform', label: 'Terraform' },
-  { slug: 'ansible', label: 'Ansible' },
-  { slug: 'database', label: 'Database' },
-  { slug: 'code', label: 'Code' },
-  { slug: 'nginx', label: 'Nginx' },
-  { slug: 'apache', label: 'Apache' },
-  { slug: 'caddy', label: 'Caddy' },
-  { slug: 'traefik', label: 'Traefik' },
-  { slug: 'ubuntu', label: 'Ubuntu' },
-  { slug: 'debian', label: 'Debian' },
-  { slug: 'centos', label: 'CentOS' },
-  { slug: 'fedora', label: 'Fedora' },
-  { slug: 'alpinelinux', label: 'Alpine' },
-  { slug: 'archlinux', label: 'Arch' },
-  { slug: 'opensuse', label: 'openSUSE' },
-  { slug: 'freebsd', label: 'FreeBSD' },
-  { slug: 'linux', label: 'Linux' },
-  { slug: 'windows', label: 'Windows' },
-  { slug: 'python', label: 'Python' },
-  { slug: 'javascript', label: 'JavaScript' },
-  { slug: 'typescript', label: 'TypeScript' },
-  { slug: 'java', label: 'Java' },
-  { slug: 'go', label: 'Go' },
-  { slug: 'rust', label: 'Rust' },
-  { slug: 'php', label: 'PHP' },
-  { slug: 'ruby', label: 'Ruby' },
-  { slug: 'cplusplus', label: 'C++' },
-  { slug: 'csharp', label: 'C#' },
-  { slug: 'kotlin', label: 'Kotlin' },
-  { slug: 'swift', label: 'Swift' },
-  { slug: 'lua', label: 'Lua' },
-  { slug: 'perl', label: 'Perl' },
-  { slug: 'scala', label: 'Scala' },
-  { slug: 'haskell', label: 'Haskell' },
-  { slug: 'elixir', label: 'Elixir' },
-  { slug: 'nodejs', label: 'Node.js' },
-  { slug: 'nodedotjs', label: 'Node.js' },
-  { slug: 'react', label: 'React' },
-  { slug: 'vue-dot-js', label: 'Vue.js' },
-  { slug: 'angular', label: 'Angular' },
-  { slug: 'nextdotjs', label: 'Next.js' },
-  { slug: 'svelte', label: 'Svelte' },
-  { slug: 'express', label: 'Express' },
-  { slug: 'flask', label: 'Flask' },
-  { slug: 'django', label: 'Django' },
-  { slug: 'laravel', label: 'Laravel' },
-  { slug: 'spring', label: 'Spring' },
-  { slug: 'rails', label: 'Rails' },
-  { slug: 'fastapi', label: 'FastAPI' },
-  { slug: 'mysql', label: 'MySQL' },
-  { slug: 'postgresql', label: 'PostgreSQL' },
-  { slug: 'mongodb', label: 'MongoDB' },
-  { slug: 'redis', label: 'Redis' },
-  { slug: 'sqlite', label: 'SQLite' },
-  { slug: 'mariadb', label: 'MariaDB' },
-  { slug: 'elasticsearch', label: 'Elastic' },
-  { slug: 'cassandra', label: 'Cassandra' },
-  { slug: 'neo4j', label: 'Neo4j' },
-  { slug: 'influxdb', label: 'InfluxDB' },
-  { slug: 'firebase', label: 'Firebase' },
-  { slug: 'supabase', label: 'Supabase' },
-  { slug: 'prisma', label: 'Prisma' },
-  { slug: 'minecraft', label: 'Minecraft' },
-  { slug: 'terraria', label: 'Terraria' },
-  { slug: 'valheim', label: 'Valheim' },
-  { slug: 'factorio', label: 'Factorio' },
-  { slug: 'amongus', label: 'Among Us' },
-  { slug: 'steam', label: 'Steam' },
-  { slug: 'garrysmod', label: 'Garry\'s Mod' },
-  { slug: 'teamfortress', label: 'Team Fortress' },
-  { slug: 'left4dead', label: 'L4D' },
-  { slug: 'halflife', label: 'Half-Life' },
-  { slug: 'palworld', label: 'Palworld' },
-  { slug: 'stardewvalley', label: 'Stardew' },
-  { slug: 'dontstarve', label: 'Don\'t Starve' },
-  { slug: 'callofduty', label: 'Call of Duty' },
-  { slug: 'arma', label: 'Arma' },
-  { slug: 'dayz', label: 'DayZ' },
-  { slug: 'rustgame', label: 'Rust (Game)' },
-  { slug: 'subnautica', label: 'Subnautica' },
-  { slug: 'ark', label: 'ARK' },
-  { slug: 'minecraftbedrock', label: 'MC Bedrock' },
-  { slug: 'nodebb', label: 'NodeBB' },
-  { slug: 'flarum', label: 'Flarum' },
-  { slug: 'ghost', label: 'Ghost' },
-  { slug: 'wordpress', label: 'WordPress' },
-  { slug: 'drupal', label: 'Drupal' },
-  { slug: 'joomla', label: 'Joomla' },
-  { slug: 'grafana', label: 'Grafana' },
-  { slug: 'prometheus', label: 'Prometheus' },
-  { slug: 'zabbix', label: 'Zabbix' },
-  { slug: 'portainer', label: 'Portainer' },
-  { slug: 'jenkins', label: 'Jenkins' },
-  { slug: 'gitlab', label: 'GitLab' },
-  { slug: 'github', label: 'GitHub' },
-  { slug: 'gitea', label: 'Gitea' },
-  { slug: 'git', label: 'Git' },
-  { slug: 'visualstudiocode', label: 'VS Code' },
-  { slug: 'postman', label: 'Postman' },
-  { slug: 'cloudflare', label: 'Cloudflare' },
-  { slug: 'vercel', label: 'Vercel' },
-  { slug: 'netlify', label: 'Netlify' },
-  { slug: 'heroku', label: 'Heroku' },
-  { slug: 'digitalocean', label: 'DigitalOcean' },
-  { slug: 'vultr', label: 'Vultr' },
-  { slug: 'hetzner', label: 'Hetzner' },
-  { slug: 'oracle', label: 'Oracle' },
-  { slug: 'linode', label: 'Linode' },
-  { slug: 'amazonwebservices', label: 'AWS' },
-  { slug: 'microsoftazure', label: 'Azure' },
-  { slug: 'googlecloud', label: 'GCP' },
-  { slug: 'openai', label: 'OpenAI' },
-  { slug: 'discord', label: 'Discord' },
-  { slug: 'telegram', label: 'Telegram' },
-  { slug: 'slack', label: 'Slack' },
-  { slug: 'plex', label: 'Plex' },
-  { slug: 'jellyfin', label: 'Jellyfin' },
-  { slug: 'emby', label: 'Emby' },
-  { slug: 'nextcloud', label: 'Nextcloud' },
-  { slug: 'vaultwarden', label: 'Vaultwarden' },
-  { slug: 'wireguard', label: 'WireGuard' },
-  { slug: 'openvpn', label: 'OpenVPN' },
-  { slug: 'pihole', label: 'Pi-hole' },
-  { slug: 'ubiquiti', label: 'Ubiquiti' },
-  { slug: 'homeassistant', label: 'Home Assistant' },
-  { slug: 'tautulli', label: 'Tautulli' },
-  { slug: 'sonarqube', label: 'SonarQube' },
-  { slug: 'verdaccio', label: 'Verdaccio' },
-  { slug: 'minio', label: 'MinIO' },
-  { slug: 'rabbitmq', label: 'RabbitMQ' },
-  { slug: 'kafka', label: 'Kafka' },
-  { slug: 'nats', label: 'NATS' },
-  { slug: 'haproxy', label: 'HAProxy' },
-  { slug: 'consul', label: 'Consul' },
-  { slug: 'nomad', label: 'Nomad' },
-  { slug: 'etcd', label: 'etcd' },
-  { slug: 'podman', label: 'Podman' },
-  { slug: 'lxc', label: 'LXC' },
-  { slug: 'proxmox', label: 'Proxmox' },
-  { slug: 'vmware', label: 'VMware' },
-  { slug: 'vagrant', label: 'Vagrant' },
-];
+// ─── Simple Icons Library (loaded dynamically) ────────────
+let _simpleIconsCache = null;
+let _simpleIconsLoading = null;
+
+async function loadSimpleIcons() {
+  if (_simpleIconsCache) return _simpleIconsCache;
+  if (_simpleIconsLoading) return _simpleIconsLoading;
+
+  _simpleIconsLoading = (async () => {
+    try {
+      const res = await fetch('https://raw.githubusercontent.com/simple-icons/simple-icons/develop/slugs.md');
+      const text = await res.text();
+      const icons = [];
+      const re = /\|\s*`([^`]+)`\s*\|\s*`([^`]+)`\s*\|/g;
+      let m;
+      while ((m = re.exec(text)) !== null) {
+        const label = m[1];
+        const slug = m[2];
+        if (slug && label) icons.push({ slug, label });
+      }
+      icons.sort((a, b) => a.label.localeCompare(b.label));
+      _simpleIconsCache = icons;
+    } catch (e) {
+      console.warn('Failed to load Simple Icons list, using fallback');
+      _simpleIconsCache = [
+        { slug: 'docker', label: 'Docker' },
+        { slug: 'kubernetes', label: 'Kubernetes' },
+        { slug: 'minecraft', label: 'Minecraft' },
+        { slug: 'ubuntu', label: 'Ubuntu' },
+        { slug: 'debian', label: 'Debian' },
+        { slug: 'linux', label: 'Linux' },
+        { slug: 'github', label: 'GitHub' },
+        { slug: 'discord', label: 'Discord' },
+        { slug: 'database', label: 'Database' },
+        { slug: 'code', label: 'Code' },
+      ];
+    }
+    _simpleIconsLoading = null;
+    return _simpleIconsCache;
+  })();
+
+  return _simpleIconsLoading;
+}
 
 function siUrl(slug) {
   return `https://cdn.simpleicons.org/${slug}`;
@@ -184,7 +80,12 @@ function renderLogoDisplay(logo, size, extraStyle) {
 }
 
 function renderSvgPickerGrid(selectedSlug) {
-  return SIMPLE_ICONS.map(icon => {
+  return `<div style="text-align:center;padding:16px;color:var(--text-secondary)"><span class="spinner"></span> Loading icons...</div>`;
+}
+
+async function renderSvgPickerGridLoaded(selectedSlug) {
+  const icons = await loadSimpleIcons();
+  return icons.map(icon => {
     const isSelected = icon.slug === selectedSlug;
     return `<div class="svg-picker-item ${isSelected ? 'selected' : ''}" data-slug="${icon.slug}" data-label="${escapeHtml(icon.label)}" title="${escapeHtml(icon.label)}">
       <img src="${siUrl(icon.slug)}" alt="${escapeHtml(icon.label)}" loading="lazy" />
@@ -1965,16 +1866,6 @@ async function renderAdminEggSettings(nestId, eggId) {
     });
   });
 
-  initSvgPickerListeners($a('#egg-svg-picker'), (slug) => {
-    $a('#egg-svg-slug').value = slug;
-    const prev = $a('#egg-svg-selected-preview');
-    if (prev) {
-      prev.style.display = 'flex';
-      prev.querySelector('img').src = siUrl(slug);
-      prev.querySelector('.logo-preview-label').textContent = slug;
-    }
-  });
-
   $a('#egg-svg-clear')?.addEventListener('click', () => {
     $a('#egg-svg-slug').value = '';
     const prev = $a('#egg-svg-selected-preview');
@@ -2053,6 +1944,22 @@ async function renderAdminEggSettings(nestId, eggId) {
   });
 
   initIcons();
+
+  (async () => {
+    const grid = $a('#egg-svg-picker .svg-picker-grid');
+    if (grid) {
+      grid.innerHTML = await renderSvgPickerGridLoaded('');
+      initSvgPickerListeners($a('#egg-svg-picker'), (slug) => {
+        $a('#egg-svg-slug').value = slug;
+        const prev = $a('#egg-svg-selected-preview');
+        if (prev) {
+          prev.style.display = 'flex';
+          prev.querySelector('img').src = siUrl(slug);
+          prev.querySelector('.logo-preview-label').textContent = slug;
+        }
+      });
+    }
+  })();
 
   $a('#btn-save-egg-resources-all')?.addEventListener('click', async () => {
     if (!confirm('Apply these resources to ALL existing servers using this egg? This will update their limits on the panel.')) return;
@@ -2247,6 +2154,22 @@ function showRenameNestModal(nestId, currentName, currentLogo, currentDescriptio
   overlay.style.display = 'flex';
   initIcons();
 
+  (async () => {
+    const grid = $a('#nest-svg-picker .svg-picker-grid');
+    if (grid) {
+      grid.innerHTML = await renderSvgPickerGridLoaded(initialSvgSlug);
+      initSvgPickerListeners($a('#nest-svg-picker'), (slug) => {
+        $a('#modal-edit-nest-svg-slug').value = slug;
+        const prev = $a('#nest-svg-selected-preview');
+        if (prev) {
+          prev.style.display = 'flex';
+          prev.querySelector('img').src = siUrl(slug);
+          prev.querySelector('.logo-preview-label').textContent = slug;
+        }
+      });
+    }
+  })();
+
   const toggleBtns = content.querySelectorAll('.logo-type-toggle button');
   toggleBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -2268,16 +2191,6 @@ function showRenameNestModal(nestId, currentName, currentLogo, currentDescriptio
       if (img) img.src = logoInput.value;
     } else {
       if (preview) preview.style.display = 'none';
-    }
-  });
-
-  initSvgPickerListeners($a('#nest-svg-picker'), (slug) => {
-    $a('#modal-edit-nest-svg-slug').value = slug;
-    const prev = $a('#nest-svg-selected-preview');
-    if (prev) {
-      prev.style.display = 'flex';
-      prev.querySelector('img').src = siUrl(slug);
-      prev.querySelector('.logo-preview-label').textContent = slug;
     }
   });
 
