@@ -30,7 +30,7 @@ async function loadSimpleIcons() {
 
   _simpleIconsLoading = (async () => {
     try {
-      const res = await fetch('https://cdn.jsdelivr.net/npm/simple-icons@latest/slugs.md');
+      const res = await fetch('https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@develop/slugs.md');
       const text = await res.text();
       const icons = [];
       const re = /\|\s*`([^`]+)`\s*\|\s*`([^`]+)`\s*\|/g;
