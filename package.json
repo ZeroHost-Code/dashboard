@@ -17,6 +17,7 @@
     "express-rate-limit": "^7.4.1",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
-    "mariadb": "^3.4.0"
+    "mariadb": "^3.4.0",
+    "resend": "^6.17.1"
   }
 }
