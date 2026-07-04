@@ -64,6 +64,301 @@ async function loadSimpleIcons() {
   return _simpleIconsLoading;
 }
 
+// ─── Lucide Icons (for eggs) ──────────────────────────────
+const LUCIDE_ICONS = [
+  { name: 'code', label: 'Code' },
+  { name: 'code-2', label: 'Code 2' },
+  { name: 'code-xml', label: 'Code XML' },
+  { name: 'file-code', label: 'File Code' },
+  { name: 'terminal', label: 'Terminal' },
+  { name: 'terminal-2', label: 'Terminal 2' },
+  { name: 'console', label: 'Console' },
+  { name: 'database', label: 'Database' },
+  { name: 'hard-drive', label: 'Hard Drive' },
+  { name: 'server', label: 'Server' },
+  { name: 'server-crash', label: 'Server Crash' },
+  { name: 'server-off', label: 'Server Off' },
+  { name: 'cpu', label: 'CPU' },
+  { name: 'memory-stick', label: 'RAM' },
+  { name: 'monitor', label: 'Monitor' },
+  { name: 'monitor-smartphone', label: 'Monitor Mobile' },
+  { name: 'globe', label: 'Globe' },
+  { name: 'globe-2', label: 'Globe 2' },
+  { name: 'earth', label: 'Earth' },
+  { name: 'wifi', label: 'WiFi' },
+  { name: 'wifi-off', label: 'WiFi Off' },
+  { name: 'network', label: 'Network' },
+  { name: 'router', label: 'Router' },
+  { name: 'cloud', label: 'Cloud' },
+  { name: 'cloud-upload', label: 'Cloud Upload' },
+  { name: 'cloud-download', label: 'Cloud Download' },
+  { name: 'cloud-cog', label: 'Cloud Config' },
+  { name: 'shield', label: 'Shield' },
+  { name: 'shield-check', label: 'Shield Check' },
+  { name: 'shield-alert', label: 'Shield Alert' },
+  { name: 'lock', label: 'Lock' },
+  { name: 'lock-open', label: 'Lock Open' },
+  { name: 'key', label: 'Key' },
+  { name: 'key-round', label: 'Key Round' },
+  { name: 'fingerprint', label: 'Fingerprint' },
+  { name: 'box', label: 'Box' },
+  { name: 'package', label: 'Package' },
+  { name: 'package-open', label: 'Package Open' },
+  { name: 'container', label: 'Container' },
+  { name: 'blocks', label: 'Blocks' },
+  { name: 'puzzle', label: 'Puzzle' },
+  { name: 'plug', label: 'Plug' },
+  { name: 'plug-zap', label: 'Plug Zap' },
+  { name: 'zap', label: 'Zap' },
+  { name: 'zap-off', label: 'Zap Off' },
+  { name: 'bolt', label: 'Bolt' },
+  { name: 'rocket', label: 'Rocket' },
+  { name: 'rocket-launch', label: 'Rocket Launch' },
+  { name: 'activity', label: 'Activity' },
+  { name: 'heart-pulse', label: 'Heart Pulse' },
+  { name: 'pulse', label: 'Pulse' },
+  { name: 'chart-bar', label: 'Chart' },
+  { name: 'chart-line', label: 'Chart Line' },
+  { name: 'bar-chart-3', label: 'Bar Chart' },
+  { name: 'gauge', label: 'Gauge' },
+  { name: 'gauge-circle', label: 'Gauge Circle' },
+  { name: 'timer', label: 'Timer' },
+  { name: 'clock', label: 'Clock' },
+  { name: 'settings', label: 'Settings' },
+  { name: 'settings-2', label: 'Settings 2' },
+  { name: 'cog', label: 'Cog' },
+  { name: 'cogs', label: 'Cogs' },
+  { name: 'wrench', label: 'Wrench' },
+  { name: 'hammer', label: 'Hammer' },
+  { name: 'screwdriver', label: 'Screwdriver' },
+  { name: 'file-text', label: 'File Text' },
+  { name: 'file', label: 'File' },
+  { name: 'folder', label: 'Folder' },
+  { name: 'folder-open', label: 'Folder Open' },
+  { name: 'download', label: 'Download' },
+  { name: 'upload', label: 'Upload' },
+  { name: 'refresh-cw', label: 'Refresh' },
+  { name: 'refresh-cw-off', label: 'Refresh Off' },
+  { name: 'reload', label: 'Reload' },
+  { name: 'play', label: 'Play' },
+  { name: 'pause', label: 'Pause' },
+  { name: 'stop-circle', label: 'Stop' },
+  { name: 'skip-forward', label: 'Skip' },
+  { name: 'power', label: 'Power' },
+  { name: 'power-off', label: 'Power Off' },
+  { name: 'log-in', label: 'Login' },
+  { name: 'log-out', label: 'Logout' },
+  { name: 'user', label: 'User' },
+  { name: 'users', label: 'Users' },
+  { name: 'user-check', label: 'User Check' },
+  { name: 'user-x', label: 'User X' },
+  { name: 'group', label: 'Group' },
+  { name: 'search', label: 'Search' },
+  { name: 'search-code', label: 'Search Code' },
+  { name: 'filter', label: 'Filter' },
+  { name: 'list', label: 'List' },
+  { name: 'list-tree', label: 'List Tree' },
+  { name: 'layout-grid', label: 'Grid' },
+  { name: 'layout-dashboard', label: 'Dashboard' },
+  { name: 'sidebar', label: 'Sidebar' },
+  { name: 'menu', label: 'Menu' },
+  { name: 'more-horizontal', label: 'More' },
+  { name: 'external-link', label: 'External Link' },
+  { name: 'link', label: 'Link' },
+  { name: 'unlink', label: 'Unlink' },
+  { name: 'mail', label: 'Mail' },
+  { name: 'message-square', label: 'Message' },
+  { name: 'bell', label: 'Bell' },
+  { name: 'bell-ring', label: 'Bell Ring' },
+  { name: 'megaphone', label: 'Megaphone' },
+  { name: 'volume-2', label: 'Volume' },
+  { name: 'volume-x', label: 'Volume Mute' },
+  { name: 'image', label: 'Image' },
+  { name: 'camera', label: 'Camera' },
+  { name: 'video', label: 'Video' },
+  { name: 'film', label: 'Film' },
+  { name: 'music', label: 'Music' },
+  { name: 'headphones', label: 'Headphones' },
+  { name: 'speaker', label: 'Speaker' },
+  { name: 'radio', label: 'Radio' },
+  { name: 'gamepad-2', label: 'Gamepad' },
+  { name: 'joystick', label: 'Joystick' },
+  { name: 'trophy', label: 'Trophy' },
+  { name: 'medal', label: 'Medal' },
+  { name: 'award', label: 'Award' },
+  { name: 'star', label: 'Star' },
+  { name: 'heart', label: 'Heart' },
+  { name: 'thumbs-up', label: 'Thumbs Up' },
+  { name: 'bookmark', label: 'Bookmark' },
+  { name: 'flag', label: 'Flag' },
+  { name: 'tag', label: 'Tag' },
+  { name: 'tags', label: 'Tags' },
+  { name: 'hash', label: 'Hash' },
+  { name: 'at-sign', label: 'At Sign' },
+  { name: 'percent', label: 'Percent' },
+  { name: 'calculator', label: 'Calculator' },
+  { name: 'binary', label: 'Binary' },
+  { name: 'braces', label: 'Braces' },
+  { name: 'brackets', label: 'Brackets' },
+  { name: 'git-branch', label: 'Git Branch' },
+  { name: 'git-commit', label: 'Git Commit' },
+  { name: 'git-merge', label: 'Git Merge' },
+  { name: 'git-pull-request', label: 'Git PR' },
+  { name: 'git-fork', label: 'Git Fork' },
+  { name: 'git-commit-horizontal', label: 'Git Commit' },
+  { name: 'github', label: 'GitHub' },
+  { name: 'gitlab', label: 'GitLab' },
+  { name: 'container', label: 'Docker' },
+  { name: 'axe', label: 'Axe' },
+  { name: 'bug', label: 'Bug' },
+  { name: 'virus', label: 'Virus' },
+  { name: 'shield-ban', label: 'Shield Ban' },
+  { name: 'scan-eye', label: 'Scan Eye' },
+  { name: 'eye', label: 'Eye' },
+  { name: 'eye-off', label: 'Eye Off' },
+  { name: 'scan', label: 'Scan' },
+  { name: 'qr-code', label: 'QR Code' },
+  { name: 'barcode', label: 'Barcode' },
+  { name: 'hash', label: 'Hash' },
+  { name: 'map-pin', label: 'Map Pin' },
+  { name: 'map', label: 'Map' },
+  { name: 'compass', label: 'Compass' },
+  { name: 'navigation', label: 'Navigation' },
+  { name: 'send', label: 'Send' },
+  { name: 'plane', label: 'Plane' },
+  { name: 'car', label: 'Car' },
+  { name: 'bus', label: 'Bus' },
+  { name: 'train', label: 'Train' },
+  { name: 'ship', label: 'Ship' },
+  { name: 'bike', label: 'Bike' },
+  { name: 'fuel', label: 'Fuel' },
+  { name: 'battery', label: 'Battery' },
+  { name: 'battery-full', label: 'Battery Full' },
+  { name: 'battery-low', label: 'Battery Low' },
+  { name: 'battery-charging', label: 'Battery Charging' },
+  { name: 'lightbulb', label: 'Lightbulb' },
+  { name: 'lightbulb-off', label: 'Lightbulb Off' },
+  { name: 'lamp', label: 'Lamp' },
+  { name: 'sun', label: 'Sun' },
+  { name: 'moon', label: 'Moon' },
+  { name: 'cloud-sun', label: 'Cloud Sun' },
+  { name: 'cloud-rain', label: 'Cloud Rain' },
+  { name: 'snowflake', label: 'Snowflake' },
+  { name: 'thermometer', label: 'Thermometer' },
+  { name: 'droplets', label: 'Droplets' },
+  { name: 'wind', label: 'Wind' },
+  { name: 'trees', label: 'Trees' },
+  { name: 'flower-2', label: 'Flower' },
+  { name: 'leaf', label: 'Leaf' },
+  { name: 'apple', label: 'Apple' },
+  { name: 'coffee', label: 'Coffee' },
+  { name: 'pizza', label: 'Pizza' },
+  { name: 'beer', label: 'Beer' },
+  { name: 'cake', label: 'Cake' },
+  { name: 'utensils', label: 'Utensils' },
+  { name: 'shopping-cart', label: 'Cart' },
+  { name: 'shopping-bag', label: 'Bag' },
+  { name: 'store', label: 'Store' },
+  { name: 'credit-card', label: 'Credit Card' },
+  { name: 'wallet', label: 'Wallet' },
+  { name: 'banknote', label: 'Banknote' },
+  { name: 'coins', label: 'Coins' },
+  { name: 'gem', label: 'Gem' },
+  { name: 'diamond', label: 'Diamond' },
+  { name: 'ring', label: 'Ring' },
+  { name: 'crown', label: 'Crown' },
+  { name: 'wand-sparkles', label: 'Wand' },
+  { name: 'wand-2', label: 'Wand 2' },
+  { name: 'sparkles', label: 'Sparkles' },
+  { name: 'flame', label: 'Flame' },
+  { name: 'fire', label: 'Fire' },
+  { name: 'boom-box', label: 'Boombox' },
+  { name: 'popcorn', label: 'Popcorn' },
+  { name: 'clapperboard', label: 'Clapperboard' },
+  { name: 'tv', label: 'TV' },
+  { name: 'projector', label: 'Projector' },
+  { name: 'speaker', label: 'Speaker' },
+  { name: 'radio', label: 'Radio' },
+  { name: 'mic', label: 'Microphone' },
+  { name: 'mic-off', label: 'Mic Off' },
+  { name: 'podcast', label: 'Podcast' },
+  { name: 'playlist', label: 'Playlist' },
+  { name: 'list-music', label: 'List Music' },
+  { name: 'shuffle', label: 'Shuffle' },
+  { name: 'repeat', label: 'Repeat' },
+  { name: 'rewind', label: 'Rewind' },
+  { name: 'fast-forward', label: 'Fast Forward' },
+  { name: 'eclipse', label: 'Eclipse' },
+  { name: 'orbit', label: 'Orbit' },
+  { name: 'satellite', label: 'Satellite' },
+  { name: 'rocket', label: 'Rocket' },
+  { name: 'radio-tower', label: 'Radio Tower' },
+  { name: 'antenna', label: 'Antenna' },
+  { name: 'signal', label: 'Signal' },
+  { name: 'phone', label: 'Phone' },
+  { name: 'phone-call', label: 'Phone Call' },
+  { name: 'phone-off', label: 'Phone Off' },
+  { name: 'voicemail', label: 'Voicemail' },
+  { name: 'sim-card', label: 'SIM Card' },
+  { name: 'sim', label: 'SIM' },
+  { name: 'tablet', label: 'Tablet' },
+  { name: 'smartphone', label: 'Smartphone' },
+  { name: 'laptop', label: 'Laptop' },
+  { name: 'desktop', label: 'Desktop' },
+  { name: 'printer', label: 'Printer' },
+  { name: 'scan-line', label: 'Scan Line' },
+  { name: 'mouse', label: 'Mouse' },
+  { name: 'keyboard', label: 'Keyboard' },
+  { name: 'hard-drive', label: 'Hard Drive' },
+  { name: 'usb', label: 'USB' },
+  { name: 'bluetooth', label: 'Bluetooth' },
+  { name: 'cast', label: 'Cast' },
+  { name: 'airplay', label: 'AirPlay' },
+  { name: 'mirroring', label: 'Mirroring' },
+  { name: 'command', label: 'Command' },
+  { name: 'option', label: 'Option' },
+  { name: ' ALT', label: 'Alt' },
+  { name: 'esc', label: 'Escape' },
+  { name: 'copy', label: 'Copy' },
+  { name: 'clipboard', label: 'Clipboard' },
+  { name: 'clipboard-check', label: 'Clipboard Check' },
+  { name: 'scissors', label: 'Scissors' },
+  { name: 'crop', label: 'Crop' },
+  { name: 'maximize', label: 'Maximize' },
+  { name: 'minimize', label: 'Minimize' },
+  { name: 'move', label: 'Move' },
+  { name: 'maximize-2', label: 'Maximize 2' },
+  { name: 'minimize-2', label: 'Minimize 2' },
+  { name: 'maximize-3', label: 'Maximize 3' },
+  { name: 'minimize-3', label: 'Minimize 3' },
+  { name: 'maximize-4', label: 'Maximize 4' },
+  { name: 'minimize-4', label: 'Minimize 4' },
+  { name: 'maximize-5', label: 'Maximize 5' },
+  { name: 'minimize-5', label: 'Minimize 5' },
+  { name: 'maximize-6', label: 'Maximize 6' },
+  { name: 'minimize-6', label: 'Minimize 6' },
+];
+
+function lucideIconHtml(name, size, extraStyle) {
+  const s = size || 32;
+  const style = `width:${s}px;height:${s}px;${extraStyle || ''}`;
+  return `<i data-lucide="${name}" style="${style}"></i>`;
+}
+
+function renderLucidePickerGrid(selectedName) {
+  return `<div style="text-align:center;padding:16px;color:var(--text-secondary)"><span class="spinner"></span> Loading icons...</div>`;
+}
+
+async function renderLucidePickerGridLoaded(selectedName) {
+  return LUCIDE_ICONS.map(icon => {
+    const isSelected = icon.name === selectedName;
+    return `<div class="svg-picker-item ${isSelected ? 'selected' : ''}" data-name="${icon.name}" data-label="${escapeHtml(icon.label)}" title="${escapeHtml(icon.label)}">
+      <i data-lucide="${icon.name}" style="width:24px;height:24px"></i>
+      <span>${escapeHtml(icon.label)}</span>
+    </div>`;
+  }).join('');
+}
+
 function siUrl(slug) {
   return `https://cdn.simpleicons.org/${slug}`;
 }
@@ -75,6 +370,10 @@ function renderLogoDisplay(logo, size, extraStyle) {
   if (logo.startsWith('si:')) {
     const slug = logo.slice(3);
     return `<img src="${siUrl(slug)}" alt="" style="${style}" />`;
+  }
+  if (logo.startsWith('lucide:')) {
+    const name = logo.slice(7);
+    return lucideIconHtml(name, s, extraStyle);
   }
   return `<img src="${escapeHtml(logo)}" alt="" style="${style}" />`;
 }
@@ -1766,18 +2065,18 @@ async function renderAdminEggSettings(nestId, eggId) {
             </div>
           </div>
           <div id="egg-logo-svg-section" style="display:none">
-            <div id="egg-svg-picker" class="svg-picker">
+            <div id="egg-lucide-picker" class="svg-picker">
               <input type="text" class="svg-picker-search" placeholder="Search icons..." />
-              <div class="svg-picker-grid">${renderSvgPickerGrid('')}</div>
+              <div class="svg-picker-grid">${renderLucidePickerGrid('')}</div>
             </div>
-            <div id="egg-svg-selected-preview" class="logo-preview-box" style="display:none">
-              <img src="" alt="" />
+            <div id="egg-lucide-selected-preview" class="logo-preview-box" style="display:none">
+              <i data-lucide="" style="width:32px;height:32px"></i>
               <span class="logo-preview-label"></span>
-              <button type="button" class="logo-preview-clear" id="egg-svg-clear"><i data-lucide="x" style="width:14px;height:14px"></i></button>
+              <button type="button" class="logo-preview-clear" id="egg-lucide-clear"><i data-lucide="x" style="width:14px;height:14px"></i></button>
             </div>
           </div>
           <input type="hidden" id="egg-logo-type" value="url" />
-          <input type="hidden" id="egg-svg-slug" value="" />
+          <input type="hidden" id="egg-lucide-name" value="" />
         </div>
         <div class="form-group">
           <label for="egg-cpu">CPU Limit (%)</label>
@@ -1808,25 +2107,33 @@ async function renderAdminEggSettings(nestId, eggId) {
 
     if (data.resources) {
       if (data.resources.logo != null) {
-        const isSvg = data.resources.logo.startsWith('si:');
-        const type = isSvg ? 'svg' : 'url';
+        const isLucide = data.resources.logo.startsWith('lucide:');
+        const isSi = data.resources.logo.startsWith('si:');
+        const isIcon = isLucide || isSi;
+        const type = isIcon ? 'svg' : 'url';
         $a('#egg-logo-type').value = type;
         $a('#egg-logo-svg-section').style.display = type === 'svg' ? 'block' : 'none';
         $a('#egg-logo-url-section').style.display = type === 'url' ? 'block' : 'none';
         const toggleBtns = $a('#admin-egg-resources-form')?.closest('.card')?.querySelectorAll('.logo-type-toggle button') || [];
         toggleBtns.forEach(b => { b.classList.toggle('active', b.dataset.type === type); });
 
-        if (isSvg) {
-          const slug = data.resources.logo.slice(3);
-          $a('#egg-svg-slug').value = slug;
-          const prev = $a('#egg-svg-selected-preview');
+        if (isLucide) {
+          const name = data.resources.logo.slice(7);
+          $a('#egg-lucide-name').value = name;
+          const prev = $a('#egg-lucide-selected-preview');
           if (prev) {
             prev.style.display = 'flex';
-            prev.querySelector('img').src = siUrl(slug);
-            prev.querySelector('.logo-preview-label').textContent = slug;
+            const iconEl = prev.querySelector('[data-lucide]');
+            if (iconEl) { iconEl.setAttribute('data-lucide', name); }
+            prev.querySelector('.logo-preview-label').textContent = name;
+            if (window.lucide) lucide.createIcons({ nodes: [prev] });
           }
-          const item = $a('#egg-svg-picker')?.querySelector(`[data-slug="${slug}"]`);
+          const item = $a('#egg-lucide-picker')?.querySelector(`[data-name="${name}"]`);
           if (item) item.classList.add('selected');
+        } else if (isSi) {
+          const slug = data.resources.logo.slice(3);
+          $a('#egg-logo').value = '';
+          $a('#egg-logo-type').value = 'svg';
         } else {
           $a('#egg-logo').value = data.resources.logo;
           const preview = $a('#egg-logo-preview');
@@ -1866,11 +2173,11 @@ async function renderAdminEggSettings(nestId, eggId) {
     });
   });
 
-  $a('#egg-svg-clear')?.addEventListener('click', () => {
-    $a('#egg-svg-slug').value = '';
-    const prev = $a('#egg-svg-selected-preview');
+  $a('#egg-lucide-clear')?.addEventListener('click', () => {
+    $a('#egg-lucide-name').value = '';
+    const prev = $a('#egg-lucide-selected-preview');
     if (prev) prev.style.display = 'none';
-    $a('#egg-svg-picker')?.querySelectorAll('.svg-picker-item').forEach(i => i.classList.remove('selected'));
+    $a('#egg-lucide-picker')?.querySelectorAll('.svg-picker-item').forEach(i => i.classList.remove('selected'));
   });
 
   $a('#admin-egg-resources-form')?.addEventListener('submit', async (e) => {
@@ -1884,8 +2191,8 @@ async function renderAdminEggSettings(nestId, eggId) {
     const logoType = $a('#egg-logo-type')?.value || 'url';
     let logo = null;
     if (logoType === 'svg') {
-      const slug = $a('#egg-svg-slug')?.value?.trim();
-      logo = slug ? `si:${slug}` : null;
+      const name = $a('#egg-lucide-name')?.value?.trim();
+      logo = name ? `lucide:${name}` : null;
     } else {
       logo = $a('#egg-logo')?.value?.trim() || null;
     }
@@ -1923,11 +2230,11 @@ async function renderAdminEggSettings(nestId, eggId) {
       });
       $a('#egg-logo').value = '';
       $a('#egg-logo-preview').style.display = 'none';
-      $a('#egg-svg-slug').value = '';
+      $a('#egg-lucide-name').value = '';
       $a('#egg-logo-type').value = 'url';
-      const eggPrev = $a('#egg-svg-selected-preview');
+      const eggPrev = $a('#egg-lucide-selected-preview');
       if (eggPrev) eggPrev.style.display = 'none';
-      $a('#egg-svg-picker')?.querySelectorAll('.svg-picker-item').forEach(i => i.classList.remove('selected'));
+      $a('#egg-lucide-picker')?.querySelectorAll('.svg-picker-item').forEach(i => i.classList.remove('selected'));
       const eggToggleBtns = $a('#admin-egg-resources-form')?.closest('.card')?.querySelectorAll('.logo-type-toggle button') || [];
       eggToggleBtns.forEach(b => { b.classList.toggle('active', b.dataset.type === 'url'); });
       $a('#egg-logo-url-section').style.display = 'block';
@@ -1946,16 +2253,19 @@ async function renderAdminEggSettings(nestId, eggId) {
   initIcons();
 
   (async () => {
-    const grid = $a('#egg-svg-picker .svg-picker-grid');
+    const grid = $a('#egg-lucide-picker .svg-picker-grid');
     if (grid) {
-      grid.innerHTML = await renderSvgPickerGridLoaded('');
-      initSvgPickerListeners($a('#egg-svg-picker'), (slug) => {
-        $a('#egg-svg-slug').value = slug;
-        const prev = $a('#egg-svg-selected-preview');
+      grid.innerHTML = await renderLucidePickerGridLoaded('');
+      if (window.lucide) lucide.createIcons({ nodes: [grid] });
+      initSvgPickerListeners($a('#egg-lucide-picker'), (name) => {
+        $a('#egg-lucide-name').value = name;
+        const prev = $a('#egg-lucide-selected-preview');
         if (prev) {
           prev.style.display = 'flex';
-          prev.querySelector('img').src = siUrl(slug);
-          prev.querySelector('.logo-preview-label').textContent = slug;
+          const iconEl = prev.querySelector('[data-lucide]');
+          if (iconEl) { iconEl.setAttribute('data-lucide', name); }
+          prev.querySelector('.logo-preview-label').textContent = name;
+          if (window.lucide) lucide.createIcons({ nodes: [prev] });
         }
       });
     }

@@ -1846,7 +1846,7 @@ function renderEggStep() {
     return html`
       <div class="egg-card ${unavail ? 'unavailable' : ''} ${createState.selectedEgg?.eggId === e.eggId ? 'selected' : ''}" data-egg-id="${e.eggId}" ${unavail ? 'style="opacity:0.5;pointer-events:none"' : ''}>
         <div class="egg-card-logo">
-          ${e.logo ? (e.logo.startsWith('si:') ? html`<img src="${siUrl(e.logo.slice(3))}" alt="" />` : html`<img src="${e.logo}" alt="" />`) : html`<i data-lucide="egg" style="width:32px;height:32px;color:var(--text-secondary)"></i>`}
+          ${e.logo ? (e.logo.startsWith('si:') ? html`<img src="${siUrl(e.logo.slice(3))}" alt="" />` : e.logo.startsWith('lucide:') ? html`<i data-lucide="${e.logo.slice(7)}" style="width:32px;height:32px"></i>` : html`<img src="${e.logo}" alt="" />`) : html`<i data-lucide="egg" style="width:32px;height:32px;color:var(--text-secondary)"></i>`}
         </div>
         <div class="egg-card-info">
           <div class="egg-card-name">${escapeHtml(e.name)}</div>
