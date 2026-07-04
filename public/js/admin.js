@@ -20,6 +20,201 @@ function ahtml(strings, ...values) {
   return strings.reduce((acc, str, i) => acc + str + (values[i] ?? ''), '');
 }
 
+// ─── Simple Icons Library ─────────────────────────────────
+const SIMPLE_ICONS = [
+  { slug: 'docker', label: 'Docker' },
+  { slug: 'kubernetes', label: 'Kubernetes' },
+  { slug: 'amazoneks', label: 'EKS' },
+  { slug: 'terraform', label: 'Terraform' },
+  { slug: 'ansible', label: 'Ansible' },
+  { slug: 'nginx', label: 'Nginx' },
+  { slug: 'apache', label: 'Apache' },
+  { slug: 'caddy', label: 'Caddy' },
+  { slug: 'traefik', label: 'Traefik' },
+  { slug: 'ubuntu', label: 'Ubuntu' },
+  { slug: 'debian', label: 'Debian' },
+  { slug: 'centos', label: 'CentOS' },
+  { slug: 'fedora', label: 'Fedora' },
+  { slug: 'alpinelinux', label: 'Alpine' },
+  { slug: 'archlinux', label: 'Arch' },
+  { slug: 'opensuse', label: 'openSUSE' },
+  { slug: 'freebsd', label: 'FreeBSD' },
+  { slug: 'linux', label: 'Linux' },
+  { slug: 'windows', label: 'Windows' },
+  { slug: 'python', label: 'Python' },
+  { slug: 'javascript', label: 'JavaScript' },
+  { slug: 'typescript', label: 'TypeScript' },
+  { slug: 'java', label: 'Java' },
+  { slug: 'go', label: 'Go' },
+  { slug: 'rust', label: 'Rust' },
+  { slug: 'php', label: 'PHP' },
+  { slug: 'ruby', label: 'Ruby' },
+  { slug: 'cplusplus', label: 'C++' },
+  { slug: 'csharp', label: 'C#' },
+  { slug: 'kotlin', label: 'Kotlin' },
+  { slug: 'swift', label: 'Swift' },
+  { slug: 'lua', label: 'Lua' },
+  { slug: 'perl', label: 'Perl' },
+  { slug: 'scala', label: 'Scala' },
+  { slug: 'haskell', label: 'Haskell' },
+  { slug: 'elixir', label: 'Elixir' },
+  { slug: 'nodejs', label: 'Node.js' },
+  { slug: 'nodedotjs', label: 'Node.js' },
+  { slug: 'react', label: 'React' },
+  { slug: 'vue-dot-js', label: 'Vue.js' },
+  { slug: 'angular', label: 'Angular' },
+  { slug: 'nextdotjs', label: 'Next.js' },
+  { slug: 'svelte', label: 'Svelte' },
+  { slug: 'express', label: 'Express' },
+  { slug: 'flask', label: 'Flask' },
+  { slug: 'django', label: 'Django' },
+  { slug: 'laravel', label: 'Laravel' },
+  { slug: 'spring', label: 'Spring' },
+  { slug: 'rails', label: 'Rails' },
+  { slug: 'fastapi', label: 'FastAPI' },
+  { slug: 'mysql', label: 'MySQL' },
+  { slug: 'postgresql', label: 'PostgreSQL' },
+  { slug: 'mongodb', label: 'MongoDB' },
+  { slug: 'redis', label: 'Redis' },
+  { slug: 'sqlite', label: 'SQLite' },
+  { slug: 'mariadb', label: 'MariaDB' },
+  { slug: 'elasticsearch', label: 'Elastic' },
+  { slug: 'cassandra', label: 'Cassandra' },
+  { slug: 'neo4j', label: 'Neo4j' },
+  { slug: 'influxdb', label: 'InfluxDB' },
+  { slug: 'firebase', label: 'Firebase' },
+  { slug: 'supabase', label: 'Supabase' },
+  { slug: 'prisma', label: 'Prisma' },
+  { slug: 'minecraft', label: 'Minecraft' },
+  { slug: 'terraria', label: 'Terraria' },
+  { slug: 'valheim', label: 'Valheim' },
+  { slug: 'factorio', label: 'Factorio' },
+  { slug: 'amongus', label: 'Among Us' },
+  { slug: 'steam', label: 'Steam' },
+  { slug: 'garrysmod', label: 'Garry\'s Mod' },
+  { slug: 'teamfortress', label: 'Team Fortress' },
+  { slug: 'left4dead', label: 'L4D' },
+  { slug: 'halflife', label: 'Half-Life' },
+  { slug: 'palworld', label: 'Palworld' },
+  { slug: 'stardewvalley', label: 'Stardew' },
+  { slug: 'dontstarve', label: 'Don\'t Starve' },
+  { slug: 'callofduty', label: 'Call of Duty' },
+  { slug: 'arma', label: 'Arma' },
+  { slug: 'dayz', label: 'DayZ' },
+  { slug: 'rustgame', label: 'Rust (Game)' },
+  { slug: 'subnautica', label: 'Subnautica' },
+  { slug: 'ark', label: 'ARK' },
+  { slug: 'minecraftbedrock', label: 'MC Bedrock' },
+  { slug: 'nodebb', label: 'NodeBB' },
+  { slug: 'flarum', label: 'Flarum' },
+  { slug: 'ghost', label: 'Ghost' },
+  { slug: 'wordpress', label: 'WordPress' },
+  { slug: 'drupal', label: 'Drupal' },
+  { slug: 'joomla', label: 'Joomla' },
+  { slug: 'grafana', label: 'Grafana' },
+  { slug: 'prometheus', label: 'Prometheus' },
+  { slug: 'zabbix', label: 'Zabbix' },
+  { slug: 'portainer', label: 'Portainer' },
+  { slug: 'jenkins', label: 'Jenkins' },
+  { slug: 'gitlab', label: 'GitLab' },
+  { slug: 'github', label: 'GitHub' },
+  { slug: 'gitea', label: 'Gitea' },
+  { slug: 'git', label: 'Git' },
+  { slug: 'visualstudiocode', label: 'VS Code' },
+  { slug: 'postman', label: 'Postman' },
+  { slug: 'cloudflare', label: 'Cloudflare' },
+  { slug: 'vercel', label: 'Vercel' },
+  { slug: 'netlify', label: 'Netlify' },
+  { slug: 'heroku', label: 'Heroku' },
+  { slug: 'digitalocean', label: 'DigitalOcean' },
+  { slug: 'vultr', label: 'Vultr' },
+  { slug: 'hetzner', label: 'Hetzner' },
+  { slug: 'oracle', label: 'Oracle' },
+  { slug: 'linode', label: 'Linode' },
+  { slug: 'amazonwebservices', label: 'AWS' },
+  { slug: 'microsoftazure', label: 'Azure' },
+  { slug: 'googlecloud', label: 'GCP' },
+  { slug: 'openai', label: 'OpenAI' },
+  { slug: 'discord', label: 'Discord' },
+  { slug: 'telegram', label: 'Telegram' },
+  { slug: 'slack', label: 'Slack' },
+  { slug: 'plex', label: 'Plex' },
+  { slug: 'jellyfin', label: 'Jellyfin' },
+  { slug: 'emby', label: 'Emby' },
+  { slug: 'nextcloud', label: 'Nextcloud' },
+  { slug: 'vaultwarden', label: 'Vaultwarden' },
+  { slug: 'wireguard', label: 'WireGuard' },
+  { slug: 'openvpn', label: 'OpenVPN' },
+  { slug: 'pihole', label: 'Pi-hole' },
+  { slug: 'ubiquiti', label: 'Ubiquiti' },
+  { slug: 'homeassistant', label: 'Home Assistant' },
+  { slug: 'tautulli', label: 'Tautulli' },
+  { slug: 'sonarqube', label: 'SonarQube' },
+  { slug: 'verdaccio', label: 'Verdaccio' },
+  { slug: 'minio', label: 'MinIO' },
+  { slug: 'rabbitmq', label: 'RabbitMQ' },
+  { slug: 'kafka', label: 'Kafka' },
+  { slug: 'nats', label: 'NATS' },
+  { slug: 'haproxy', label: 'HAProxy' },
+  { slug: 'consul', label: 'Consul' },
+  { slug: 'nomad', label: 'Nomad' },
+  { slug: 'etcd', label: 'etcd' },
+  { slug: 'podman', label: 'Podman' },
+  { slug: 'lxc', label: 'LXC' },
+  { slug: 'proxmox', label: 'Proxmox' },
+  { slug: 'vmware', label: 'VMware' },
+  { slug: 'vagrant', label: 'Vagrant' },
+];
+
+function siUrl(slug) {
+  return `https://cdn.simpleicons.org/${slug}`;
+}
+
+function renderLogoDisplay(logo, size, extraStyle) {
+  if (!logo) return '';
+  const s = size || 32;
+  const style = `width:${s}px;height:${s}px;object-fit:contain;border-radius:4px;${extraStyle || ''}`;
+  if (logo.startsWith('si:')) {
+    const slug = logo.slice(3);
+    return `<img src="${siUrl(slug)}" alt="" style="${style}" />`;
+  }
+  return `<img src="${escapeHtml(logo)}" alt="" style="${style}" />`;
+}
+
+function renderSvgPickerGrid(selectedSlug) {
+  return SIMPLE_ICONS.map(icon => {
+    const isSelected = icon.slug === selectedSlug;
+    return `<div class="svg-picker-item ${isSelected ? 'selected' : ''}" data-slug="${icon.slug}" data-label="${escapeHtml(icon.label)}" title="${escapeHtml(icon.label)}">
+      <img src="${siUrl(icon.slug)}" alt="${escapeHtml(icon.label)}" loading="lazy" />
+      <span>${escapeHtml(icon.label)}</span>
+    </div>`;
+  }).join('');
+}
+
+function initSvgPickerListeners(container, onSelect) {
+  if (!container) return;
+  const search = container.querySelector('.svg-picker-search');
+  const grid = container.querySelector('.svg-picker-grid');
+  if (!search || !grid) return;
+
+  search.addEventListener('input', () => {
+    const q = search.value.toLowerCase().trim();
+    grid.querySelectorAll('.svg-picker-item').forEach(item => {
+      const label = (item.dataset.label || '').toLowerCase();
+      const slug = (item.dataset.slug || '').toLowerCase();
+      item.style.display = (!q || label.includes(q) || slug.includes(q)) ? '' : 'none';
+    });
+  });
+
+  grid.addEventListener('click', (e) => {
+    const item = e.target.closest('.svg-picker-item');
+    if (!item) return;
+    grid.querySelectorAll('.svg-picker-item').forEach(i => i.classList.remove('selected'));
+    item.classList.add('selected');
+    onSelect(item.dataset.slug);
+  });
+}
+
 async function adminApi(path, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...options.headers };
   if (adminState.token) {
@@ -1481,7 +1676,7 @@ async function renderAdminEggsSettings() {
     tbody.innerHTML = data.nests.map(n => ahtml`
       <tr>
         <td>${n.id}</td>
-        <td>${n.logo ? `<img src="${n.logo}" alt="" style="width:32px;height:32px;object-fit:contain;border-radius:4px">` : '<span style="color:var(--text-secondary);font-size:0.75rem">—</span>'}</td>
+        <td>${n.logo ? renderLogoDisplay(n.logo, 32) : '<span style="color:var(--text-secondary);font-size:0.75rem">—</span>'}</td>
         <td><a href="/admin/settings/eggs/${n.ptero_nest_id}" onclick="event.preventDefault();adminNavigateTo('settings/eggs/${n.ptero_nest_id}')" style="font-weight:600;cursor:pointer">${n.name}</a></td>
         <td style="color:var(--text-secondary);font-size:0.85rem;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.description || '—'}</td>
         <td><span class="server-detail-tag">${n.ptero_nest_id}</span></td>
@@ -1589,7 +1784,7 @@ async function renderAdminNestEggs(nestId) {
       return ahtml`
         <tr>
           <td>${e.id}</td>
-          <td>${res?.logo ? `<img src="${res.logo}" alt="" style="width:28px;height:28px;object-fit:contain;border-radius:4px">` : '<span style="color:var(--text-secondary);font-size:0.75rem">—</span>'}</td>
+          <td>${res?.logo ? renderLogoDisplay(res.logo, 28) : '<span style="color:var(--text-secondary);font-size:0.75rem">—</span>'}</td>
           <td><strong>${e.name}</strong></td>
           <td style="color:var(--text-secondary);font-size:0.85rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.description || '—'}</td>
           <td><span class="server-detail-tag" style="font-size:0.75rem">${resStr}</span></td>
@@ -1656,11 +1851,30 @@ async function renderAdminEggSettings(nestId, eggId) {
           Set custom resource limits and a logo for this egg.
         </p>
         <div class="form-group">
-          <label for="egg-logo">Logo URL</label>
-          <input type="text" id="egg-logo" placeholder="https://example.com/egg-logo.png" style="width:100%" />
-          <div id="egg-logo-preview" style="margin-top:8px;display:none">
-            <img src="" alt="" style="max-width:48px;max-height:48px;object-fit:contain;border-radius:4px;border:1px solid var(--border)" />
+          <label>Logo</label>
+          <div class="logo-type-toggle">
+            <button type="button" class="active" data-type="url">Logo URL</button>
+            <button type="button" data-type="svg">Choose SVG</button>
           </div>
+          <div id="egg-logo-url-section">
+            <input type="text" id="egg-logo" placeholder="https://example.com/egg-logo.png" style="width:100%" />
+            <div id="egg-logo-preview" style="margin-top:8px;display:none">
+              <img src="" alt="" style="max-width:48px;max-height:48px;object-fit:contain;border-radius:4px;border:1px solid var(--border)" />
+            </div>
+          </div>
+          <div id="egg-logo-svg-section" style="display:none">
+            <div id="egg-svg-picker" class="svg-picker">
+              <input type="text" class="svg-picker-search" placeholder="Search icons..." />
+              <div class="svg-picker-grid">${renderSvgPickerGrid('')}</div>
+            </div>
+            <div id="egg-svg-selected-preview" class="logo-preview-box" style="display:none">
+              <img src="" alt="" />
+              <span class="logo-preview-label"></span>
+              <button type="button" class="logo-preview-clear" id="egg-svg-clear"><i data-lucide="x" style="width:14px;height:14px"></i></button>
+            </div>
+          </div>
+          <input type="hidden" id="egg-logo-type" value="url" />
+          <input type="hidden" id="egg-svg-slug" value="" />
         </div>
         <div class="form-group">
           <label for="egg-cpu">CPU Limit (%)</label>
@@ -1691,9 +1905,30 @@ async function renderAdminEggSettings(nestId, eggId) {
 
     if (data.resources) {
       if (data.resources.logo != null) {
-        $a('#egg-logo').value = data.resources.logo;
-        const preview = $a('#egg-logo-preview');
-        if (preview) { preview.style.display = 'block'; preview.querySelector('img').src = data.resources.logo; }
+        const isSvg = data.resources.logo.startsWith('si:');
+        const type = isSvg ? 'svg' : 'url';
+        $a('#egg-logo-type').value = type;
+        $a('#egg-logo-svg-section').style.display = type === 'svg' ? 'block' : 'none';
+        $a('#egg-logo-url-section').style.display = type === 'url' ? 'block' : 'none';
+        const toggleBtns = $a('#admin-egg-resources-form')?.closest('.card')?.querySelectorAll('.logo-type-toggle button') || [];
+        toggleBtns.forEach(b => { b.classList.toggle('active', b.dataset.type === type); });
+
+        if (isSvg) {
+          const slug = data.resources.logo.slice(3);
+          $a('#egg-svg-slug').value = slug;
+          const prev = $a('#egg-svg-selected-preview');
+          if (prev) {
+            prev.style.display = 'flex';
+            prev.querySelector('img').src = siUrl(slug);
+            prev.querySelector('.logo-preview-label').textContent = slug;
+          }
+          const item = $a('#egg-svg-picker')?.querySelector(`[data-slug="${slug}"]`);
+          if (item) item.classList.add('selected');
+        } else {
+          $a('#egg-logo').value = data.resources.logo;
+          const preview = $a('#egg-logo-preview');
+          if (preview) { preview.style.display = 'block'; preview.querySelector('img').src = data.resources.logo; }
+        }
       }
       if (data.resources.cpu_limit != null) $a('#egg-cpu').value = data.resources.cpu_limit;
       if (data.resources.memory_limit != null) $a('#egg-memory').value = data.resources.memory_limit;
@@ -1716,6 +1951,35 @@ async function renderAdminEggSettings(nestId, eggId) {
     }
   });
 
+  const eggToggleBtns = $a('#admin-egg-resources-form')?.closest('.card')?.querySelectorAll('.logo-type-toggle button') || [];
+  eggToggleBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      eggToggleBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const type = btn.dataset.type;
+      $a('#egg-logo-type').value = type;
+      $a('#egg-logo-url-section').style.display = type === 'url' ? 'block' : 'none';
+      $a('#egg-logo-svg-section').style.display = type === 'svg' ? 'block' : 'none';
+    });
+  });
+
+  initSvgPickerListeners($a('#egg-svg-picker'), (slug) => {
+    $a('#egg-svg-slug').value = slug;
+    const prev = $a('#egg-svg-selected-preview');
+    if (prev) {
+      prev.style.display = 'flex';
+      prev.querySelector('img').src = siUrl(slug);
+      prev.querySelector('.logo-preview-label').textContent = slug;
+    }
+  });
+
+  $a('#egg-svg-clear')?.addEventListener('click', () => {
+    $a('#egg-svg-slug').value = '';
+    const prev = $a('#egg-svg-selected-preview');
+    if (prev) prev.style.display = 'none';
+    $a('#egg-svg-picker')?.querySelectorAll('.svg-picker-item').forEach(i => i.classList.remove('selected'));
+  });
+
   $a('#admin-egg-resources-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = $a('#btn-save-egg-resources');
@@ -1724,7 +1988,14 @@ async function renderAdminEggSettings(nestId, eggId) {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Saving...';
 
-    const logo = $a('#egg-logo').value.trim() || null;
+    const logoType = $a('#egg-logo-type')?.value || 'url';
+    let logo = null;
+    if (logoType === 'svg') {
+      const slug = $a('#egg-svg-slug')?.value?.trim();
+      logo = slug ? `si:${slug}` : null;
+    } else {
+      logo = $a('#egg-logo')?.value?.trim() || null;
+    }
     const cpu = $a('#egg-cpu').value;
     const memory = $a('#egg-memory').value;
     const disk = $a('#egg-disk').value;
@@ -1759,6 +2030,15 @@ async function renderAdminEggSettings(nestId, eggId) {
       });
       $a('#egg-logo').value = '';
       $a('#egg-logo-preview').style.display = 'none';
+      $a('#egg-svg-slug').value = '';
+      $a('#egg-logo-type').value = 'url';
+      const eggPrev = $a('#egg-svg-selected-preview');
+      if (eggPrev) eggPrev.style.display = 'none';
+      $a('#egg-svg-picker')?.querySelectorAll('.svg-picker-item').forEach(i => i.classList.remove('selected'));
+      const eggToggleBtns = $a('#admin-egg-resources-form')?.closest('.card')?.querySelectorAll('.logo-type-toggle button') || [];
+      eggToggleBtns.forEach(b => { b.classList.toggle('active', b.dataset.type === 'url'); });
+      $a('#egg-logo-url-section').style.display = 'block';
+      $a('#egg-logo-svg-section').style.display = 'none';
       $a('#egg-cpu').value = '';
       $a('#egg-memory').value = '';
       $a('#egg-disk').value = '';
@@ -1914,6 +2194,10 @@ function showRenameNestModal(nestId, currentName, currentLogo, currentDescriptio
   const overlay = $a('#admin-modal-overlay');
   if (!content || !overlay) return;
 
+  const isSvg = currentLogo && currentLogo.startsWith('si:');
+  const initialType = isSvg ? 'svg' : 'url';
+  const initialSvgSlug = isSvg ? currentLogo.slice(3) : '';
+
   content.innerHTML = ahtml`
     <div>
       <h3 style="margin:0 0 16px 0;color:var(--text-primary)">Edit Nest</h3>
@@ -1922,11 +2206,30 @@ function showRenameNestModal(nestId, currentName, currentLogo, currentDescriptio
         <input type="text" id="modal-rename-nest-name" value="${currentName}" style="width:100%" />
       </div>
       <div class="form-group" style="margin-bottom:16px">
-        <label for="modal-edit-nest-logo">Logo URL</label>
-        <input type="text" id="modal-edit-nest-logo" value="${currentLogo || ''}" placeholder="https://example.com/logo.png" style="width:100%" />
-        <div id="modal-nest-logo-preview" style="margin-top:8px;${currentLogo ? '' : 'display:none'}">
-          <img src="${currentLogo || ''}" alt="" style="max-width:64px;max-height:64px;object-fit:contain;border-radius:4px;border:1px solid var(--border)" />
+        <label>Logo</label>
+        <div class="logo-type-toggle">
+          <button type="button" class="${initialType === 'url' ? 'active' : ''}" data-type="url">Logo URL</button>
+          <button type="button" class="${initialType === 'svg' ? 'active' : ''}" data-type="svg">Choose SVG</button>
         </div>
+        <div id="nest-logo-url-section" style="display:${initialType === 'url' ? 'block' : 'none'}">
+          <input type="text" id="modal-edit-nest-logo" value="${isSvg ? '' : (currentLogo || '')}" placeholder="https://example.com/logo.png" style="width:100%" />
+          <div id="modal-nest-logo-preview" style="margin-top:8px;${currentLogo && !isSvg ? '' : 'display:none'}">
+            <img src="${isSvg ? '' : (currentLogo || '')}" alt="" style="max-width:64px;max-height:64px;object-fit:contain;border-radius:4px;border:1px solid var(--border)" />
+          </div>
+        </div>
+        <div id="nest-logo-svg-section" style="display:${initialType === 'svg' ? 'block' : 'none'}">
+          <div id="nest-svg-picker" class="svg-picker">
+            <input type="text" class="svg-picker-search" placeholder="Search icons..." />
+            <div class="svg-picker-grid">${renderSvgPickerGrid(initialSvgSlug)}</div>
+          </div>
+          <div id="nest-svg-selected-preview" class="logo-preview-box" style="display:${initialSvgSlug ? 'flex' : 'none'}">
+            <img src="${initialSvgSlug ? siUrl(initialSvgSlug) : ''}" alt="" />
+            <span class="logo-preview-label">${initialSvgSlug || ''}</span>
+            <button type="button" class="logo-preview-clear" id="nest-svg-clear"><i data-lucide="x" style="width:14px;height:14px"></i></button>
+          </div>
+        </div>
+        <input type="hidden" id="modal-edit-nest-logo-type" value="${initialType}" />
+        <input type="hidden" id="modal-edit-nest-svg-slug" value="${initialSvgSlug}" />
       </div>
       <div class="form-group" style="margin-bottom:16px">
         <label for="modal-edit-nest-description">Description</label>
@@ -1940,6 +2243,19 @@ function showRenameNestModal(nestId, currentName, currentLogo, currentDescriptio
     </div>
   `;
   overlay.style.display = 'flex';
+  initIcons();
+
+  const toggleBtns = content.querySelectorAll('.logo-type-toggle button');
+  toggleBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      toggleBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const type = btn.dataset.type;
+      $a('#modal-edit-nest-logo-type').value = type;
+      $a('#nest-logo-url-section').style.display = type === 'url' ? 'block' : 'none';
+      $a('#nest-logo-svg-section').style.display = type === 'svg' ? 'block' : 'none';
+    });
+  });
 
   const logoInput = $a('#modal-edit-nest-logo');
   logoInput?.addEventListener('input', () => {
@@ -1953,9 +2269,33 @@ function showRenameNestModal(nestId, currentName, currentLogo, currentDescriptio
     }
   });
 
+  initSvgPickerListeners($a('#nest-svg-picker'), (slug) => {
+    $a('#modal-edit-nest-svg-slug').value = slug;
+    const prev = $a('#nest-svg-selected-preview');
+    if (prev) {
+      prev.style.display = 'flex';
+      prev.querySelector('img').src = siUrl(slug);
+      prev.querySelector('.logo-preview-label').textContent = slug;
+    }
+  });
+
+  $a('#nest-svg-clear')?.addEventListener('click', () => {
+    $a('#modal-edit-nest-svg-slug').value = '';
+    const prev = $a('#nest-svg-selected-preview');
+    if (prev) prev.style.display = 'none';
+    $a('#nest-svg-picker')?.querySelectorAll('.svg-picker-item').forEach(i => i.classList.remove('selected'));
+  });
+
   $a('#btn-confirm-rename-nest')?.addEventListener('click', async () => {
     const name = $a('#modal-rename-nest-name').value.trim();
-    const logo = $a('#modal-edit-nest-logo').value.trim() || null;
+    const type = $a('#modal-edit-nest-logo-type').value;
+    let logo = null;
+    if (type === 'svg') {
+      const slug = $a('#modal-edit-nest-svg-slug').value.trim();
+      logo = slug ? `si:${slug}` : null;
+    } else {
+      logo = $a('#modal-edit-nest-logo').value.trim() || null;
+    }
     const description = $a('#modal-edit-nest-description').value.trim() || null;
     if (!name) {
       const err = $a('#rename-nest-error');

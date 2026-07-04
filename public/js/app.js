@@ -1,5 +1,9 @@
 function initIcons() { if (window.lucide) lucide.createIcons(); }
 
+function siUrl(slug) {
+  return `https://cdn.simpleicons.org/${slug}`;
+}
+
 const API_BASE = window.location.origin;
 
 const state = {
@@ -1812,7 +1816,7 @@ function renderNestStep() {
         return html`
           <div class="nest-card ${unavail ? 'unavailable' : ''} ${createState.selectedNest?.pteroNestId === n.pteroNestId ? 'selected' : ''}" data-nest-id="${n.pteroNestId}" ${unavail ? 'style="opacity:0.5;pointer-events:none"' : ''}>
             <div class="nest-card-logo">
-              ${n.logo ? html`<img src="${n.logo}" alt="" />` : html`<i data-lucide="box" style="width:40px;height:40px;color:var(--text-secondary)"></i>`}
+              ${n.logo ? (n.logo.startsWith('si:') ? html`<img src="${siUrl(n.logo.slice(3))}" alt="" />` : html`<img src="${n.logo}" alt="" />`) : html`<i data-lucide="box" style="width:40px;height:40px;color:var(--text-secondary)"></i>`}
             </div>
             <div class="nest-card-name">${escapeHtml(n.name)}</div>
             ${n.description ? html`<div class="nest-card-desc">${escapeHtml(n.description)}</div>` : ''}
@@ -1842,7 +1846,7 @@ function renderEggStep() {
     return html`
       <div class="egg-card ${unavail ? 'unavailable' : ''} ${createState.selectedEgg?.eggId === e.eggId ? 'selected' : ''}" data-egg-id="${e.eggId}" ${unavail ? 'style="opacity:0.5;pointer-events:none"' : ''}>
         <div class="egg-card-logo">
-          ${e.logo ? html`<img src="${e.logo}" alt="" />` : html`<i data-lucide="egg" style="width:32px;height:32px;color:var(--text-secondary)"></i>`}
+          ${e.logo ? (e.logo.startsWith('si:') ? html`<img src="${siUrl(e.logo.slice(3))}" alt="" />` : html`<img src="${e.logo}" alt="" />`) : html`<i data-lucide="egg" style="width:32px;height:32px;color:var(--text-secondary)"></i>`}
         </div>
         <div class="egg-card-info">
           <div class="egg-card-name">${escapeHtml(e.name)}</div>
