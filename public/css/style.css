@@ -566,7 +566,7 @@ cap-widget {
   display: none;
 }
 
-.sidebar.collapsed .sidebar-footer > div:not(.user-info) {
+.sidebar.collapsed .sidebar-footer > div:not(.sidebar-user-wrapper) {
   display: none;
 }
 
