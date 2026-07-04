@@ -2,7 +2,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 
 import { query } from '../config/db.js';
 import { generateToken, authenticateToken } from '../middleware/auth.js';
@@ -190,7 +190,7 @@ router.post('/register', async (req, res) => {
       console.error('Failed to log IP:', err.message);
     });
 
-    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationToken = randomBytes(32).toString('hex');
     const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     await query(
