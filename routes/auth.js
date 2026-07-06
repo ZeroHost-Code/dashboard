@@ -2,13 +2,14 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 
 import { query } from '../config/db.js';
 import { generateToken, authenticateToken } from '../middleware/auth.js';
 import { createPteroUser, updatePteroPassword, updatePteroEmail, deletePteroUser, getServersByUser, deletePteroServer } from '../services/pyrodactyl.js';
 import { verifyCap } from '../config/cap.js';
 import { logActivity } from '../services/activity.js';
+import { sendVerificationEmail } from '../services/email.js';
 
 const router = Router();
 
@@ -189,39 +190,27 @@ router.post('/register', async (req, res) => {
       console.error('Failed to log IP:', err.message);
     });
 
-    const token = generateToken({
-      userId: localUserId,
-      email,
-      username,
-      pteroId: pteroUser.id,
-      isAdmin: false,
-      restricted: false,
-      tokenVersion: 0,
-    });
+    const verificationToken = randomBytes(32).toString('hex');
+    const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      maxAge: 2 * 60 * 60 * 1000,
-    });
+    await query(
+      'UPDATE users SET verification_token = ?, verification_token_expires = ? WHERE id = ?',
+      [verificationToken, tokenExpires, localUserId]
+    );
 
-    await logActivity(localUserId, 'account_registered', 'Created account');
+    try {
+      await sendVerificationEmail(email, username, verificationToken);
+    } catch (err) {
+      console.error('Failed to send verification email:', err.message);
+    }
+
+    await logActivity(localUserId, 'account_registered', 'Created account — verification email sent');
 
     recordLoginAttempt(ip, true);
 
     res.status(201).json({
-      token,
-      user: {
-        id: localUserId,
-        email,
-        username,
-        firstName: username,
-        lastName: 'User',
-        isAdmin: false,
-        restricted: false,
-        gravatarHash: gravatarHash(email),
-      },
+      message: 'Account created successfully. Please check your email to verify your account.',
+      emailSent: true,
     });
   } catch (err) {
     console.error('Register error:', err.message);
@@ -234,6 +223,79 @@ router.post('/register', async (req, res) => {
       return res.status(409).json({ error: 'A user with this email or username already exists on the panel' });
     }
     res.status(500).json({ error: 'Registration failed' });
+  }
+});
+
+router.get('/verify-email', async (req, res) => {
+  try {
+    const { token } = req.query;
+
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({ error: 'Invalid verification token' });
+    }
+
+    const users = await query(
+      'SELECT id, email, username, email_verified, verification_token_expires FROM users WHERE verification_token = ?',
+      [token]
+    );
+
+    if (users.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired verification token' });
+    }
+
+    const user = users[0];
+
+    if (user.email_verified) {
+      return res.json({ message: 'Email already verified. You can now sign in.', alreadyVerified: true });
+    }
+
+    if (new Date(user.verification_token_expires) < new Date()) {
+      return res.status(400).json({ error: 'Verification token has expired. Please register again.' });
+    }
+
+    await query(
+      'UPDATE users SET email_verified = 1, verification_token = NULL, verification_token_expires = NULL WHERE id = ?',
+      [user.id]
+    );
+
+    await logActivity(user.id, 'email_verified', 'Verified email address');
+
+    const gravatarHash = createHash('md5').update(user.email.trim().toLowerCase()).digest('hex');
+
+    const token_jwt = generateToken({
+      userId: user.id,
+      email: user.email,
+      username: user.username,
+      pteroId: null,
+      isAdmin: false,
+      restricted: false,
+      tokenVersion: 0,
+    });
+
+    res.cookie('token', token_jwt, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+      maxAge: 2 * 60 * 60 * 1000,
+    });
+
+    res.json({
+      message: 'Email verified successfully!',
+      token: token_jwt,
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        firstName: user.username,
+        lastName: 'User',
+        isAdmin: false,
+        restricted: false,
+        gravatarHash,
+      },
+    });
+  } catch (err) {
+    console.error('Verify email error:', err.message);
+    res.status(500).json({ error: 'Email verification failed' });
   }
 });
 
@@ -285,6 +347,11 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
+    if (!user.email_verified) {
+      recordLoginAttempt(ip, false);
+      return res.status(403).json({ error: 'Please verify your email before signing in. Check your inbox for the verification link.' });
+    }
+
     const token = generateToken({
       userId: user.id,
       email: user.email,
@@ -315,6 +382,7 @@ router.post('/login', async (req, res) => {
         lastName: user.last_name,
         isAdmin: !!user.is_admin,
         restricted: !!user.restricted,
+        emailVerified: !!user.email_verified,
         gravatarHash: gravatarHash(user.email),
       },
     });

@@ -742,18 +742,144 @@ async function handleRegister(e) {
         rgpdConsent: true,
       }),
     });
-    state.token = data.token;
-    state.user = data.user;
-    localStorage.setItem('zh_token', data.token);
-    localStorage.setItem('zh_user', JSON.stringify(data.user));
-    history.replaceState({ page: 'overview' }, '', '/');
-    renderDashboard();
+    renderVerificationSent($('#reg-email').value);
   } catch (err) {
     showError(e.target, err.message);
   } finally {
     btn.disabled = false;
     btn.innerHTML = 'Create Account';
   }
+}
+
+async function renderVerifyEmail(token) {
+  const app = $('#app');
+  app.innerHTML = html`
+    <div class="auth-page">
+      <div class="auth-card" style="text-align:center;">
+        <div class="auth-logo">
+          <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
+          <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span></span>
+        </div>
+        <div style="margin:24px 0 16px;">
+          <span class="spinner" style="width:48px;height:48px;"></span>
+        </div>
+        <h1 class="auth-title">Verifying your email...</h1>
+      </div>
+    </div>
+  `;
+  initIcons();
+
+  if (!token) {
+    app.innerHTML = html`
+      <div class="auth-page">
+        <div class="auth-card" style="text-align:center;">
+          <div class="auth-logo">
+            <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
+            <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span></span>
+          </div>
+          <div style="margin:24px 0 16px;">
+            <i data-lucide="x-circle" style="width:48px;height:48px;color:var(--accent-red);"></i>
+          </div>
+          <h1 class="auth-title">Invalid Link</h1>
+          <p class="auth-subtitle">This verification link is invalid. Please try registering again.</p>
+          <div style="margin-top:24px;">
+            <a href="/signup" class="btn btn-primary">Create Account</a>
+          </div>
+        </div>
+      </div>
+    `;
+    initIcons();
+    return;
+  }
+
+  try {
+    const data = await api(`/auth/verify-email?token=${encodeURIComponent(token)}`);
+
+    if (data.alreadyVerified) {
+      app.innerHTML = html`
+        <div class="auth-page">
+          <div class="auth-card" style="text-align:center;">
+            <div class="auth-logo">
+              <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
+              <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span></span>
+            </div>
+            <div style="margin:24px 0 16px;">
+              <i data-lucide="check-circle" style="width:48px;height:48px;color:var(--accent-green);"></i>
+            </div>
+            <h1 class="auth-title">Already Verified</h1>
+            <p class="auth-subtitle">Your email was already verified. You can sign in below.</p>
+            <div style="margin-top:24px;">
+              <a href="/login" class="btn btn-primary">Sign In</a>
+            </div>
+          </div>
+        </div>
+      `;
+      initIcons();
+      return;
+    }
+
+    state.token = data.token;
+    state.user = data.user;
+    localStorage.setItem('zh_token', data.token);
+    localStorage.setItem('zh_user', JSON.stringify(data.user));
+    history.replaceState({ page: 'overview' }, '', '/');
+    renderDashboard();
+    showToast('Email verified successfully!', 'success');
+  } catch (err) {
+    app.innerHTML = html`
+      <div class="auth-page">
+        <div class="auth-card" style="text-align:center;">
+          <div class="auth-logo">
+            <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
+            <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span></span>
+          </div>
+          <div style="margin:24px 0 16px;">
+            <i data-lucide="x-circle" style="width:48px;height:48px;color:var(--accent-red);"></i>
+          </div>
+          <h1 class="auth-title">Verification Failed</h1>
+          <p class="auth-subtitle">${escapeHtml(err.message)}</p>
+          <div style="margin-top:24px;">
+            <a href="/signup" class="btn btn-primary">Create Account</a>
+          </div>
+        </div>
+      </div>
+    `;
+    initIcons();
+  }
+}
+
+function renderVerificationSent(email) {
+  const app = $('#app');
+  app.innerHTML = html`
+    <div class="auth-page">
+      <div class="auth-card" style="text-align:center;">
+        <div class="auth-logo">
+          <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
+          <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span></span>
+        </div>
+        <div style="margin:24px 0 16px;">
+          <i data-lucide="mail-check" style="width:48px;height:48px;color:var(--accent-orange);"></i>
+        </div>
+        <h1 class="auth-title">Check your inbox</h1>
+        <p class="auth-subtitle" style="max-width:360px;margin:0 auto;">
+          We sent a verification email to <strong>${escapeHtml(email)}</strong>.
+          Click the link in the email to activate your account.
+        </p>
+        <div style="margin-top:8px;">
+          <p style="font-size:0.8rem;color:var(--text-muted);">Can't find it? Check your spam folder.</p>
+        </div>
+        <div style="margin-top:24px;">
+          <a href="/login" class="btn btn-primary" id="go-to-login-after-register">Go to Sign In</a>
+        </div>
+      </div>
+    </div>
+  `;
+  initIcons();
+
+  $('#go-to-login-after-register').addEventListener('click', (e) => {
+    e.preventDefault();
+    navigateTo('login');
+  });
 }
 
 let sidebarResizeInitialized = false;
@@ -874,7 +1000,7 @@ async function renderDashboard() {
           <div style="padding:8px 12px 0;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
 
           </div>
-          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v1.0.4</div>
+          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v1.0.5</div>
         </div>
         <div class="sidebar-resizer" id="sidebar-resizer"></div>
       </aside>
@@ -1164,6 +1290,13 @@ function navigateTo(page) {
     history.pushState({ page: 'signup' }, '', '/signup');
     return;
   }
+  if (basePage === 'verify-email') {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    renderVerifyEmail(token);
+    history.replaceState({ page: 'verify-email' }, '', window.location.pathname + window.location.search);
+    return;
+  }
 
   // Auth guard: require valid token for all other pages
   if (!state.token) {
@@ -1284,6 +1417,12 @@ window.addEventListener('popstate', () => {
 
   if (basePage === 'login') { renderLoginPage(); return; }
   if (basePage === 'signup') { renderRegisterPage(); return; }
+  if (basePage === 'verify-email') {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    renderVerifyEmail(token);
+    return;
+  }
   if (!state.token) { renderLoginPage(); return; }
 
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -3365,6 +3504,13 @@ function init() {
       const user = JSON.parse(localStorage.getItem('zh_user'));
       if (user) state.user = user;
     } catch {}
+  }
+
+  if (basePage === 'verify-email') {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    renderVerifyEmail(token);
+    return;
   }
 
   if (basePage === 'login' || basePage === 'signup') {

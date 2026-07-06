@@ -2,9 +2,9 @@
 
 Game server management dashboard for the ZeroHost platform. Provides user-facing server lifecycle management (creation, renewal, suspension, deletion) backed by a panel API.
 
-[![ZeroHost](https://img.zero-host.org/assets/github.png)](https://github.com/ZeroHost-Code/legal/blob/main/zhsl.md)
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/403b7c93-1121-4f4c-b407-ed1235b73218" />
 
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/3bf1a711-9923-4089-8a12-94bbc134c41b" />
+[![ZeroHost](https://img.zero-host.org/assets/github.png)](https://github.com/ZeroHost-Code/legal/blob/main/zhsl.md)
 
 ---
 
@@ -555,3 +555,8 @@ Two deployment workflows are configured:
 - **deploy-main.yml**: Triggered on push to `main` branch.
 
 Both use SSH credentials configured as GitHub repository secrets (`SSH_HOST`, `SSH_USER`, `SSH_PASSWORD`, `SSH_PORT`).
+
+---
+
+## GitHub Stats
+![Alt](https://repobeats.axiom.co/api/embed/2f957f930d36f4a2913f8aeb07712cedbd4b38c5.svg "Repobeats analytics image")
