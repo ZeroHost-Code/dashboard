@@ -76,7 +76,9 @@ async function pteroFetch(path, options = {}) {
       continue;
     }
     if (!res.ok) {
-      recordPteroError(`${res.status} ${res.statusText}`);
+      if (res.status >= 500) {
+        recordPteroError(`${res.status} ${res.statusText}`);
+      }
       const text = await res.text();
       throw new Error(`Pterodactyl API error ${res.status}: ${text.slice(0, 200)}`);
     }
@@ -335,7 +337,7 @@ export async function getPergoServerIdsByEgg(nestId, eggId) {
 
 export async function renamePteroServer(serverId, name) {
   const server = await getServerById(serverId);
-  await pteroFetch(`/servers/${serverId}/details`, {
+  await pteroFetch(`/servers/${serverId}`, {
     method: 'PATCH',
     body: JSON.stringify({
       name,
