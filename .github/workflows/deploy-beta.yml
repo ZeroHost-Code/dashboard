@@ -13,8 +13,9 @@ jobs:
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          host_key_checking: false
           script: |
             cd ${{ secrets.BETA_PATH }}
             cp .env /tmp/beta.env 2>/dev/null; cp port.txt /tmp/beta.port.txt 2>/dev/null
