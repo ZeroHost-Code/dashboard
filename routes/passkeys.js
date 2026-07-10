@@ -225,16 +225,32 @@ router.post('/passkeys/login/complete', passkeyLoginLimiter, async (req, res) =>
     if (!response) {
       return res.status(400).json({ error: 'Response is required' });
     }
-    if (!sessionToken) {
-      return res.status(400).json({ error: 'Session token is required' });
-    }
 
-    const stored = challengeMap.get(`login:${sessionToken}`);
-    if (!stored) {
-      return res.status(400).json({ error: 'No login in progress. Please try again.' });
+    let stored;
+    if (sessionToken) {
+      stored = challengeMap.get(`login:${sessionToken}`);
+      if (!stored) {
+        return res.status(400).json({ error: 'No login in progress. Please try again.' });
+      }
+      challengeMap.delete(`login:${sessionToken}`);
+    } else {
+      // Autofill / conditional mediation flow: look up challenge from clientDataJSON
+      try {
+        const challengeFromResponse = JSON.parse(isoBase64URL.toUTF8String(response.response.clientDataJSON)).challenge;
+        for (const [key, entry] of challengeMap) {
+          if (key.startsWith('login:') && entry.challenge === challengeFromResponse) {
+            stored = entry;
+            challengeMap.delete(key);
+            break;
+          }
+        }
+      } catch {
+        return res.status(400).json({ error: 'No login in progress. Please try again.' });
+      }
+      if (!stored) {
+        return res.status(400).json({ error: 'No login in progress. Please try again.' });
+      }
     }
-
-    challengeMap.delete(`login:${sessionToken}`);
 
     const passkeys = await query(
       'SELECT id, credential_id, public_key, counter, transports, user_id FROM passkeys WHERE credential_id = ?',
