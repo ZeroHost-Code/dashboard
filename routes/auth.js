@@ -586,7 +586,13 @@ router.post('/delete-account', authenticateToken, sensitiveLimiter, async (req, 
   }
 });
 
-router.post('/logout', (req, res) => {
+router.post('/logout', authenticateToken, async (req, res) => {
+  try {
+    // Bump token_version to invalidate all existing sessions
+    await query('UPDATE users SET token_version = token_version + 1 WHERE id = ?', [req.user.userId]);
+  } catch (err) {
+    console.error('Logout token_version bump failed:', err.message);
+  }
   res.clearCookie('token', { httpOnly: true, secure: true, sameSite: 'strict' });
   res.json({ message: 'Logged out' });
 });
