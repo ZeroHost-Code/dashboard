@@ -4,7 +4,7 @@ import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 import { authenticateToken, requireAdmin } from '../middleware/auth.js';
 import { query } from '../config/db.js';
-import { getAllServers, getServerById, getEgg, getPteroNests, getPteroNestEggs, suspendPteroServer, unsuspendPteroServer, deletePteroServer, deletePteroUser, updatePteroServerBuild, getPergoServerIdsByEgg, getAllNodes, getNodeDetail, getNodeAllocations, getNodeServers } from '../services/pyrodactyl.js';
+import { getAllServers, getServerById, getEgg, getPteroNests, getPteroNestEggs, suspendPteroServer, unsuspendPteroServer, deletePteroServer, deletePteroUser, updatePteroServerBuild, getPergoServerIdsByEgg, getAllNodes, getNodeDetail, getNodeAllocations, getNodeServers, PANEL_DB_NAME } from '../services/pyrodactyl.js';
 import { verifyCap } from '../config/cap.js';
 import { logActivity } from '../services/activity.js';
 import { createNotification } from '../services/notification.js';
@@ -12,7 +12,6 @@ import { createNotification } from '../services/notification.js';
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET;
 const PTERO_URL = process.env.PTERO_URL;
-const PANEL_DB_NAME = (process.env.PANEL_DB_NAME || 'panel').replace(/[^a-zA-Z0-9_]/g, '');
 
 const adminLoginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
