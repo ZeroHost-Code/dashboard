@@ -1,4 +1,6 @@
-import { PTERO_URL, PTERO_API_KEY, SERVER_LIMITS, FEATURE_LIMITS, DEPLOY_LOCATIONS } from '../config/pyrodactyl.js';
+import { PTERO_URL, PTERO_API_KEY, SERVER_LIMITS, FEATURE_LIMITS, DEPLOY_LOCATIONS, PANEL_DB_NAME } from '../config/pyrodactyl.js';
+
+export { PANEL_DB_NAME };
 
 const FETCH_TIMEOUT = 15000;
 const CACHE_TTL = 5 * 60 * 1000;
