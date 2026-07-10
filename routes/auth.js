@@ -488,10 +488,13 @@ router.post('/change-email', authenticateToken, sensitiveLimiter, async (req, re
       return res.status(500).json({ error: 'Failed to update email on panel' });
     }
 
-    // Update local DB
-    await query('UPDATE users SET email = ? WHERE id = ?', [newEmail, userId]);
+    // Update local DB and invalidate existing sessions
+    await query('UPDATE users SET email = ?, token_version = token_version + 1 WHERE id = ?', [newEmail, userId]);
 
     await logActivity(userId, 'email_changed', `Changed email to ${newEmail}`);
+
+    // Fetch updated token_version
+    const [updatedUser] = await query('SELECT token_version FROM users WHERE id = ?', [userId]);
 
     // Generate new token with updated email
     const token = generateToken({
@@ -501,7 +504,7 @@ router.post('/change-email', authenticateToken, sensitiveLimiter, async (req, re
       pteroId: user.ptero_user_id,
       isAdmin: !!user.is_admin,
       restricted: !!user.restricted,
-      tokenVersion: user.token_version,
+      tokenVersion: updatedUser.token_version,
     });
 
     res.json({
