@@ -1964,7 +1964,6 @@ tbody tr:hover {
   /* Notification panel: adapts on tablet */
   .notif-panel {
     width: 100%;
-    max-width: 340px;
     top: 0;
     bottom: 0;
     height: 100%;
@@ -2710,12 +2709,7 @@ tbody tr:hover {
     font-size: 0.78rem;
   }
 
-  /* Notif panel: full width on phones */
-  .notif-panel {
-    left: 0;
-    width: 100%;
-  }
-
+  /* Notif panel */
   .notif-panel-header {
     padding: 12px 12px 10px;
   }
