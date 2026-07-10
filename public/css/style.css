@@ -3702,6 +3702,16 @@ tbody tr:hover {
   padding-top: 20px;
 }
 
+.wizard-progress::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .wizard-progress {
+    display: none;
+  }
+}
+
 /* Nest Cards Grid */
 .nest-grid {
   display: grid;
