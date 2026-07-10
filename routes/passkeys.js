@@ -8,7 +8,7 @@ import {
 } from '@simplewebauthn/server';
 import { isoBase64URL } from '@simplewebauthn/server/helpers';
 import { authenticateToken } from '../middleware/auth.js';
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { query } from '../config/db.js';
 import { generateToken } from '../middleware/auth.js';
 import { logActivity } from '../services/activity.js';
@@ -54,7 +54,7 @@ function getWebAuthnConfig(req) {
 const challengeMap = new Map();
 
 function generateSessionToken() {
-  return crypto.randomBytes(32).toString('hex');
+  return randomBytes(32).toString('hex');
 }
 
 function getClientIp(req) {
