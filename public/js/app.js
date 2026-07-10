@@ -1085,6 +1085,7 @@ async function renderDashboard() {
 
   $('#sidebar-logo-link').addEventListener('click', (e) => {
     e.preventDefault();
+    if (window.innerWidth <= 768) return;
     toggleSidebarCollapse();
   });
 
