@@ -441,6 +441,10 @@ function openNotifPanel() {
   $('#notif-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
 
+  if (window.innerWidth <= 768) {
+    $('#sidebar').classList.remove('open');
+  }
+
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   $('#nav-notifications').classList.add('active');
   updateNavIndicator();
