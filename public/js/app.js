@@ -532,7 +532,7 @@ function renderLoginPage() {
             <span style="background:var(--card-bg);padding:0 12px;color:var(--text-muted);font-size:0.8rem">or</span>
           </div>
           <button type="button" class="btn btn-ghost btn-full" id="passkey-login-btn" style="border:1px solid var(--border)">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M2 12a10 10 0 0 1 18-6"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M9 6.8a6 6 0 0 1 9 5.2v2"/></svg>
+            <i data-lucide="fingerprint" style="width:16px;height:16px"></i>
             Sign in with Passkey
           </button>
         </form>
@@ -552,6 +552,7 @@ function renderLoginPage() {
 
   setupPasskeyAutofill();
   initIcons();
+  setTimeout(initIcons, 100);
 }
 
 function renderRegisterPage() {
@@ -712,7 +713,7 @@ async function handlePasskeyLogin() {
     }
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;vertical-align:middle"><path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M2 12a10 10 0 0 1 18-6"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M9 6.8a6 6 0 0 1 9 5.2v2"/></svg> Sign in with Passkey';
+    btn.innerHTML = '<i data-lucide="fingerprint" style="width:16px;height:16px"></i> Sign in with Passkey';
     initIcons();
   }
 }
