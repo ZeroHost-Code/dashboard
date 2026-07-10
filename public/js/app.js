@@ -551,6 +551,7 @@ function renderLoginPage() {
   });
 
   setupPasskeyAutofill();
+  initIcons();
 }
 
 function renderRegisterPage() {
