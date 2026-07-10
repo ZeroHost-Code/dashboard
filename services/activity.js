@@ -2,9 +2,10 @@ import { query } from '../config/db.js';
 
 export async function logActivity(userId, action, details = '', serverId = null) {
   try {
+    const safeDetails = String(details).replace(/[<>"']/g, '').slice(0, 255);
     await query(
       'INSERT INTO activity_log (user_id, action, details, server_id) VALUES (?, ?, ?, ?)',
-      [userId, action, details, serverId]
+      [userId, action, safeDetails, serverId]
     );
   } catch (err) {
     console.error('Failed to log activity:', err.message);

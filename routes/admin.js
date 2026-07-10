@@ -189,7 +189,7 @@ router.post('/servers/:id/suspend', authenticateToken, requireAdmin, async (req,
     }
 
     const reason = (req.body.reason && typeof req.body.reason === 'string')
-      ? req.body.reason.slice(0, 500) : 'Suspended by an Administrator. Please contact support.';
+      ? req.body.reason.replace(/[<>"']/g, '').slice(0, 500) : 'Suspended by an Administrator. Please contact support.';
     await suspendPteroServer(serverId);
     await query('UPDATE server_meta SET status = ?, suspend_reason = ?, suspended_by = ? WHERE ptero_server_id = ?', ['suspended', reason, 'admin', serverId]);
 
