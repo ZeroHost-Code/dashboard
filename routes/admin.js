@@ -21,6 +21,51 @@ const adminLoginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const adminLoginAttempts = new Map();
+
+function getAdminLoginDelay(ip) {
+  const now = Date.now();
+  const entry = adminLoginAttempts.get(ip);
+  if (!entry) return 0;
+  const sinceFirst = now - entry.firstAttempt;
+  if (sinceFirst > 15 * 60 * 1000) {
+    adminLoginAttempts.delete(ip);
+    return 0;
+  }
+  if (entry.count <= 3) return 0;
+  if (entry.count <= 5) return 1000;
+  if (entry.count <= 8) return 3000;
+  if (entry.count <= 12) return 5000;
+  return 10000;
+}
+
+function recordAdminLoginAttempt(ip, success) {
+  if (success) {
+    adminLoginAttempts.delete(ip);
+    return;
+  }
+  const now = Date.now();
+  const entry = adminLoginAttempts.get(ip);
+  if (entry) {
+    entry.count++;
+  } else {
+    adminLoginAttempts.set(ip, { count: 1, firstAttempt: now });
+  }
+}
+
+setInterval(() => {
+  const cutoff = Date.now() - 15 * 60 * 1000;
+  for (const [ip, entry] of adminLoginAttempts) {
+    if (entry.firstAttempt < cutoff) adminLoginAttempts.delete(ip);
+  }
+}, 60 * 1000);
+
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) return forwarded.split(',')[0].trim();
+  return req.ip || req.socket.remoteAddress || '0.0.0.0';
+}
+
 router.post('/login', adminLoginLimiter, async (req, res) => {
   try {
     const { email, password, capToken } = req.body;
@@ -32,27 +77,40 @@ router.post('/login', adminLoginLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Invalid input types' });
     }
 
+    const ip = getClientIp(req);
+    const delay = getAdminLoginDelay(ip);
+    if (delay > 0) {
+      await new Promise(r => setTimeout(r, delay));
+    }
+
     if (!await verifyCap(capToken)) {
+      recordAdminLoginAttempt(ip, false);
       return res.status(400).json({ error: 'Please complete the security check' });
     }
 
     const users = await query('SELECT * FROM users WHERE email = ?', [email]);
     if (users.length === 0) {
+      recordAdminLoginAttempt(ip, false);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const user = users[0];
     if (user.auth_restricted) {
+      recordAdminLoginAttempt(ip, false);
       return res.status(403).json({ error: 'Your account has been restricted. Contact support for assistance.' });
     }
     if (!user.is_admin) {
+      recordAdminLoginAttempt(ip, false);
       return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
     }
 
     const valid = await argon2.verify(user.password_hash, password, { type: argon2.argon2id });
     if (!valid) {
+      recordAdminLoginAttempt(ip, false);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    recordAdminLoginAttempt(ip, true);
 
     const token = jwt.sign(
       { userId: user.id, email: user.email, username: user.username, pteroId: user.ptero_user_id, isAdmin: true, restricted: false, tokenVersion: user.token_version },
