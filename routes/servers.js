@@ -531,10 +531,23 @@ router.get('/overview', authenticateToken, async (req, res) => {
   }
 });
 
+async function verifyServerOwnership(userId, identifier) {
+  try {
+    const servers = await getServersByUser(userId);
+    return servers.some(s => s.identifier === identifier);
+  } catch {
+    return false;
+  }
+}
+
 router.get('/resources/:identifier', authenticateToken, async (req, res) => {
   try {
     const { identifier } = req.params;
     const userId = req.user.userId;
+
+    if (!await verifyServerOwnership(userId, identifier)) {
+      return res.status(403).json({ error: 'You do not own this server' });
+    }
 
     const users = await query('SELECT ptero_client_api_key FROM users WHERE id = ?', [userId]);
     if (users.length === 0 || !users[0].ptero_client_api_key) {
@@ -567,6 +580,10 @@ router.post('/power/:identifier', authenticateToken, powerLimiter, async (req, r
     const { identifier } = req.params;
     const { signal } = req.body;
     const userId = req.user.userId;
+
+    if (!await verifyServerOwnership(userId, identifier)) {
+      return res.status(403).json({ error: 'You do not own this server' });
+    }
 
     const VALID_SIGNALS = ['start', 'stop', 'restart', 'kill'];
     if (!signal || typeof signal !== 'string' || !VALID_SIGNALS.includes(signal)) {
