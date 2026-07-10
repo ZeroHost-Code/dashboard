@@ -39,6 +39,17 @@ try {
   process.exit(1);
 }
 
+async function auditLog(action, details) {
+  try {
+    await conn.query(
+      'INSERT INTO activity_log (user_id, action, details) VALUES (?, ?, ?)',
+      [0, action, '[CLI] ' + details]
+    );
+  } catch (err) {
+    console.error('Failed to audit log:', err.message);
+  }
+}
+
 async function usage() {
   console.log(`
 Usage:
@@ -89,6 +100,7 @@ async function createAdmin(email, username, password) {
     [email, username, hash, username, 'Admin']
   );
 
+  await auditLog('admin_cli_create', `Created admin account: ${username} (${email}) - ID: ${result.insertId}`);
   console.log(`Admin account created: ${username} (${email}) - ID: ${result.insertId}`);
 }
 
@@ -105,6 +117,7 @@ async function setAdmin(email) {
     process.exit(1);
   }
 
+  await auditLog('admin_cli_set_admin', `Granted admin privileges to ${email}`);
   console.log(`Admin privileges granted to ${email}`);
 }
 
@@ -121,6 +134,7 @@ async function setAdminByUsername(username) {
     process.exit(1);
   }
 
+  await auditLog('admin_cli_set_admin', `Granted admin privileges to ${username} (by username)`);
   console.log(`Admin privileges granted to ${username}`);
 }
 
@@ -150,6 +164,7 @@ async function removeAdmin(email) {
     process.exit(1);
   }
 
+  await auditLog('admin_cli_remove_admin', `Removed admin privileges from ${email}`);
   console.log(`Admin privileges removed from ${email}`);
 }
 

@@ -4,7 +4,7 @@ import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 import { authenticateToken, requireAdmin } from '../middleware/auth.js';
 import { query } from '../config/db.js';
-import { getAllServers, getServerById, getEgg, getPteroNests, getPteroNestEggs, suspendPteroServer, unsuspendPteroServer, deletePteroServer, deletePteroUser, updatePteroServerBuild, getPergoServerIdsByEgg, getAllNodes, getNodeDetail, getNodeAllocations, getNodeServers } from '../services/pyrodactyl.js';
+import { getAllServers, getServerById, getEgg, getPteroNests, getPteroNestEggs, suspendPteroServer, unsuspendPteroServer, deletePteroServer, deletePteroUser, updatePteroServerBuild, getPergoServerIdsByEgg, getAllNodes, getNodeDetail, getNodeAllocations, getNodeServers, PANEL_DB_NAME } from '../services/pyrodactyl.js';
 import { verifyCap } from '../config/cap.js';
 import { logActivity } from '../services/activity.js';
 import { createNotification } from '../services/notification.js';
@@ -12,7 +12,6 @@ import { createNotification } from '../services/notification.js';
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET;
 const PTERO_URL = process.env.PTERO_URL;
-const PANEL_DB_NAME = (process.env.PANEL_DB_NAME || 'panel').replace(/[^a-zA-Z0-9_]/g, '');
 
 const adminLoginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -21,6 +20,51 @@ const adminLoginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+const adminLoginAttempts = new Map();
+
+function getAdminLoginDelay(ip) {
+  const now = Date.now();
+  const entry = adminLoginAttempts.get(ip);
+  if (!entry) return 0;
+  const sinceFirst = now - entry.firstAttempt;
+  if (sinceFirst > 15 * 60 * 1000) {
+    adminLoginAttempts.delete(ip);
+    return 0;
+  }
+  if (entry.count <= 3) return 0;
+  if (entry.count <= 5) return 1000;
+  if (entry.count <= 8) return 3000;
+  if (entry.count <= 12) return 5000;
+  return 10000;
+}
+
+function recordAdminLoginAttempt(ip, success) {
+  if (success) {
+    adminLoginAttempts.delete(ip);
+    return;
+  }
+  const now = Date.now();
+  const entry = adminLoginAttempts.get(ip);
+  if (entry) {
+    entry.count++;
+  } else {
+    adminLoginAttempts.set(ip, { count: 1, firstAttempt: now });
+  }
+}
+
+setInterval(() => {
+  const cutoff = Date.now() - 15 * 60 * 1000;
+  for (const [ip, entry] of adminLoginAttempts) {
+    if (entry.firstAttempt < cutoff) adminLoginAttempts.delete(ip);
+  }
+}, 60 * 1000);
+
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) return forwarded.split(',')[0].trim();
+  return req.ip || req.socket.remoteAddress || '0.0.0.0';
+}
 
 router.post('/login', adminLoginLimiter, async (req, res) => {
   try {
@@ -33,27 +77,40 @@ router.post('/login', adminLoginLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Invalid input types' });
     }
 
+    const ip = getClientIp(req);
+    const delay = getAdminLoginDelay(ip);
+    if (delay > 0) {
+      await new Promise(r => setTimeout(r, delay));
+    }
+
     if (!await verifyCap(capToken)) {
+      recordAdminLoginAttempt(ip, false);
       return res.status(400).json({ error: 'Please complete the security check' });
     }
 
     const users = await query('SELECT * FROM users WHERE email = ?', [email]);
     if (users.length === 0) {
+      recordAdminLoginAttempt(ip, false);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const user = users[0];
     if (user.auth_restricted) {
+      recordAdminLoginAttempt(ip, false);
       return res.status(403).json({ error: 'Your account has been restricted. Contact support for assistance.' });
     }
     if (!user.is_admin) {
+      recordAdminLoginAttempt(ip, false);
       return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
     }
 
     const valid = await argon2.verify(user.password_hash, password, { type: argon2.argon2id });
     if (!valid) {
+      recordAdminLoginAttempt(ip, false);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    recordAdminLoginAttempt(ip, true);
 
     const token = jwt.sign(
       { userId: user.id, email: user.email, username: user.username, pteroId: user.ptero_user_id, isAdmin: true, restricted: false, tokenVersion: user.token_version },
@@ -132,7 +189,7 @@ router.post('/servers/:id/suspend', authenticateToken, requireAdmin, async (req,
     }
 
     const reason = (req.body.reason && typeof req.body.reason === 'string')
-      ? req.body.reason.slice(0, 500) : 'Suspended by an Administrator. Please contact support.';
+      ? req.body.reason.replace(/[<>"']/g, '').slice(0, 500) : 'Suspended by an Administrator. Please contact support.';
     await suspendPteroServer(serverId);
     await query('UPDATE server_meta SET status = ?, suspend_reason = ?, suspended_by = ? WHERE ptero_server_id = ?', ['suspended', reason, 'admin', serverId]);
 
@@ -144,7 +201,7 @@ router.post('/servers/:id/suspend', authenticateToken, requireAdmin, async (req,
     res.json({ success: true });
   } catch (err) {
     console.error('Admin suspend error:', err.message);
-    res.status(500).json({ error: 'Failed to suspend server: ' + err.message });
+    res.status(500).json({ error: 'Failed to suspend server' });
   }
 });
 
@@ -165,7 +222,7 @@ router.post('/servers/:id/unsuspend', authenticateToken, requireAdmin, async (re
     res.json({ success: true });
   } catch (err) {
     console.error('Admin unsuspend error:', err.message);
-    res.status(500).json({ error: 'Failed to unsuspend server: ' + err.message });
+    res.status(500).json({ error: 'Failed to unsuspend server' });
   }
 });
 
@@ -206,7 +263,7 @@ router.post('/servers/:id/stop', authenticateToken, requireAdmin, async (req, re
     res.json({ success: true });
   } catch (err) {
     console.error('Admin stop error:', err.message);
-    res.status(500).json({ error: 'Failed to stop server: ' + err.message });
+    res.status(500).json({ error: 'Failed to stop server' });
   }
 });
 
@@ -227,7 +284,7 @@ router.post('/servers/:id/renew-now', authenticateToken, requireAdmin, async (re
     res.json({ success: true });
   } catch (err) {
     console.error('Admin renew-now error:', err.message);
-    res.status(500).json({ error: 'Failed to expire server: ' + err.message });
+    res.status(500).json({ error: 'Failed to expire server' });
   }
 });
 
@@ -252,7 +309,7 @@ router.delete('/servers/:id', authenticateToken, requireAdmin, async (req, res) 
     res.json({ success: true });
   } catch (err) {
     console.error('Admin delete error:', err.message);
-    res.status(500).json({ error: 'Failed to delete server: ' + err.message });
+    res.status(500).json({ error: 'Failed to delete server' });
   }
 });
 
@@ -554,7 +611,7 @@ router.post('/users/:id/notify', authenticateToken, requireAdmin, async (req, re
     res.json({ success: true });
   } catch (err) {
     console.error('Admin notify error:', err.message);
-    res.status(500).json({ error: 'Failed to send notification: ' + err.message });
+    res.status(500).json({ error: 'Failed to send notification' });
   }
 });
 
@@ -594,7 +651,7 @@ router.post('/notify-all', authenticateToken, requireAdmin, async (req, res) => 
     res.json({ success: true, count: users.length });
   } catch (err) {
     console.error('Admin notify-all error:', err.message);
-    res.status(500).json({ error: 'Failed to send notifications: ' + err.message });
+    res.status(500).json({ error: 'Failed to send notifications' });
   }
 });
 
@@ -638,7 +695,7 @@ router.delete('/users/:id', authenticateToken, requireAdmin, async (req, res) =>
     res.json({ success: true });
   } catch (err) {
     console.error('Admin delete user error:', err.message);
-    res.status(500).json({ error: 'Failed to delete user: ' + err.message });
+    res.status(500).json({ error: 'Failed to delete user' });
   }
 });
 
@@ -697,7 +754,7 @@ router.get('/settings/nests', authenticateToken, requireAdmin, async (req, res) 
     const nests = await query('SELECT * FROM nests ORDER BY name ASC');
     res.json({ nests });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch nests: ' + err.message });
+    res.status(500).json({ error: 'Failed to fetch nests' });
   }
 });
 
@@ -709,7 +766,7 @@ router.get('/settings/nests/available', authenticateToken, requireAdmin, async (
     const available = pteroNests.filter(n => !localIds.has(n.id));
     res.json({ nests: available });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch available nests: ' + err.message });
+    res.status(500).json({ error: 'Failed to fetch available nests' });
   }
 });
 
@@ -739,7 +796,7 @@ router.post('/settings/nests', authenticateToken, requireAdmin, async (req, res)
     if (err.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({ error: 'Nest already added' });
     }
-    res.status(500).json({ error: 'Failed to add nest: ' + err.message });
+    res.status(500).json({ error: 'Failed to add nest' });
   }
 });
 
@@ -760,7 +817,7 @@ router.put('/settings/nests/:id', authenticateToken, requireAdmin, async (req, r
     await query(`UPDATE nests SET ${updates.join(', ')} WHERE id = ?`, params);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update nest: ' + err.message });
+    res.status(500).json({ error: 'Failed to update nest' });
   }
 });
 
@@ -793,7 +850,7 @@ router.get('/settings/nests/:nestId/eggs', authenticateToken, requireAdmin, asyn
     }));
     res.json({ eggs });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch eggs: ' + err.message });
+    res.status(500).json({ error: 'Failed to fetch eggs' });
   }
 });
 
@@ -847,7 +904,7 @@ router.put('/settings/eggs/:nestId/:eggId', authenticateToken, requireAdmin, asy
     }
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to save egg settings: ' + err.message });
+    res.status(500).json({ error: 'Failed to save egg settings' });
   }
 });
 
@@ -900,7 +957,7 @@ router.post('/settings/eggs/:nestId/:eggId/apply-all', authenticateToken, requir
 
     res.json({ success: true, updated, total: pteroIds.length });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to apply resources to all servers: ' + err.message });
+    res.status(500).json({ error: 'Failed to apply resources to all servers' });
   }
 });
 

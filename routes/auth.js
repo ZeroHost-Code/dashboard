@@ -114,10 +114,6 @@ router.post('/register', async (req, res) => {
     const { email, username, password, capToken, rgpdConsent } = req.body;
 
     const ip = getClientIp(req);
-    const delay = getLoginDelay(ip);
-    if (delay > 0) {
-      await new Promise(r => setTimeout(r, delay));
-    }
 
     if (!email || !username || !password) {
       return res.status(400).json({ error: 'Email, username and password are required' });
@@ -141,6 +137,11 @@ router.post('/register', async (req, res) => {
 
     if (password.length < 8 || password.length > MAX_PASSWORD_LENGTH) {
       return res.status(400).json({ error: 'Password must be between 8 and 128 characters' });
+    }
+
+    const delay = getLoginDelay(ip);
+    if (delay > 0) {
+      await new Promise(r => setTimeout(r, delay));
     }
 
     if (!await verifyCap(capToken)) {
@@ -308,10 +309,6 @@ router.post('/login', async (req, res) => {
     }
 
     const ip = getClientIp(req);
-    const delay = getLoginDelay(ip);
-    if (delay > 0) {
-      await new Promise(r => setTimeout(r, delay));
-    }
 
     // Cap verification
     if (!await verifyCap(capToken)) {
@@ -323,6 +320,12 @@ router.post('/login', async (req, res) => {
     
     if (await isVpnOrProxy(ip)) {
       return res.status(403).json({ error: 'VPNs and proxies are not allowed. Please disable them to sign in.' });
+    }
+
+    // Progressive delay applied only after validation to prevent resource exhaustion
+    const delay = getLoginDelay(ip);
+    if (delay > 0) {
+      await new Promise(r => setTimeout(r, delay));
     }
 
     const users = await query('SELECT * FROM users WHERE email = ?', [email]);
@@ -488,10 +491,13 @@ router.post('/change-email', authenticateToken, sensitiveLimiter, async (req, re
       return res.status(500).json({ error: 'Failed to update email on panel' });
     }
 
-    // Update local DB
-    await query('UPDATE users SET email = ? WHERE id = ?', [newEmail, userId]);
+    // Update local DB and invalidate existing sessions
+    await query('UPDATE users SET email = ?, token_version = token_version + 1 WHERE id = ?', [newEmail, userId]);
 
     await logActivity(userId, 'email_changed', `Changed email to ${newEmail}`);
+
+    // Fetch updated token_version
+    const [updatedUser] = await query('SELECT token_version FROM users WHERE id = ?', [userId]);
 
     // Generate new token with updated email
     const token = generateToken({
@@ -501,7 +507,7 @@ router.post('/change-email', authenticateToken, sensitiveLimiter, async (req, re
       pteroId: user.ptero_user_id,
       isAdmin: !!user.is_admin,
       restricted: !!user.restricted,
-      tokenVersion: user.token_version,
+      tokenVersion: updatedUser.token_version,
     });
 
     res.json({
@@ -580,7 +586,13 @@ router.post('/delete-account', authenticateToken, sensitiveLimiter, async (req, 
   }
 });
 
-router.post('/logout', (req, res) => {
+router.post('/logout', authenticateToken, async (req, res) => {
+  try {
+    // Bump token_version to invalidate all existing sessions
+    await query('UPDATE users SET token_version = token_version + 1 WHERE id = ?', [req.user.userId]);
+  } catch (err) {
+    console.error('Logout token_version bump failed:', err.message);
+  }
   res.clearCookie('token', { httpOnly: true, secure: true, sameSite: 'strict' });
   res.json({ message: 'Logged out' });
 });
