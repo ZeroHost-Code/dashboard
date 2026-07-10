@@ -1006,6 +1006,7 @@ async function renderDashboard() {
         </div>
         <div class="sidebar-resizer" id="sidebar-resizer"></div>
       </aside>
+      <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 
       <div class="notif-panel" id="notif-panel">
         <div class="notif-panel-header">
@@ -1079,6 +1080,10 @@ async function renderDashboard() {
 
   $('#hamburger-toggle').addEventListener('click', () => {
     $('#sidebar').classList.toggle('open');
+  });
+
+  $('#sidebar-backdrop').addEventListener('click', () => {
+    $('#sidebar').classList.remove('open');
   });
 
   initSidebarResize();
@@ -1267,6 +1272,8 @@ document.addEventListener('click', (e) => {
 
 function navigateTo(page) {
   if (state.notifPanelOpen) closeNotifPanel();
+  const sidebar = $('#sidebar');
+  if (sidebar) sidebar.classList.remove('open');
   if (passkeyAbortController) {
     passkeyAbortController.abort();
     passkeyAbortController = null;
@@ -1755,14 +1762,14 @@ function renderServerRow(s) {
   const allocStr = alloc ? `${alloc.alias || alloc.nodeFqdn || alloc.ip}:${alloc.port}` : (s.nodeFqdn || `Node #${s.node}`);
   return html`
     <tr>
-      <td><strong><a href="/server/${s.id}" onclick="event.preventDefault();navigateTo('server/${s.id}')" style="color:inherit;text-decoration:none">${escapeHtml(s.name)}</a></strong></td>
-      <td><span class="server-detail-tag">${eggName}</span></td>
-      <td><span class="server-detail-tag">${allocStr}</span></td>
-      <td>
+      <td data-label="Name"><strong><a href="/server/${s.id}" onclick="event.preventDefault();navigateTo('server/${s.id}')" style="color:inherit;text-decoration:none">${escapeHtml(s.name)}</a></strong></td>
+      <td data-label="Egg"><span class="server-detail-tag">${eggName}</span></td>
+      <td data-label="Allocation"><span class="server-detail-tag">${allocStr}</span></td>
+      <td data-label="Status">
         <span class="server-card-status ${statusClass}">${statusLabel}</span>
       </td>
-      <td>
-        <div style="display:flex;gap:6px">
+      <td data-label="Actions">
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
           <a class="btn btn-ghost btn-sm" href="/server/${s.id}" onclick="event.preventDefault();navigateTo('server/${s.id}')">Settings</a>
           <button class="btn btn-ghost btn-sm" onclick="openPyrodactylPanel('${s.identifier}')">Manage Pyrodactyl</button>
           ${canRenew && !isAdminSuspended ? html`
