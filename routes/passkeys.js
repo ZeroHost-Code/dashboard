@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
@@ -13,6 +14,22 @@ import { generateToken } from '../middleware/auth.js';
 import { logActivity } from '../services/activity.js';
 
 const router = Router();
+
+const passkeyRegisterLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many passkey registration attempts, try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const passkeyLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: 'Too many passkey login attempts, try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const RP_NAME = 'ZeroHost';
 
@@ -46,7 +63,7 @@ function getClientIp(req) {
   return req.ip || req.socket.remoteAddress || '0.0.0.0';
 }
 
-router.post('/passkeys/register/begin', authenticateToken, async (req, res) => {
+router.post('/passkeys/register/begin', authenticateToken, passkeyRegisterLimiter, async (req, res) => {
   try {
     const userId = req.user.userId;
     const { rpID, origin } = getWebAuthnConfig(req);
@@ -96,7 +113,7 @@ router.post('/passkeys/register/begin', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/passkeys/register/complete', authenticateToken, async (req, res) => {
+router.post('/passkeys/register/complete', authenticateToken, passkeyRegisterLimiter, async (req, res) => {
   try {
     const userId = req.user.userId;
     const { response } = req.body;
@@ -147,7 +164,7 @@ router.post('/passkeys/register/complete', authenticateToken, async (req, res) =
   }
 });
 
-router.post('/passkeys/login/begin', async (req, res) => {
+router.post('/passkeys/login/begin', passkeyLoginLimiter, async (req, res) => {
   try {
     const { email } = req.body;
     let userId = null;
@@ -202,7 +219,7 @@ router.post('/passkeys/login/begin', async (req, res) => {
   }
 });
 
-router.post('/passkeys/login/complete', async (req, res) => {
+router.post('/passkeys/login/complete', passkeyLoginLimiter, async (req, res) => {
   try {
     const { response, sessionToken } = req.body;
     if (!response) {
@@ -290,7 +307,7 @@ router.post('/passkeys/login/complete', async (req, res) => {
   }
 });
 
-router.get('/passkeys', authenticateToken, async (req, res) => {
+router.get('/passkeys', authenticateToken, passkeyRegisterLimiter, async (req, res) => {
   try {
     const passkeys = await query(
       'SELECT id, name, transports, created_at FROM passkeys WHERE user_id = ? ORDER BY created_at DESC',
@@ -304,7 +321,7 @@ router.get('/passkeys', authenticateToken, async (req, res) => {
   }
 });
 
-router.delete('/passkeys/:id', authenticateToken, async (req, res) => {
+router.delete('/passkeys/:id', authenticateToken, passkeyRegisterLimiter, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) {
