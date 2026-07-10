@@ -114,10 +114,6 @@ router.post('/register', async (req, res) => {
     const { email, username, password, capToken, rgpdConsent } = req.body;
 
     const ip = getClientIp(req);
-    const delay = getLoginDelay(ip);
-    if (delay > 0) {
-      await new Promise(r => setTimeout(r, delay));
-    }
 
     if (!email || !username || !password) {
       return res.status(400).json({ error: 'Email, username and password are required' });
@@ -141,6 +137,11 @@ router.post('/register', async (req, res) => {
 
     if (password.length < 8 || password.length > MAX_PASSWORD_LENGTH) {
       return res.status(400).json({ error: 'Password must be between 8 and 128 characters' });
+    }
+
+    const delay = getLoginDelay(ip);
+    if (delay > 0) {
+      await new Promise(r => setTimeout(r, delay));
     }
 
     if (!await verifyCap(capToken)) {
@@ -308,10 +309,6 @@ router.post('/login', async (req, res) => {
     }
 
     const ip = getClientIp(req);
-    const delay = getLoginDelay(ip);
-    if (delay > 0) {
-      await new Promise(r => setTimeout(r, delay));
-    }
 
     // Cap verification
     if (!await verifyCap(capToken)) {
@@ -323,6 +320,12 @@ router.post('/login', async (req, res) => {
     
     if (await isVpnOrProxy(ip)) {
       return res.status(403).json({ error: 'VPNs and proxies are not allowed. Please disable them to sign in.' });
+    }
+
+    // Progressive delay applied only after validation to prevent resource exhaustion
+    const delay = getLoginDelay(ip);
+    if (delay > 0) {
+      await new Promise(r => setTimeout(r, delay));
     }
 
     const users = await query('SELECT * FROM users WHERE email = ?', [email]);
