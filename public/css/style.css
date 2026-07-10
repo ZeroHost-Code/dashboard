@@ -2140,7 +2140,7 @@ tbody tr:hover {
 
   /* Create page header fix */
   #page-create .page-header {
-    display: none;
+    display: none !important;
   }
 
   /* Nest grid */
