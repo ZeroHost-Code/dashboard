@@ -1343,10 +1343,20 @@ tbody tr:hover {
   flex-shrink: 0;
 }
 
+.notif-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .notif-panel-header h3 {
   font-size: 1.1rem;
   font-weight: 700;
   color: var(--text-primary);
+}
+
+.notif-close-mobile {
+  display: none;
 }
 
 .notif-mark-all {
@@ -1976,8 +1986,25 @@ tbody tr:hover {
   }
 
   .notif-mark-all {
-    font-size: 0.78rem;
-    padding: 6px 10px;
+    display: none;
+  }
+
+  .notif-close-mobile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition);
+  }
+
+  .notif-close-mobile:hover {
+    color: var(--text-primary);
+    background: var(--bg-3);
   }
 
   .notif-item {

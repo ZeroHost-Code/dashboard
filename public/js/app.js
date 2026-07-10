@@ -1015,7 +1015,12 @@ async function renderDashboard() {
       <div class="notif-panel" id="notif-panel">
         <div class="notif-panel-header">
           <h3>Notifications</h3>
-          <button class="notif-mark-all" id="notif-mark-all">Mark all read</button>
+          <div class="notif-header-actions">
+            <button class="notif-mark-all" id="notif-mark-all">Mark all read</button>
+            <button class="notif-close-mobile" id="notif-close-mobile" aria-label="Close notifications">
+              <i data-lucide="x" style="width:20px;height:20px"></i>
+            </button>
+          </div>
         </div>
         <div class="notif-panel-list" id="notif-panel-list">
           <div class="notif-empty">No notifications yet</div>
@@ -1074,6 +1079,7 @@ async function renderDashboard() {
   });
 
   $('#notif-backdrop').addEventListener('click', closeNotifPanel);
+  $('#notif-close-mobile').addEventListener('click', closeNotifPanel);
 
   $('#notif-mark-all').addEventListener('click', markAllAsRead);
 
