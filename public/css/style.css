@@ -1963,7 +1963,8 @@ tbody tr:hover {
 
   /* Notification panel: adapts on tablet */
   .notif-panel {
-    width: 340px;
+    width: 100%;
+    max-width: 340px;
     top: 0;
     bottom: 0;
     height: 100%;
