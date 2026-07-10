@@ -166,7 +166,7 @@ router.get('/nests', authenticateToken, async (req, res) => {
     res.json({ nests: result });
   } catch (err) {
     console.error('Get nests error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch nests: ' + err.message });
+    res.status(500).json({ error: 'Failed to fetch nests' });
   }
 });
 
@@ -322,7 +322,7 @@ router.post('/create', authenticateToken, requireNotRestricted, createServerLimi
     if (err.message.includes('NoViableAllocationException')) {
       return res.status(400).json({ error: 'No available allocations found' });
     }
-    res.status(500).json({ error: 'Failed to create server: ' + err.message });
+    res.status(500).json({ error: 'Failed to create server' });
   }
 });
 
@@ -416,7 +416,7 @@ router.post('/renew/:id', authenticateToken, requireNotRestricted, requireOwners
     res.json({ serverMeta: updated[0] });
   } catch (err) {
     console.error('Renew server error:', err.message);
-    res.status(500).json({ error: 'Failed to renew server: ' + err.message });
+    res.status(500).json({ error: 'Failed to renew server' });
   }
 });
 
@@ -444,7 +444,7 @@ router.patch('/:id', authenticateToken, requireNotRestricted, requireOwnership('
     res.json({ success: true });
   } catch (err) {
     console.error('Rename server error:', err.message);
-    res.status(500).json({ error: 'Failed to rename server: ' + err.message });
+    res.status(500).json({ error: 'Failed to rename server' });
   }
 });
 
@@ -461,7 +461,7 @@ router.post('/:id/reinstall', authenticateToken, requireNotRestricted, requireOw
     res.json({ success: true });
   } catch (err) {
     console.error('Reinstall server error:', err.message);
-    res.status(500).json({ error: 'Failed to reinstall server: ' + err.message });
+    res.status(500).json({ error: 'Failed to reinstall server' });
   }
 });
 
@@ -486,7 +486,7 @@ router.delete('/:id', authenticateToken, requireNotRestricted, requireOwnership(
     res.json({ success: true });
   } catch (err) {
     console.error('Delete server error:', err.message);
-    res.status(500).json({ error: 'Failed to delete server: ' + err.message });
+    res.status(500).json({ error: 'Failed to delete server' });
   }
 });
 

@@ -201,7 +201,7 @@ router.post('/servers/:id/suspend', authenticateToken, requireAdmin, async (req,
     res.json({ success: true });
   } catch (err) {
     console.error('Admin suspend error:', err.message);
-    res.status(500).json({ error: 'Failed to suspend server: ' + err.message });
+    res.status(500).json({ error: 'Failed to suspend server' });
   }
 });
 
@@ -222,7 +222,7 @@ router.post('/servers/:id/unsuspend', authenticateToken, requireAdmin, async (re
     res.json({ success: true });
   } catch (err) {
     console.error('Admin unsuspend error:', err.message);
-    res.status(500).json({ error: 'Failed to unsuspend server: ' + err.message });
+    res.status(500).json({ error: 'Failed to unsuspend server' });
   }
 });
 
@@ -263,7 +263,7 @@ router.post('/servers/:id/stop', authenticateToken, requireAdmin, async (req, re
     res.json({ success: true });
   } catch (err) {
     console.error('Admin stop error:', err.message);
-    res.status(500).json({ error: 'Failed to stop server: ' + err.message });
+    res.status(500).json({ error: 'Failed to stop server' });
   }
 });
 
@@ -284,7 +284,7 @@ router.post('/servers/:id/renew-now', authenticateToken, requireAdmin, async (re
     res.json({ success: true });
   } catch (err) {
     console.error('Admin renew-now error:', err.message);
-    res.status(500).json({ error: 'Failed to expire server: ' + err.message });
+    res.status(500).json({ error: 'Failed to expire server' });
   }
 });
 
@@ -309,7 +309,7 @@ router.delete('/servers/:id', authenticateToken, requireAdmin, async (req, res) 
     res.json({ success: true });
   } catch (err) {
     console.error('Admin delete error:', err.message);
-    res.status(500).json({ error: 'Failed to delete server: ' + err.message });
+    res.status(500).json({ error: 'Failed to delete server' });
   }
 });
 
@@ -611,7 +611,7 @@ router.post('/users/:id/notify', authenticateToken, requireAdmin, async (req, re
     res.json({ success: true });
   } catch (err) {
     console.error('Admin notify error:', err.message);
-    res.status(500).json({ error: 'Failed to send notification: ' + err.message });
+    res.status(500).json({ error: 'Failed to send notification' });
   }
 });
 
@@ -651,7 +651,7 @@ router.post('/notify-all', authenticateToken, requireAdmin, async (req, res) => 
     res.json({ success: true, count: users.length });
   } catch (err) {
     console.error('Admin notify-all error:', err.message);
-    res.status(500).json({ error: 'Failed to send notifications: ' + err.message });
+    res.status(500).json({ error: 'Failed to send notifications' });
   }
 });
 
@@ -695,7 +695,7 @@ router.delete('/users/:id', authenticateToken, requireAdmin, async (req, res) =>
     res.json({ success: true });
   } catch (err) {
     console.error('Admin delete user error:', err.message);
-    res.status(500).json({ error: 'Failed to delete user: ' + err.message });
+    res.status(500).json({ error: 'Failed to delete user' });
   }
 });
 
@@ -754,7 +754,7 @@ router.get('/settings/nests', authenticateToken, requireAdmin, async (req, res) 
     const nests = await query('SELECT * FROM nests ORDER BY name ASC');
     res.json({ nests });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch nests: ' + err.message });
+    res.status(500).json({ error: 'Failed to fetch nests' });
   }
 });
 
@@ -766,7 +766,7 @@ router.get('/settings/nests/available', authenticateToken, requireAdmin, async (
     const available = pteroNests.filter(n => !localIds.has(n.id));
     res.json({ nests: available });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch available nests: ' + err.message });
+    res.status(500).json({ error: 'Failed to fetch available nests' });
   }
 });
 
@@ -796,7 +796,7 @@ router.post('/settings/nests', authenticateToken, requireAdmin, async (req, res)
     if (err.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({ error: 'Nest already added' });
     }
-    res.status(500).json({ error: 'Failed to add nest: ' + err.message });
+    res.status(500).json({ error: 'Failed to add nest' });
   }
 });
 
@@ -817,7 +817,7 @@ router.put('/settings/nests/:id', authenticateToken, requireAdmin, async (req, r
     await query(`UPDATE nests SET ${updates.join(', ')} WHERE id = ?`, params);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update nest: ' + err.message });
+    res.status(500).json({ error: 'Failed to update nest' });
   }
 });
 
@@ -850,7 +850,7 @@ router.get('/settings/nests/:nestId/eggs', authenticateToken, requireAdmin, asyn
     }));
     res.json({ eggs });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch eggs: ' + err.message });
+    res.status(500).json({ error: 'Failed to fetch eggs' });
   }
 });
 
@@ -904,7 +904,7 @@ router.put('/settings/eggs/:nestId/:eggId', authenticateToken, requireAdmin, asy
     }
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to save egg settings: ' + err.message });
+    res.status(500).json({ error: 'Failed to save egg settings' });
   }
 });
 
@@ -957,7 +957,7 @@ router.post('/settings/eggs/:nestId/:eggId/apply-all', authenticateToken, requir
 
     res.json({ success: true, updated, total: pteroIds.length });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to apply resources to all servers: ' + err.message });
+    res.status(500).json({ error: 'Failed to apply resources to all servers' });
   }
 });
 

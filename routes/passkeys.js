@@ -160,7 +160,7 @@ router.post('/passkeys/register/complete', authenticateToken, passkeyRegisterLim
     res.json({ verified: true });
   } catch (err) {
     console.error('Passkey register complete error:', err.message);
-    res.status(400).json({ error: 'Failed to complete passkey registration: ' + err.message });
+    res.status(400).json({ error: 'Failed to complete passkey registration' });
   }
 });
 
@@ -303,7 +303,7 @@ router.post('/passkeys/login/complete', passkeyLoginLimiter, async (req, res) =>
     });
   } catch (err) {
     console.error('Passkey login complete error:', err.message);
-    res.status(400).json({ error: 'Failed to complete passkey login: ' + err.message });
+    res.status(400).json({ error: 'Failed to complete passkey login' });
   }
 });
 
