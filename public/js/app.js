@@ -1215,10 +1215,18 @@ function renderSidebarNav() {
     indicator = document.createElement('div');
     indicator.className = 'nav-indicator';
     indicator.id = 'nav-indicator';
+    nav.appendChild(indicator);
+  }
+
+  let itemsContainer = nav.querySelector('.nav-items');
+  if (!itemsContainer) {
+    itemsContainer = document.createElement('div');
+    itemsContainer.className = 'nav-items';
+    nav.appendChild(itemsContainer);
   }
 
   if (state.sidebarMode === 'account') {
-    nav.innerHTML = html`
+    itemsContainer.innerHTML = html`
       <div class="nav-section-label">Account</div>
       <a class="nav-item ${state.accountTab === 'info' ? 'active' : ''}" data-account-page="info" href="/account/info">
         <i data-lucide="user"></i>
@@ -1242,9 +1250,8 @@ function renderSidebarNav() {
         Back to Dashboard
       </a>
     `;
-    nav.prepend(indicator);
   } else {
-    nav.innerHTML = html`
+    itemsContainer.innerHTML = html`
       <div class="nav-section-label">Main</div>
       <a class="nav-item ${state.currentPage === 'overview' ? 'active' : ''}" data-page="overview" href="/">
         <i data-lucide="grid-3x3"></i>
@@ -1286,24 +1293,23 @@ function renderSidebarNav() {
       </a>
       ` : ''}
     `;
-    nav.prepend(indicator);
   }
 
-  document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+  itemsContainer.querySelectorAll('.nav-item[data-page]').forEach(item => {
     item.addEventListener('click', (e) => {
       e.preventDefault();
       navigateTo(item.dataset.page);
     });
   });
 
-  document.querySelectorAll('.nav-item[data-account-page]').forEach(item => {
+  itemsContainer.querySelectorAll('.nav-item[data-account-page]').forEach(item => {
     item.addEventListener('click', (e) => {
       e.preventDefault();
       navigateTo('account/' + item.dataset.accountPage);
     });
   });
 
-  const notifItem = document.querySelector('#nav-notifications');
+  const notifItem = itemsContainer.querySelector('#nav-notifications');
   if (notifItem) {
     notifItem.addEventListener('click', (e) => {
       e.preventDefault();
@@ -1311,14 +1317,15 @@ function renderSidebarNav() {
     });
   }
 
-  const serversToggle = document.querySelector('#nav-servers-toggle');
+  const serversToggle = itemsContainer.querySelector('#nav-servers-toggle');
   if (serversToggle) {
     serversToggle.addEventListener('click', async (e) => {
       e.preventDefault();
-      if (!state.sidebarServersOpen) {
-        state.sidebarServersOpen = true;
-      }
-      if (state.servers.length === 0 && !state.sidebarServersLoading) {
+      state.sidebarServersOpen = !state.sidebarServersOpen;
+      serversToggle.classList.toggle('open', state.sidebarServersOpen);
+      const subList = document.querySelector('#nav-servers-list');
+      if (subList) subList.classList.toggle('open', state.sidebarServersOpen);
+      if (state.sidebarServersOpen && state.servers.length === 0 && !state.sidebarServersLoading) {
         state.sidebarServersLoading = true;
         const subListEl = document.querySelector('#nav-servers-list');
         if (subListEl) subListEl.innerHTML = html`<div class="nav-sub-empty"><span class="spinner"></span> Loading...</div>`;
@@ -1329,17 +1336,17 @@ function renderSidebarNav() {
           state.servers = [];
         }
         state.sidebarServersLoading = false;
+        const subListRefresh = document.querySelector('#nav-servers-list');
+        if (subListRefresh) {
+          subListRefresh.innerHTML = buildServerSubList();
+          initIcons();
+        }
       }
       navigateTo('servers');
-      const subList = document.querySelector('#nav-servers-list');
-      if (subList) {
-        subList.innerHTML = buildServerSubList();
-        initIcons();
-      }
     });
   }
 
-  document.querySelectorAll('.nav-sub-item[data-server-nav]').forEach(item => {
+  itemsContainer.querySelectorAll('.nav-sub-item[data-server-nav]').forEach(item => {
     item.addEventListener('click', (e) => {
       e.preventDefault();
       navigateTo('server/' + item.dataset.serverNav);
