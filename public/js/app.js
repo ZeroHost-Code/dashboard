@@ -18,6 +18,8 @@ const state = {
   notifPanelOpen: false,
   sidebarMode: 'main',
   accountTab: 'info',
+  sidebarServersOpen: false,
+  sidebarServersLoading: false,
 };
 
 function setRgpdConsent(preferences) {
@@ -276,7 +278,33 @@ function showToast(message, type = 'success') {
 function showError(form, message) {
   const errorEl = form.querySelector('.auth-error');
   if (errorEl) {
-    errorEl.textContent = message;
+    if (message && message.includes('verify your email')) {
+      const email = (form.querySelector('#login-email')?.value || '').trim();
+      errorEl.innerHTML = html`
+        <span>${escapeHtml(message)}</span>
+        <button type="button" class="auth-resend-btn" id="auth-resend-btn" ${!email ? 'disabled' : ''}>Resend verification link</button>
+      `;
+      const resendBtn = errorEl.querySelector('#auth-resend-btn');
+      if (resendBtn) {
+        resendBtn.addEventListener('click', async () => {
+          if (!email) return;
+          resendBtn.disabled = true;
+          resendBtn.textContent = 'Sending...';
+          try {
+            await api('/auth/resend-verification', {
+              method: 'POST',
+              body: JSON.stringify({ email }),
+            });
+            resendBtn.textContent = 'Email sent!';
+          } catch (err) {
+            resendBtn.textContent = 'Failed to send';
+            resendBtn.disabled = false;
+          }
+        });
+      }
+    } else {
+      errorEl.textContent = message;
+    }
     errorEl.classList.add('show');
   }
 }
@@ -441,6 +469,10 @@ function openNotifPanel() {
   $('#notif-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
 
+  if (window.innerWidth <= 768) {
+    $('#sidebar').classList.remove('open');
+  }
+
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   $('#nav-notifications').classList.add('active');
   updateNavIndicator();
@@ -551,6 +583,8 @@ function renderLoginPage() {
   });
 
   setupPasskeyAutofill();
+  initIcons();
+  setTimeout(initIcons, 100);
 }
 
 function renderRegisterPage() {
@@ -1004,11 +1038,17 @@ async function renderDashboard() {
         </div>
         <div class="sidebar-resizer" id="sidebar-resizer"></div>
       </aside>
+      <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 
       <div class="notif-panel" id="notif-panel">
         <div class="notif-panel-header">
           <h3>Notifications</h3>
-          <button class="notif-mark-all" id="notif-mark-all">Mark all read</button>
+          <div class="notif-header-actions">
+            <button class="notif-mark-all" id="notif-mark-all">Mark all read</button>
+            <button class="notif-close-mobile" id="notif-close-mobile" aria-label="Close notifications">
+              <i data-lucide="x" style="width:20px;height:20px"></i>
+            </button>
+          </div>
         </div>
         <div class="notif-panel-list" id="notif-panel-list">
           <div class="notif-empty">No notifications yet</div>
@@ -1067,16 +1107,22 @@ async function renderDashboard() {
   });
 
   $('#notif-backdrop').addEventListener('click', closeNotifPanel);
+  $('#notif-close-mobile').addEventListener('click', closeNotifPanel);
 
   $('#notif-mark-all').addEventListener('click', markAllAsRead);
 
   $('#sidebar-logo-link').addEventListener('click', (e) => {
     e.preventDefault();
+    if (window.innerWidth <= 768) return;
     toggleSidebarCollapse();
   });
 
   $('#hamburger-toggle').addEventListener('click', () => {
     $('#sidebar').classList.toggle('open');
+  });
+
+  $('#sidebar-backdrop').addEventListener('click', () => {
+    $('#sidebar').classList.remove('open');
   });
 
   initSidebarResize();
@@ -1117,7 +1163,7 @@ function initSidebarTooltip() {
   }
 
   sidebarNav.addEventListener('mouseover', (e) => {
-    const item = e.target.closest('.nav-item');
+    const item = e.target.closest('.nav-item, .nav-parent');
     if (!item) return;
     if (!sidebar.classList.contains('collapsed')) return;
 
@@ -1143,13 +1189,44 @@ function initSidebarTooltip() {
   });
 }
 
+function buildServerSubList() {
+  if (state.sidebarServersLoading) return html`<div class="nav-sub-empty"><span class="spinner"></span> Loading...</div>`;
+  if (state.servers.length === 0) return html`<div class="nav-sub-empty">No servers</div>`;
+  return state.servers.map(s => {
+    const isInstalling = s.status === 'installing' || s.installed === 0 || s.installed === '0' || s.installed === false;
+    const isSuspended = s.status === 'suspended';
+    const dotClass = isSuspended ? 'dot-suspended' : (isInstalling ? 'dot-installing' : 'dot-active');
+    const isActive = state.currentPage === 'server' && state.serverId === s.id;
+    return html`
+      <a class="nav-sub-item ${isActive ? 'active' : ''}" data-server-nav="${s.id}" href="/server/${s.id}">
+        <span class="nav-sub-dot ${dotClass}"></span>
+        ${escapeHtml(s.name)}
+      </a>
+    `;
+  }).join('');
+}
+
 function renderSidebarNav() {
   const nav = $('#sidebar-nav');
   if (!nav) return;
 
+  let indicator = document.getElementById('nav-indicator');
+  if (!indicator) {
+    indicator = document.createElement('div');
+    indicator.className = 'nav-indicator';
+    indicator.id = 'nav-indicator';
+    nav.appendChild(indicator);
+  }
+
+  let itemsContainer = nav.querySelector('.nav-items');
+  if (!itemsContainer) {
+    itemsContainer = document.createElement('div');
+    itemsContainer.className = 'nav-items';
+    nav.appendChild(itemsContainer);
+  }
+
   if (state.sidebarMode === 'account') {
-    nav.innerHTML = html`
-      <div class="nav-indicator" id="nav-indicator"></div>
+    itemsContainer.innerHTML = html`
       <div class="nav-section-label">Account</div>
       <a class="nav-item ${state.accountTab === 'info' ? 'active' : ''}" data-account-page="info" href="/account/info">
         <i data-lucide="user"></i>
@@ -1174,17 +1251,20 @@ function renderSidebarNav() {
       </a>
     `;
   } else {
-    nav.innerHTML = html`
-      <div class="nav-indicator" id="nav-indicator"></div>
+    itemsContainer.innerHTML = html`
       <div class="nav-section-label">Main</div>
       <a class="nav-item ${state.currentPage === 'overview' ? 'active' : ''}" data-page="overview" href="/">
         <i data-lucide="grid-3x3"></i>
         Overview
       </a>
-      <a class="nav-item ${state.currentPage === 'servers' ? 'active' : ''}" data-page="servers" href="/servers">
+      <div class="nav-parent ${state.sidebarServersOpen ? 'open' : ''} ${(state.currentPage === 'servers' || state.currentPage === 'server') ? 'active' : ''}" id="nav-servers-toggle">
         <i data-lucide="server"></i>
-        My Servers
-      </a>
+        <span class="nav-parent-label">My Servers</span>
+        <svg class="nav-parent-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+      </div>
+      <div class="nav-sub-list ${state.sidebarServersOpen ? 'open' : ''}" id="nav-servers-list">
+        ${buildServerSubList()}
+      </div>
       <a class="nav-item" id="nav-notifications" href="#">
         <span style="position:relative;display:inline-flex">
           <i data-lucide="bell"></i>
@@ -1215,25 +1295,90 @@ function renderSidebarNav() {
     `;
   }
 
-  document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+  itemsContainer.querySelectorAll('.nav-item[data-page]').forEach(item => {
     item.addEventListener('click', (e) => {
       e.preventDefault();
       navigateTo(item.dataset.page);
     });
   });
 
-  document.querySelectorAll('.nav-item[data-account-page]').forEach(item => {
+  itemsContainer.querySelectorAll('.nav-item[data-account-page]').forEach(item => {
     item.addEventListener('click', (e) => {
       e.preventDefault();
       navigateTo('account/' + item.dataset.accountPage);
     });
   });
 
-  const notifItem = document.querySelector('#nav-notifications');
+  const notifItem = itemsContainer.querySelector('#nav-notifications');
   if (notifItem) {
     notifItem.addEventListener('click', (e) => {
       e.preventDefault();
+      itemsContainer.querySelectorAll('.nav-item, .nav-parent').forEach(n => n.classList.remove('active'));
+      notifItem.classList.add('active');
+      updateNavIndicator();
       toggleNotifPanel();
+    });
+  }
+
+  const serversToggle = itemsContainer.querySelector('#nav-servers-toggle');
+  if (serversToggle) {
+    serversToggle.addEventListener('click', async (e) => {
+      e.preventDefault();
+      state.sidebarServersOpen = !state.sidebarServersOpen;
+      serversToggle.classList.toggle('open', state.sidebarServersOpen);
+      const subList = document.querySelector('#nav-servers-list');
+      if (subList) subList.classList.toggle('open', state.sidebarServersOpen);
+      if (state.sidebarServersOpen && state.servers.length === 0 && !state.sidebarServersLoading) {
+        state.sidebarServersLoading = true;
+        const subListEl = document.querySelector('#nav-servers-list');
+        if (subListEl) subListEl.innerHTML = html`<div class="nav-sub-empty"><span class="spinner"></span> Loading...</div>`;
+        try {
+          const data = await api('/servers/list');
+          state.servers = data.servers || [];
+        } catch (err) {
+          state.servers = [];
+        }
+        state.sidebarServersLoading = false;
+        const subListRefresh = document.querySelector('#nav-servers-list');
+        if (subListRefresh) {
+          subListRefresh.innerHTML = buildServerSubList();
+          subListRefresh.querySelectorAll('.nav-sub-item[data-server-nav]').forEach(item => {
+            item.addEventListener('click', (e) => {
+              e.preventDefault();
+              navigateTo('server/' + item.dataset.serverNav);
+            });
+          });
+          initIcons();
+        }
+      }
+      navigateTo('servers');
+    });
+  }
+
+  itemsContainer.querySelectorAll('.nav-sub-item[data-server-nav]').forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.preventDefault();
+      navigateTo('server/' + item.dataset.serverNav);
+    });
+  });
+
+  if (state.sidebarMode !== 'account' && state.servers.length === 0 && !state.sidebarServersLoading) {
+    state.sidebarServersLoading = true;
+    api('/servers/list').then(data => {
+      state.servers = data.servers || [];
+      state.sidebarServersLoading = false;
+      const subList = document.querySelector('#nav-servers-list');
+      if (subList) {
+        subList.innerHTML = buildServerSubList();
+        subList.querySelectorAll('.nav-sub-item[data-server-nav]').forEach(item => {
+          item.addEventListener('click', (e) => {
+            e.preventDefault();
+            navigateTo('server/' + item.dataset.serverNav);
+          });
+        });
+      }
+    }).catch(() => {
+      state.sidebarServersLoading = false;
     });
   }
 
@@ -1265,6 +1410,8 @@ document.addEventListener('click', (e) => {
 
 function navigateTo(page) {
   if (state.notifPanelOpen) closeNotifPanel();
+  const sidebar = $('#sidebar');
+  if (sidebar) sidebar.classList.remove('open');
   if (passkeyAbortController) {
     passkeyAbortController.abort();
     passkeyAbortController = null;
@@ -1312,7 +1459,7 @@ function navigateTo(page) {
   }
 
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item, .nav-parent').forEach(n => n.classList.remove('active'));
 
   state.currentPage = basePage;
   state.serverId = param ? parseInt(param) : null;
@@ -1325,6 +1472,25 @@ function navigateTo(page) {
     renderSidebarNav();
   }
 
+  if (basePage === 'server' || basePage === 'servers') {
+    const parent = document.querySelector('#nav-servers-toggle');
+    if (parent) parent.classList.add('active');
+  } else if (state.sidebarServersOpen) {
+    state.sidebarServersOpen = false;
+    const parent = document.querySelector('#nav-servers-toggle');
+    const subList = document.querySelector('#nav-servers-list');
+    if (parent) parent.classList.remove('open');
+    if (subList) {
+      subList.style.transition = 'none';
+      subList.classList.remove('open');
+      void subList.offsetHeight;
+      subList.style.transition = '';
+    }
+  }
+  const targetNav = document.querySelector(`.nav-item[data-page="${basePage}"]`);
+  if (targetNav) targetNav.classList.add('active');
+  updateNavIndicator();
+
   const url = basePage === 'overview' && !param ? '/' : `/${page}`;
   history.pushState({ page: basePage, serverId: state.serverId, sidebarMode: state.sidebarMode }, '', url);
 
@@ -1334,9 +1500,7 @@ function navigateTo(page) {
     renderServerDetail(state.serverId);
   } else {
     const targetPage = $(`#page-${basePage}`);
-    const targetNav = document.querySelector(`.nav-item[data-page="${basePage}"]`);
     if (targetPage) targetPage.classList.add('active');
-    if (targetNav) targetNav.classList.add('active');
 
     if (basePage === 'overview') renderOverview();
     else if (basePage === 'servers') renderServers();
@@ -1391,7 +1555,7 @@ function navigateTo(page) {
 }
 
 function updateNavIndicator() {
-  const activeNav = document.querySelector('.nav-item.active');
+  const activeNav = document.querySelector('.nav-item.active, .nav-parent.active');
   const indicator = document.getElementById('nav-indicator');
   if (activeNav && indicator) {
     indicator.style.top = activeNav.offsetTop + 'px';
@@ -1426,7 +1590,7 @@ window.addEventListener('popstate', () => {
   if (!state.token) { renderLoginPage(); return; }
 
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item, .nav-parent').forEach(n => n.classList.remove('active'));
 
   state.currentPage = basePage;
   state.serverId = param ? parseInt(param) : null;
@@ -1439,15 +1603,32 @@ window.addEventListener('popstate', () => {
     renderSidebarNav();
   }
 
+  if (basePage === 'server' || basePage === 'servers') {
+    const parent = document.querySelector('#nav-servers-toggle');
+    if (parent) parent.classList.add('active');
+  } else if (state.sidebarServersOpen) {
+    state.sidebarServersOpen = false;
+    const parent = document.querySelector('#nav-servers-toggle');
+    const subList = document.querySelector('#nav-servers-list');
+    if (parent) parent.classList.remove('open');
+    if (subList) {
+      subList.style.transition = 'none';
+      subList.classList.remove('open');
+      void subList.offsetHeight;
+      subList.style.transition = '';
+    }
+  }
+  const targetNav = document.querySelector(`.nav-item[data-page="${basePage}"]`);
+  if (targetNav) targetNav.classList.add('active');
+  updateNavIndicator();
+
   if (basePage === 'server' && state.serverId) {
     const targetPage = $('#page-server-detail');
     if (targetPage) targetPage.classList.add('active');
     renderServerDetail(state.serverId);
   } else {
     const targetPage = $(`#page-${basePage}`);
-    const targetNav = document.querySelector(`.nav-item[data-page="${basePage}"]`);
     if (targetPage) targetPage.classList.add('active');
-    if (targetNav) targetNav.classList.add('active');
 
     if (basePage === 'overview') renderOverview();
     else if (basePage === 'servers') renderServers();
@@ -1753,14 +1934,14 @@ function renderServerRow(s) {
   const allocStr = alloc ? `${alloc.alias || alloc.nodeFqdn || alloc.ip}:${alloc.port}` : (s.nodeFqdn || `Node #${s.node}`);
   return html`
     <tr>
-      <td><strong><a href="/server/${s.id}" onclick="event.preventDefault();navigateTo('server/${s.id}')" style="color:inherit;text-decoration:none">${escapeHtml(s.name)}</a></strong></td>
-      <td><span class="server-detail-tag">${eggName}</span></td>
-      <td><span class="server-detail-tag">${allocStr}</span></td>
-      <td>
+      <td data-label="Name"><strong><a href="/server/${s.id}" onclick="event.preventDefault();navigateTo('server/${s.id}')" style="color:inherit;text-decoration:none">${escapeHtml(s.name)}</a></strong></td>
+      <td data-label="Egg"><span class="server-detail-tag">${eggName}</span></td>
+      <td data-label="Allocation"><span class="server-detail-tag">${allocStr}</span></td>
+      <td data-label="Status">
         <span class="server-card-status ${statusClass}">${statusLabel}</span>
       </td>
-      <td>
-        <div style="display:flex;gap:6px">
+      <td data-label="Actions">
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
           <a class="btn btn-ghost btn-sm" href="/server/${s.id}" onclick="event.preventDefault();navigateTo('server/${s.id}')">Settings</a>
           <button class="btn btn-ghost btn-sm" onclick="openPyrodactylPanel('${s.identifier}')">Manage Pyrodactyl</button>
           ${canRenew && !isAdminSuspended ? html`

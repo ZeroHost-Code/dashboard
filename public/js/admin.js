@@ -563,12 +563,12 @@ async function renderAdminServers() {
 
       return ahtml`
         <tr>
-          <td><strong>${escapeHtml(s.name)}</strong></td>
-          <td>${escapeHtml(ownerName)}</td>
-          <td><span class="server-detail-tag">${escapeHtml(eggName)}</span></td>
-          <td><span class="server-detail-tag">${escapeHtml(allocStr)}</span></td>
-          <td><span class="server-card-status ${statusClass}">${escapeHtml(statusLabel)}</span></td>
-          <td>
+          <td data-label="Name"><strong>${escapeHtml(s.name)}</strong></td>
+          <td data-label="Owner">${escapeHtml(ownerName)}</td>
+          <td data-label="Egg"><span class="server-detail-tag">${escapeHtml(eggName)}</span></td>
+          <td data-label="Allocation"><span class="server-detail-tag">${escapeHtml(allocStr)}</span></td>
+          <td data-label="Status"><span class="server-card-status ${statusClass}">${escapeHtml(statusLabel)}</span></td>
+          <td data-label="Actions">
             <a class="btn btn-ghost btn-sm" href="/admin/server/${s.id}" onclick="event.preventDefault();adminNavigateTo('server/${s.id}')">Details</a>
           </td>
         </tr>
@@ -1181,13 +1181,13 @@ async function renderAdminUsers() {
 
     tbody.innerHTML = data.users.map(u => ahtml`
       <tr>
-        <td>${u.id}</td>
-        <td><strong>${escapeHtml(u.username)}</strong></td>
-        <td>${escapeHtml(u.email)}</td>
-        <td>${u.is_admin ? '<span class="server-card-status status-active" style="font-size:0.75rem">Admin</span>' : '<span class="server-card-status status-installing" style="font-size:0.75rem">User</span>'}</td>
-        <td>${u.server_count}</td>
-        <td>${formatDateWithTooltip(u.created_at)}</td>
-        <td>
+        <td data-label="ID">${u.id}</td>
+        <td data-label="Username"><strong>${escapeHtml(u.username)}</strong></td>
+        <td data-label="Email">${escapeHtml(u.email)}</td>
+        <td data-label="Role">${u.is_admin ? '<span class="server-card-status status-active" style="font-size:0.75rem">Admin</span>' : '<span class="server-card-status status-installing" style="font-size:0.75rem">User</span>'}</td>
+        <td data-label="Servers">${u.server_count}</td>
+        <td data-label="Created">${formatDateWithTooltip(u.created_at)}</td>
+        <td data-label="Actions">
           <a class="btn btn-ghost btn-sm" href="/admin/user/${u.id}" onclick="event.preventDefault();adminNavigateTo('user/${u.id}')">Details</a>
         </td>
       </tr>
@@ -1278,11 +1278,11 @@ async function renderAdminUserDetail(userId) {
                 <tbody>
                   ${data.servers.map(s => ahtml`
                     <tr>
-                      <td><strong>${s.server_name || 'Unknown'}</strong></td>
-                      <td><span class="server-card-status ${s.status === 'active' ? 'status-active' : s.status === 'suspended' ? 'status-suspended' : 'status-installing'}" style="font-size:0.75rem;text-transform:capitalize">${s.status}</span></td>
-                      <td>${formatDateWithTooltip(s.created_at)}</td>
-                      <td>${formatDateWithTooltip(s.expires_at)}</td>
-                      <td style="display:flex;gap:6px">
+                      <td data-label="Name"><strong>${s.server_name || 'Unknown'}</strong></td>
+                      <td data-label="Status"><span class="server-card-status ${s.status === 'active' ? 'status-active' : s.status === 'suspended' ? 'status-suspended' : 'status-installing'}" style="font-size:0.75rem;text-transform:capitalize">${s.status}</span></td>
+                      <td data-label="Created">${formatDateWithTooltip(s.created_at)}</td>
+                      <td data-label="Expires">${formatDateWithTooltip(s.expires_at)}</td>
+                      <td data-label="Actions" style="display:flex;gap:6px;flex-wrap:wrap">
                         <a class="btn btn-ghost btn-sm" href="/admin/server/${s.ptero_server_id}" onclick="event.preventDefault();adminNavigateTo('server/${s.ptero_server_id}')">Manage</a>
                         <button class="btn btn-ghost btn-sm" onclick="window.open('${PTERO_URL}/server/${s.server_uuid}', '_blank')">Open Pyrodactyl</button>
                       </td>
@@ -1516,10 +1516,10 @@ async function renderAdminActivity() {
 
     tbody.innerHTML = data.activities.map(a => ahtml`
       <tr>
-        <td style="white-space:nowrap;font-size:0.82rem;color:var(--text-secondary)">${formatDateWithTooltip(a.created_at)}</td>
-        <td>${a.username || 'Unknown'}</td>
-        <td><span class="server-detail-tag">${a.action}</span></td>
-        <td style="color:var(--text-secondary);font-size:0.85rem">${a.details || ''}</td>
+        <td data-label="Time" style="white-space:nowrap;font-size:0.82rem;color:var(--text-secondary)">${formatDateWithTooltip(a.created_at)}</td>
+        <td data-label="User">${a.username || 'Unknown'}</td>
+        <td data-label="Action"><span class="server-detail-tag">${a.action}</span></td>
+        <td data-label="Details" style="color:var(--text-secondary);font-size:0.85rem">${a.details || ''}</td>
       </tr>
     `).join('');
   } catch (err) {
@@ -1613,19 +1613,19 @@ async function renderAdminEggsSettings() {
 
     tbody.innerHTML = data.nests.map(n => ahtml`
       <tr>
-        <td>${n.id}</td>
-        <td>${n.logo ? renderLogoDisplay(n.logo, 32) : '<span style="color:var(--text-secondary);font-size:0.75rem">—</span>'}</td>
-        <td><a href="/admin/settings/eggs/${n.ptero_nest_id}" onclick="event.preventDefault();adminNavigateTo('settings/eggs/${n.ptero_nest_id}')" style="font-weight:600;cursor:pointer">${n.name}</a></td>
-        <td style="color:var(--text-secondary);font-size:0.85rem;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.description || '—'}</td>
-        <td><span class="server-detail-tag">${n.ptero_nest_id}</span></td>
-        <td>
+        <td data-label="ID">${n.id}</td>
+        <td data-label="Logo">${n.logo ? renderLogoDisplay(n.logo, 32) : '<span style="color:var(--text-secondary);font-size:0.75rem">—</span>'}</td>
+        <td data-label="Name"><a href="/admin/settings/eggs/${n.ptero_nest_id}" onclick="event.preventDefault();adminNavigateTo('settings/eggs/${n.ptero_nest_id}')" style="font-weight:600;cursor:pointer">${n.name}</a></td>
+        <td data-label="Description" style="color:var(--text-secondary);font-size:0.85rem;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.description || '—'}</td>
+        <td data-label="Panel ID"><span class="server-detail-tag">${n.ptero_nest_id}</span></td>
+        <td data-label="Status">
           <label class="toggle-switch" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
             <input type="checkbox" class="nest-unavailable-toggle" data-id="${n.id}" ${n.unavailable ? 'checked' : ''} style="opacity:0;width:0;height:0">
             <span class="toggle-slider" style="position:absolute;cursor:pointer;inset:0;background:var(--bg-secondary);border:1px solid var(--border);border-radius:24px;transition:0.2s"></span>
           </label>
           <span class="nest-status-label" data-id="${n.id}" style="margin-left:8px;font-size:0.82rem;${n.unavailable ? 'color:var(--accent-red)' : 'color:var(--accent-green)'}">${n.unavailable ? 'Unavailable' : 'Available'}</span>
         </td>
-        <td style="display:flex;gap:6px">
+        <td data-label="Actions" style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn btn-ghost btn-sm btn-rename-nest" data-id="${n.id}" data-name="${n.name}" data-logo="${n.logo || ''}" data-description="${(n.description || '').replace(/"/g, '&quot;')}" style="width:auto">Edit</button>
           <button class="btn btn-danger btn-sm btn-delete-nest" data-id="${n.id}" data-name="${n.name}" style="width:auto">Delete</button>
         </td>
@@ -1723,19 +1723,19 @@ async function renderAdminNestEggs(nestId) {
       const isUnavailable = res?.unavailable;
       return ahtml`
         <tr>
-          <td>${e.id}</td>
-          <td>${res?.logo ? renderLogoDisplay(res.logo, 28) : '<span style="color:var(--text-secondary);font-size:0.75rem">—</span>'}</td>
-          <td><strong>${e.name}</strong></td>
-          <td style="color:var(--text-secondary);font-size:0.85rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.description || '—'}</td>
-          <td><span class="server-detail-tag" style="font-size:0.75rem">${resStr}</span></td>
-          <td>
+          <td data-label="ID">${e.id}</td>
+          <td data-label="Logo">${res?.logo ? renderLogoDisplay(res.logo, 28) : '<span style="color:var(--text-secondary);font-size:0.75rem">—</span>'}</td>
+          <td data-label="Name"><strong>${e.name}</strong></td>
+          <td data-label="Description" style="color:var(--text-secondary);font-size:0.85rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.description || '—'}</td>
+          <td data-label="Resources"><span class="server-detail-tag" style="font-size:0.75rem">${resStr}</span></td>
+          <td data-label="Status">
             <label class="toggle-switch" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
               <input type="checkbox" class="egg-unavailable-toggle" data-nest="${nestId}" data-egg="${e.id}" ${isUnavailable ? 'checked' : ''} style="opacity:0;width:0;height:0">
               <span class="toggle-slider" style="position:absolute;cursor:pointer;inset:0;background:var(--bg-secondary);border:1px solid var(--border);border-radius:24px;transition:0.2s"></span>
             </label>
             <span class="egg-status-label" data-nest="${nestId}" data-egg="${e.id}" style="margin-left:8px;font-size:0.82rem;${isUnavailable ? 'color:var(--accent-red)' : 'color:var(--accent-green)'}">${isUnavailable ? 'Unavailable' : 'Available'}</span>
           </td>
-          <td>
+          <td data-label="Actions">
             <a href="/admin/settings/eggs/${nestId}/${e.id}" onclick="event.preventDefault();adminNavigateTo('settings/eggs/${nestId}/${e.id}')" class="btn btn-ghost btn-sm">Configure</a>
           </td>
         </tr>
@@ -2395,14 +2395,14 @@ async function renderAdminNodes() {
       const isOnline = n.is_online;
       return ahtml`
         <tr>
-          <td>${n.id}</td>
-          <td><a href="/admin/node/${n.id}" onclick="event.preventDefault();adminNavigateTo('node/${n.id}')" style="font-weight:600;cursor:pointer">${escapeHtml(n.name)}</a></td>
-          <td><span class="server-detail-tag">${escapeHtml(n.fqdn)}</span></td>
-          <td>${ramMB !== '—' ? ramMB + ' MB' : '—'}</td>
-          <td>${diskGB !== '—' ? diskGB + ' GB' : '—'}</td>
-          <td>${cpuPct}</td>
-          <td>${allocCount}</td>
-          <td>${isOnline !== undefined ? (isOnline ? '<span style="color:var(--accent-green)">Online</span>' : '<span style="color:var(--accent-red)">Offline</span>') : '—'}</td>
+          <td data-label="ID">${n.id}</td>
+          <td data-label="Name"><a href="/admin/node/${n.id}" onclick="event.preventDefault();adminNavigateTo('node/${n.id}')" style="font-weight:600;cursor:pointer">${escapeHtml(n.name)}</a></td>
+          <td data-label="FQDN"><span class="server-detail-tag">${escapeHtml(n.fqdn)}</span></td>
+          <td data-label="RAM">${ramMB !== '—' ? ramMB + ' MB' : '—'}</td>
+          <td data-label="Disk">${diskGB !== '—' ? diskGB + ' GB' : '—'}</td>
+          <td data-label="CPU">${cpuPct}</td>
+          <td data-label="Allocations">${allocCount}</td>
+          <td data-label="Status">${isOnline !== undefined ? (isOnline ? '<span style="color:var(--accent-green)">Online</span>' : '<span style="color:var(--accent-red)">Offline</span>') : '—'}</td>
         </tr>
       `;
     }).join('');
@@ -2572,11 +2572,11 @@ async function renderAdminNodeDetail(nodeId) {
       } else {
         allocTbody.innerHTML = allocs.map(a => ahtml`
           <tr>
-            <td>${a.id}</td>
-            <td><span class="server-detail-tag">${escapeHtml(a.ip)}</span></td>
-            <td>${a.port}</td>
-            <td>${a.alias ? escapeHtml(a.alias) : '—'}</td>
-            <td>${a.server ? `<span style="color:var(--accent-1)">${a.server}</span>` : '<span style="color:var(--text-secondary)">Free</span>'}</td>
+            <td data-label="ID">${a.id}</td>
+            <td data-label="IP"><span class="server-detail-tag">${escapeHtml(a.ip)}</span></td>
+            <td data-label="Port">${a.port}</td>
+            <td data-label="Alias">${a.alias ? escapeHtml(a.alias) : '—'}</td>
+            <td data-label="Server">${a.server ? `<span style="color:var(--accent-1)">${a.server}</span>` : '<span style="color:var(--text-secondary)">Free</span>'}</td>
           </tr>
         `).join('');
       }
@@ -2590,10 +2590,10 @@ async function renderAdminNodeDetail(nodeId) {
       } else {
         serversTbody.innerHTML = servers.map(s => ahtml`
           <tr>
-            <td>${s.id}</td>
-            <td>${escapeHtml(s.name)}</td>
-            <td><span class="server-detail-tag">${escapeHtml(s.identifier)}</span></td>
-            <td><span class="server-detail-tag">${s.status || '—'}</span></td>
+            <td data-label="ID">${s.id}</td>
+            <td data-label="Name">${escapeHtml(s.name)}</td>
+            <td data-label="Identifier"><span class="server-detail-tag">${escapeHtml(s.identifier)}</span></td>
+            <td data-label="Status"><span class="server-detail-tag">${s.status || '—'}</span></td>
           </tr>
         `).join('');
       }

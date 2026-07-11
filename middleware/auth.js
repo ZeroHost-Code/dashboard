@@ -75,9 +75,17 @@ export function requireNotRestricted(req, res, next) {
   next();
 }
 
+const ALLOWED_TABLES = new Set(['server_meta']);
+const ALLOWED_COLUMNS = new Set(['ptero_server_id', 'user_id', 'id']);
+
 export function requireOwnership(table, column, paramName, idSource = 'params') {
   return async (req, res, next) => {
     try {
+      if (!ALLOWED_TABLES.has(table) || !ALLOWED_COLUMNS.has(column)) {
+        console.error(`Blocked ownership check on unauthorized table/column: ${table}.${column}`);
+        return res.status(500).json({ error: 'Ownership verification failed' });
+      }
+
       const id = parseInt(idSource === 'params' ? req.params[paramName] : req.body[paramName], 10);
       if (isNaN(id)) {
         return res.status(400).json({ error: 'Invalid ID' });

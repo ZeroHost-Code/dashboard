@@ -1,4 +1,6 @@
-import { PTERO_URL, PTERO_API_KEY, SERVER_LIMITS, FEATURE_LIMITS, DEPLOY_LOCATIONS } from '../config/pyrodactyl.js';
+import { PTERO_URL, PTERO_API_KEY, SERVER_LIMITS, FEATURE_LIMITS, DEPLOY_LOCATIONS, PANEL_DB_NAME } from '../config/pyrodactyl.js';
+
+export { PANEL_DB_NAME };
 
 const FETCH_TIMEOUT = 15000;
 const CACHE_TTL = 5 * 60 * 1000;
@@ -74,7 +76,9 @@ async function pteroFetch(path, options = {}) {
       continue;
     }
     if (!res.ok) {
-      recordPteroError(`${res.status} ${res.statusText}`);
+      if (res.status >= 500) {
+        recordPteroError(`${res.status} ${res.statusText}`);
+      }
       const text = await res.text();
       throw new Error(`Pterodactyl API error ${res.status}: ${text.slice(0, 200)}`);
     }
@@ -333,7 +337,7 @@ export async function getPergoServerIdsByEgg(nestId, eggId) {
 
 export async function renamePteroServer(serverId, name) {
   const server = await getServerById(serverId);
-  await pteroFetch(`/servers/${serverId}/details`, {
+  await pteroFetch(`/servers/${serverId}`, {
     method: 'PATCH',
     body: JSON.stringify({
       name,

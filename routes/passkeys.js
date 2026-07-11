@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
@@ -7,12 +8,28 @@ import {
 } from '@simplewebauthn/server';
 import { isoBase64URL } from '@simplewebauthn/server/helpers';
 import { authenticateToken } from '../middleware/auth.js';
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { query } from '../config/db.js';
 import { generateToken } from '../middleware/auth.js';
 import { logActivity } from '../services/activity.js';
 
 const router = Router();
+
+const passkeyRegisterLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many passkey registration attempts, try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const passkeyLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: 'Too many passkey login attempts, try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const RP_NAME = 'ZeroHost';
 
@@ -32,7 +49,13 @@ function getWebAuthnConfig(req) {
   };
 }
 
+// Store challenges keyed by userId (register) or sessionToken (login)
+// to prevent attacker-controlled lookup via clientDataJSON.challenge
 const challengeMap = new Map();
+
+function generateSessionToken() {
+  return randomBytes(32).toString('hex');
+}
 
 function getClientIp(req) {
   const forwarded = req.headers['x-forwarded-for'];
@@ -40,7 +63,7 @@ function getClientIp(req) {
   return req.ip || req.socket.remoteAddress || '0.0.0.0';
 }
 
-router.post('/passkeys/register/begin', authenticateToken, async (req, res) => {
+router.post('/passkeys/register/begin', authenticateToken, passkeyRegisterLimiter, async (req, res) => {
   try {
     const userId = req.user.userId;
     const { rpID, origin } = getWebAuthnConfig(req);
@@ -77,7 +100,7 @@ router.post('/passkeys/register/begin', authenticateToken, async (req, res) => {
       },
     });
 
-    challengeMap.set(options.challenge, {
+    challengeMap.set(`register:${userId}`, {
       challenge: options.challenge,
       timestamp: Date.now(),
       userId,
@@ -90,7 +113,7 @@ router.post('/passkeys/register/begin', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/passkeys/register/complete', authenticateToken, async (req, res) => {
+router.post('/passkeys/register/complete', authenticateToken, passkeyRegisterLimiter, async (req, res) => {
   try {
     const userId = req.user.userId;
     const { response } = req.body;
@@ -99,18 +122,17 @@ router.post('/passkeys/register/complete', authenticateToken, async (req, res) =
       return res.status(400).json({ error: 'Registration response is required' });
     }
 
-    const challengeFromResponse = JSON.parse(isoBase64URL.toUTF8String(response.response.clientDataJSON)).challenge;
-    const expectedChallenge = challengeMap.get(challengeFromResponse);
-    if (!expectedChallenge) {
+    const stored = challengeMap.get(`register:${userId}`);
+    if (!stored) {
       return res.status(400).json({ error: 'No registration in progress. Please try again.' });
     }
 
-    challengeMap.delete(challengeFromResponse);
+    challengeMap.delete(`register:${userId}`);
 
     const { rpID, origin } = getWebAuthnConfig(req);
     const verification = await verifyRegistrationResponse({
       response,
-      expectedChallenge: expectedChallenge.challenge,
+      expectedChallenge: stored.challenge,
       expectedOrigin: origin,
       expectedRPID: rpID,
     });
@@ -138,11 +160,11 @@ router.post('/passkeys/register/complete', authenticateToken, async (req, res) =
     res.json({ verified: true });
   } catch (err) {
     console.error('Passkey register complete error:', err.message);
-    res.status(400).json({ error: 'Failed to complete passkey registration: ' + err.message });
+    res.status(400).json({ error: 'Failed to complete passkey registration' });
   }
 });
 
-router.post('/passkeys/login/begin', async (req, res) => {
+router.post('/passkeys/login/begin', passkeyLoginLimiter, async (req, res) => {
   try {
     const { email } = req.body;
     let userId = null;
@@ -183,33 +205,52 @@ router.post('/passkeys/login/begin', async (req, res) => {
       userVerification: 'preferred',
     });
 
-    challengeMap.set(options.challenge, {
+    const sessionToken = generateSessionToken();
+    challengeMap.set(`login:${sessionToken}`, {
       challenge: options.challenge,
       timestamp: Date.now(),
       userId,
     });
 
-    res.json({ options, userId });
+    res.json({ options, userId, sessionToken });
   } catch (err) {
     console.error('Passkey login begin error:', err.message);
     res.status(500).json({ error: 'Failed to initiate passkey login' });
   }
 });
 
-router.post('/passkeys/login/complete', async (req, res) => {
+router.post('/passkeys/login/complete', passkeyLoginLimiter, async (req, res) => {
   try {
-    const { response } = req.body;
+    const { response, sessionToken } = req.body;
     if (!response) {
       return res.status(400).json({ error: 'Response is required' });
     }
 
-    const challengeFromResponse = JSON.parse(isoBase64URL.toUTF8String(response.response.clientDataJSON)).challenge;
-    const expectedChallenge = challengeMap.get(challengeFromResponse);
-    if (!expectedChallenge) {
-      return res.status(400).json({ error: 'No login in progress. Please try again.' });
+    let stored;
+    if (sessionToken) {
+      stored = challengeMap.get(`login:${sessionToken}`);
+      if (!stored) {
+        return res.status(400).json({ error: 'No login in progress. Please try again.' });
+      }
+      challengeMap.delete(`login:${sessionToken}`);
+    } else {
+      // Autofill / conditional mediation flow: look up challenge from clientDataJSON
+      try {
+        const challengeFromResponse = JSON.parse(isoBase64URL.toUTF8String(response.response.clientDataJSON)).challenge;
+        for (const [key, entry] of challengeMap) {
+          if (key.startsWith('login:') && entry.challenge === challengeFromResponse) {
+            stored = entry;
+            challengeMap.delete(key);
+            break;
+          }
+        }
+      } catch {
+        return res.status(400).json({ error: 'No login in progress. Please try again.' });
+      }
+      if (!stored) {
+        return res.status(400).json({ error: 'No login in progress. Please try again.' });
+      }
     }
-
-    challengeMap.delete(challengeFromResponse);
 
     const passkeys = await query(
       'SELECT id, credential_id, public_key, counter, transports, user_id FROM passkeys WHERE credential_id = ?',
@@ -225,7 +266,7 @@ router.post('/passkeys/login/complete', async (req, res) => {
     const { rpID, origin } = getWebAuthnConfig(req);
     const verification = await verifyAuthenticationResponse({
       response,
-      expectedChallenge: expectedChallenge.challenge,
+      expectedChallenge: stored.challenge,
       expectedOrigin: origin,
       expectedRPID: rpID,
       credential: {
@@ -278,11 +319,11 @@ router.post('/passkeys/login/complete', async (req, res) => {
     });
   } catch (err) {
     console.error('Passkey login complete error:', err.message);
-    res.status(400).json({ error: 'Failed to complete passkey login: ' + err.message });
+    res.status(400).json({ error: 'Failed to complete passkey login' });
   }
 });
 
-router.get('/passkeys', authenticateToken, async (req, res) => {
+router.get('/passkeys', authenticateToken, passkeyRegisterLimiter, async (req, res) => {
   try {
     const passkeys = await query(
       'SELECT id, name, transports, created_at FROM passkeys WHERE user_id = ? ORDER BY created_at DESC',
@@ -296,7 +337,7 @@ router.get('/passkeys', authenticateToken, async (req, res) => {
   }
 });
 
-router.delete('/passkeys/:id', authenticateToken, async (req, res) => {
+router.delete('/passkeys/:id', authenticateToken, passkeyRegisterLimiter, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) {
