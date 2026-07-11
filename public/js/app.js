@@ -1189,6 +1189,23 @@ function initSidebarTooltip() {
   });
 }
 
+function buildServerSubList() {
+  if (state.sidebarServersLoading) return html`<div class="nav-sub-empty"><span class="spinner"></span> Loading...</div>`;
+  if (state.servers.length === 0) return html`<div class="nav-sub-empty">No servers</div>`;
+  return state.servers.map(s => {
+    const isInstalling = s.status === 'installing' || s.installed === 0 || s.installed === '0' || s.installed === false;
+    const isSuspended = s.status === 'suspended';
+    const dotClass = isSuspended ? 'dot-suspended' : (isInstalling ? 'dot-installing' : 'dot-active');
+    const isActive = state.currentPage === 'server' && state.serverId === s.id;
+    return html`
+      <a class="nav-sub-item ${isActive ? 'active' : ''}" data-server-nav="${s.id}" href="/server/${s.id}">
+        <span class="nav-sub-dot ${dotClass}"></span>
+        ${escapeHtml(s.name)}
+      </a>
+    `;
+  }).join('');
+}
+
 function renderSidebarNav() {
   const nav = $('#sidebar-nav');
   if (!nav) return;
@@ -1239,20 +1256,7 @@ function renderSidebarNav() {
         <svg class="nav-parent-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
       </div>
       <div class="nav-sub-list ${state.sidebarServersOpen ? 'open' : ''}" id="nav-servers-list">
-        ${state.sidebarServersLoading ? html`<div class="nav-sub-empty"><span class="spinner"></span> Loading...</div>` :
-          state.servers.length === 0 ? html`<div class="nav-sub-empty">No servers</div>` :
-          state.servers.map(s => {
-            const isInstalling = s.status === 'installing' || s.installed === 0 || s.installed === '0' || s.installed === false;
-            const isSuspended = s.status === 'suspended';
-            const dotClass = isSuspended ? 'dot-suspended' : (isInstalling ? 'dot-installing' : 'dot-active');
-            const isActive = state.currentPage === 'server' && state.serverId === s.id;
-            return html`
-              <a class="nav-sub-item ${isActive ? 'active' : ''}" data-server-nav="${s.id}" href="/server/${s.id}">
-                <span class="nav-sub-dot ${dotClass}"></span>
-                ${escapeHtml(s.name)}
-              </a>
-            `;
-          }).join('')}
+        ${buildServerSubList()}
       </div>
       <a class="nav-item" id="nav-notifications" href="#">
         <span style="position:relative;display:inline-flex">
@@ -1327,7 +1331,11 @@ function renderSidebarNav() {
         state.sidebarServersLoading = false;
       }
       navigateTo('servers');
-      renderSidebarNav();
+      const subList = document.querySelector('#nav-servers-list');
+      if (subList) {
+        subList.innerHTML = buildServerSubList();
+        initIcons();
+      }
     });
   }
 
