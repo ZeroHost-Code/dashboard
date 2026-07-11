@@ -727,7 +727,8 @@ cap-widget {
   background: rgba(238, 129, 50, 0.08);
 }
 
-.nav-item.active {
+.nav-item.active,
+.nav-parent.active {
   color: var(--accent-1);
 }
 
