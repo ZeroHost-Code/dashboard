@@ -1227,7 +1227,7 @@ function renderSidebarNav() {
         <i data-lucide="grid-3x3"></i>
         Overview
       </a>
-      <div class="nav-parent ${state.sidebarServersOpen ? 'open' : ''}" id="nav-servers-toggle">
+      <div class="nav-parent ${state.sidebarServersOpen ? 'open' : ''} ${(state.currentPage === 'servers' || state.currentPage === 'server') ? 'active' : ''}" id="nav-servers-toggle">
         <i data-lucide="server"></i>
         <span class="nav-parent-label">My Servers</span>
         <svg class="nav-parent-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -1489,7 +1489,7 @@ function navigateTo(page) {
 }
 
 function updateNavIndicator() {
-  const activeNav = document.querySelector('.nav-item.active');
+  const activeNav = document.querySelector('.nav-item.active, .nav-parent.active');
   const indicator = document.getElementById('nav-indicator');
   if (activeNav && indicator) {
     indicator.style.top = activeNav.offsetTop + 'px';
