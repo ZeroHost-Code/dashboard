@@ -1425,8 +1425,16 @@ function navigateTo(page) {
   const newSidebarMode = isAccountPage ? 'account' : 'main';
   if (state.sidebarMode !== newSidebarMode) {
     state.sidebarMode = newSidebarMode;
+    renderSidebarNav();
   }
-  renderSidebarNav();
+
+  if (basePage === 'server' || basePage === 'servers') {
+    const parent = document.querySelector('#nav-servers-toggle');
+    if (parent) parent.classList.add('active');
+  }
+  const targetNav = document.querySelector(`.nav-item[data-page="${basePage}"]`);
+  if (targetNav) targetNav.classList.add('active');
+  updateNavIndicator();
 
   const url = basePage === 'overview' && !param ? '/' : `/${page}`;
   history.pushState({ page: basePage, serverId: state.serverId, sidebarMode: state.sidebarMode }, '', url);
@@ -1537,8 +1545,16 @@ window.addEventListener('popstate', () => {
   const newSidebarMode = isAccountPage ? 'account' : 'main';
   if (state.sidebarMode !== newSidebarMode) {
     state.sidebarMode = newSidebarMode;
+    renderSidebarNav();
   }
-  renderSidebarNav();
+
+  if (basePage === 'server' || basePage === 'servers') {
+    const parent = document.querySelector('#nav-servers-toggle');
+    if (parent) parent.classList.add('active');
+  }
+  const targetNav = document.querySelector(`.nav-item[data-page="${basePage}"]`);
+  if (targetNav) targetNav.classList.add('active');
+  updateNavIndicator();
 
   if (basePage === 'server' && state.serverId) {
     const targetPage = $('#page-server-detail');
@@ -1546,9 +1562,7 @@ window.addEventListener('popstate', () => {
     renderServerDetail(state.serverId);
   } else {
     const targetPage = $(`#page-${basePage}`);
-    const targetNav = document.querySelector(`.nav-item[data-page="${basePage}"]`);
     if (targetPage) targetPage.classList.add('active');
-    if (targetNav) targetNav.classList.add('active');
 
     if (basePage === 'overview') renderOverview();
     else if (basePage === 'servers') renderServers();
