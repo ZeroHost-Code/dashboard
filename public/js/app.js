@@ -1278,11 +1278,10 @@ function renderSidebarNav() {
   if (serversToggle) {
     serversToggle.addEventListener('click', async (e) => {
       e.preventDefault();
-      state.sidebarServersOpen = !state.sidebarServersOpen;
-      serversToggle.classList.toggle('open', state.sidebarServersOpen);
-      const subList = document.querySelector('#nav-servers-list');
-      if (subList) subList.classList.toggle('open', state.sidebarServersOpen);
-      if (state.sidebarServersOpen && state.servers.length === 0 && !state.sidebarServersLoading) {
+      if (!state.sidebarServersOpen) {
+        state.sidebarServersOpen = true;
+      }
+      if (state.servers.length === 0 && !state.sidebarServersLoading) {
         state.sidebarServersLoading = true;
         const subListEl = document.querySelector('#nav-servers-list');
         if (subListEl) subListEl.innerHTML = html`<div class="nav-sub-empty"><span class="spinner"></span> Loading...</div>`;
@@ -1293,8 +1292,9 @@ function renderSidebarNav() {
           state.servers = [];
         }
         state.sidebarServersLoading = false;
-        renderSidebarNav();
       }
+      navigateTo('servers');
+      renderSidebarNav();
     });
   }
 
