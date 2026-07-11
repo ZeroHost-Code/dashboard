@@ -278,7 +278,33 @@ function showToast(message, type = 'success') {
 function showError(form, message) {
   const errorEl = form.querySelector('.auth-error');
   if (errorEl) {
-    errorEl.textContent = message;
+    if (message && message.includes('verify your email')) {
+      const email = (form.querySelector('#login-email')?.value || '').trim();
+      errorEl.innerHTML = html`
+        <span>${escapeHtml(message)}</span>
+        <button type="button" class="auth-resend-btn" id="auth-resend-btn" ${!email ? 'disabled' : ''}>Resend verification link</button>
+      `;
+      const resendBtn = errorEl.querySelector('#auth-resend-btn');
+      if (resendBtn) {
+        resendBtn.addEventListener('click', async () => {
+          if (!email) return;
+          resendBtn.disabled = true;
+          resendBtn.textContent = 'Sending...';
+          try {
+            await api('/auth/resend-verification', {
+              method: 'POST',
+              body: JSON.stringify({ email }),
+            });
+            resendBtn.textContent = 'Email sent!';
+          } catch (err) {
+            resendBtn.textContent = 'Failed to send';
+            resendBtn.disabled = false;
+          }
+        });
+      }
+    } else {
+      errorEl.textContent = message;
+    }
     errorEl.classList.add('show');
   }
 }

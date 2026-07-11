@@ -424,6 +424,34 @@ cap-widget {
   display: block;
 }
 
+.auth-error.show:has(.auth-resend-btn) {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.auth-resend-btn {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: var(--accent-red);
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition), opacity var(--transition);
+  align-self: flex-start;
+}
+
+.auth-resend-btn:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.25);
+}
+
+.auth-resend-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ===== DASHBOARD LAYOUT ===== */
 .dashboard-layout {
   display: flex;

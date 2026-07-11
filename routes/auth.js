@@ -300,6 +300,47 @@ router.get('/verify-email', async (req, res) => {
   }
 });
 
+router.post('/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const users = await query('SELECT id, email, username, email_verified FROM users WHERE email = ?', [email]);
+    if (users.length === 0) {
+      return res.json({ message: 'If an account with that email exists, a verification link has been sent.' });
+    }
+
+    const user = users[0];
+    if (user.email_verified) {
+      return res.json({ message: 'Email already verified. You can now sign in.' });
+    }
+
+    const verificationToken = randomBytes(32).toString('hex');
+    const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await query(
+      'UPDATE users SET verification_token = ?, verification_token_expires = ? WHERE id = ?',
+      [verificationToken, tokenExpires, user.id]
+    );
+
+    try {
+      await sendVerificationEmail(user.email, user.username, verificationToken);
+    } catch (err) {
+      console.error('Failed to send verification email:', err.message);
+      return res.status(500).json({ error: 'Failed to send verification email. Please try again later.' });
+    }
+
+    await logActivity(user.id, 'verification_resent', 'Resent verification email');
+
+    res.json({ message: 'Verification email sent. Check your inbox.' });
+  } catch (err) {
+    console.error('Resend verification error:', err.message);
+    res.status(500).json({ error: 'Failed to resend verification email' });
+  }
+});
+
 router.post('/login', async (req, res) => {
   try {
     const { email, password, capToken } = req.body;
