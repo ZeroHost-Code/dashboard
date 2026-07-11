@@ -1342,6 +1342,12 @@ function renderSidebarNav() {
         const subListRefresh = document.querySelector('#nav-servers-list');
         if (subListRefresh) {
           subListRefresh.innerHTML = buildServerSubList();
+          subListRefresh.querySelectorAll('.nav-sub-item[data-server-nav]').forEach(item => {
+            item.addEventListener('click', (e) => {
+              e.preventDefault();
+              navigateTo('server/' + item.dataset.serverNav);
+            });
+          });
           initIcons();
         }
       }
@@ -1355,6 +1361,26 @@ function renderSidebarNav() {
       navigateTo('server/' + item.dataset.serverNav);
     });
   });
+
+  if (state.sidebarMode !== 'account' && state.servers.length === 0 && !state.sidebarServersLoading) {
+    state.sidebarServersLoading = true;
+    api('/servers/list').then(data => {
+      state.servers = data.servers || [];
+      state.sidebarServersLoading = false;
+      const subList = document.querySelector('#nav-servers-list');
+      if (subList) {
+        subList.innerHTML = buildServerSubList();
+        subList.querySelectorAll('.nav-sub-item[data-server-nav]').forEach(item => {
+          item.addEventListener('click', (e) => {
+            e.preventDefault();
+            navigateTo('server/' + item.dataset.serverNav);
+          });
+        });
+      }
+    }).catch(() => {
+      state.sidebarServersLoading = false;
+    });
+  }
 
   updateNavIndicator();
   initIcons();
