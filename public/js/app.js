@@ -1449,6 +1449,12 @@ function navigateTo(page) {
   if (basePage === 'server' || basePage === 'servers') {
     const parent = document.querySelector('#nav-servers-toggle');
     if (parent) parent.classList.add('active');
+  } else if (state.sidebarServersOpen) {
+    state.sidebarServersOpen = false;
+    const parent = document.querySelector('#nav-servers-toggle');
+    const subList = document.querySelector('#nav-servers-list');
+    if (parent) parent.classList.remove('open');
+    if (subList) subList.classList.remove('open');
   }
   const targetNav = document.querySelector(`.nav-item[data-page="${basePage}"]`);
   if (targetNav) targetNav.classList.add('active');
@@ -1569,6 +1575,12 @@ window.addEventListener('popstate', () => {
   if (basePage === 'server' || basePage === 'servers') {
     const parent = document.querySelector('#nav-servers-toggle');
     if (parent) parent.classList.add('active');
+  } else if (state.sidebarServersOpen) {
+    state.sidebarServersOpen = false;
+    const parent = document.querySelector('#nav-servers-toggle');
+    const subList = document.querySelector('#nav-servers-list');
+    if (parent) parent.classList.remove('open');
+    if (subList) subList.classList.remove('open');
   }
   const targetNav = document.querySelector(`.nav-item[data-page="${basePage}"]`);
   if (targetNav) targetNav.classList.add('active');
