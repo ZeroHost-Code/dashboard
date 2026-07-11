@@ -1408,7 +1408,7 @@ function navigateTo(page) {
   }
 
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item, .nav-parent').forEach(n => n.classList.remove('active'));
 
   state.currentPage = basePage;
   state.serverId = param ? parseInt(param) : null;
@@ -1418,10 +1418,8 @@ function navigateTo(page) {
   const newSidebarMode = isAccountPage ? 'account' : 'main';
   if (state.sidebarMode !== newSidebarMode) {
     state.sidebarMode = newSidebarMode;
-    renderSidebarNav();
-  } else if (basePage === 'server') {
-    renderSidebarNav();
   }
+  renderSidebarNav();
 
   const url = basePage === 'overview' && !param ? '/' : `/${page}`;
   history.pushState({ page: basePage, serverId: state.serverId, sidebarMode: state.sidebarMode }, '', url);
@@ -1432,9 +1430,7 @@ function navigateTo(page) {
     renderServerDetail(state.serverId);
   } else {
     const targetPage = $(`#page-${basePage}`);
-    const targetNav = document.querySelector(`.nav-item[data-page="${basePage}"]`);
     if (targetPage) targetPage.classList.add('active');
-    if (targetNav) targetNav.classList.add('active');
 
     if (basePage === 'overview') renderOverview();
     else if (basePage === 'servers') renderServers();
@@ -1524,7 +1520,7 @@ window.addEventListener('popstate', () => {
   if (!state.token) { renderLoginPage(); return; }
 
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item, .nav-parent').forEach(n => n.classList.remove('active'));
 
   state.currentPage = basePage;
   state.serverId = param ? parseInt(param) : null;
@@ -1534,10 +1530,8 @@ window.addEventListener('popstate', () => {
   const newSidebarMode = isAccountPage ? 'account' : 'main';
   if (state.sidebarMode !== newSidebarMode) {
     state.sidebarMode = newSidebarMode;
-    renderSidebarNav();
-  } else if (basePage === 'server') {
-    renderSidebarNav();
   }
+  renderSidebarNav();
 
   if (basePage === 'server' && state.serverId) {
     const targetPage = $('#page-server-detail');
