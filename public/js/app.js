@@ -18,6 +18,8 @@ const state = {
   notifPanelOpen: false,
   sidebarMode: 'main',
   accountTab: 'info',
+  sidebarServersOpen: false,
+  sidebarServersLoading: false,
 };
 
 function setRgpdConsent(preferences) {
@@ -1135,7 +1137,7 @@ function initSidebarTooltip() {
   }
 
   sidebarNav.addEventListener('mouseover', (e) => {
-    const item = e.target.closest('.nav-item');
+    const item = e.target.closest('.nav-item, .nav-parent');
     if (!item) return;
     if (!sidebar.classList.contains('collapsed')) return;
 
@@ -1199,10 +1201,27 @@ function renderSidebarNav() {
         <i data-lucide="grid-3x3"></i>
         Overview
       </a>
-      <a class="nav-item ${state.currentPage === 'servers' ? 'active' : ''}" data-page="servers" href="/servers">
+      <div class="nav-parent ${state.sidebarServersOpen ? 'open' : ''}" id="nav-servers-toggle">
         <i data-lucide="server"></i>
-        My Servers
-      </a>
+        <span class="nav-parent-label">My Servers</span>
+        <svg class="nav-parent-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+      </div>
+      <div class="nav-sub-list ${state.sidebarServersOpen ? 'open' : ''}" id="nav-servers-list">
+        ${state.sidebarServersLoading ? html`<div class="nav-sub-empty"><span class="spinner"></span> Loading...</div>` :
+          state.servers.length === 0 ? html`<div class="nav-sub-empty">No servers</div>` :
+          state.servers.map(s => {
+            const isInstalling = s.status === 'installing' || s.installed === 0 || s.installed === '0' || s.installed === false;
+            const isSuspended = s.status === 'suspended';
+            const dotClass = isSuspended ? 'dot-suspended' : (isInstalling ? 'dot-installing' : 'dot-active');
+            const isActive = state.currentPage === 'server' && state.serverId === s.id;
+            return html`
+              <a class="nav-sub-item ${isActive ? 'active' : ''}" data-server-nav="${s.id}" href="/server/${s.id}">
+                <span class="nav-sub-dot ${dotClass}"></span>
+                ${escapeHtml(s.name)}
+              </a>
+            `;
+          }).join('')}
+      </div>
       <a class="nav-item" id="nav-notifications" href="#">
         <span style="position:relative;display:inline-flex">
           <i data-lucide="bell"></i>
@@ -1254,6 +1273,37 @@ function renderSidebarNav() {
       toggleNotifPanel();
     });
   }
+
+  const serversToggle = document.querySelector('#nav-servers-toggle');
+  if (serversToggle) {
+    serversToggle.addEventListener('click', async (e) => {
+      e.preventDefault();
+      state.sidebarServersOpen = !state.sidebarServersOpen;
+      serversToggle.classList.toggle('open', state.sidebarServersOpen);
+      const subList = document.querySelector('#nav-servers-list');
+      if (subList) subList.classList.toggle('open', state.sidebarServersOpen);
+      if (state.sidebarServersOpen && state.servers.length === 0 && !state.sidebarServersLoading) {
+        state.sidebarServersLoading = true;
+        const subListEl = document.querySelector('#nav-servers-list');
+        if (subListEl) subListEl.innerHTML = html`<div class="nav-sub-empty"><span class="spinner"></span> Loading...</div>`;
+        try {
+          const data = await api('/servers/list');
+          state.servers = data.servers || [];
+        } catch (err) {
+          state.servers = [];
+        }
+        state.sidebarServersLoading = false;
+        renderSidebarNav();
+      }
+    });
+  }
+
+  document.querySelectorAll('.nav-sub-item[data-server-nav]').forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.preventDefault();
+      navigateTo('server/' + item.dataset.serverNav);
+    });
+  });
 
   updateNavIndicator();
   initIcons();
@@ -1342,6 +1392,8 @@ function navigateTo(page) {
   const newSidebarMode = isAccountPage ? 'account' : 'main';
   if (state.sidebarMode !== newSidebarMode) {
     state.sidebarMode = newSidebarMode;
+    renderSidebarNav();
+  } else if (basePage === 'server') {
     renderSidebarNav();
   }
 
@@ -1456,6 +1508,8 @@ window.addEventListener('popstate', () => {
   const newSidebarMode = isAccountPage ? 'account' : 'main';
   if (state.sidebarMode !== newSidebarMode) {
     state.sidebarMode = newSidebarMode;
+    renderSidebarNav();
+  } else if (basePage === 'server') {
     renderSidebarNav();
   }
 
