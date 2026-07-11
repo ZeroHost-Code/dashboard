@@ -1193,9 +1193,15 @@ function renderSidebarNav() {
   const nav = $('#sidebar-nav');
   if (!nav) return;
 
+  let indicator = document.getElementById('nav-indicator');
+  if (!indicator) {
+    indicator = document.createElement('div');
+    indicator.className = 'nav-indicator';
+    indicator.id = 'nav-indicator';
+  }
+
   if (state.sidebarMode === 'account') {
     nav.innerHTML = html`
-      <div class="nav-indicator" id="nav-indicator"></div>
       <div class="nav-section-label">Account</div>
       <a class="nav-item ${state.accountTab === 'info' ? 'active' : ''}" data-account-page="info" href="/account/info">
         <i data-lucide="user"></i>
@@ -1219,9 +1225,9 @@ function renderSidebarNav() {
         Back to Dashboard
       </a>
     `;
+    nav.prepend(indicator);
   } else {
     nav.innerHTML = html`
-      <div class="nav-indicator" id="nav-indicator"></div>
       <div class="nav-section-label">Main</div>
       <a class="nav-item ${state.currentPage === 'overview' ? 'active' : ''}" data-page="overview" href="/">
         <i data-lucide="grid-3x3"></i>
@@ -1276,6 +1282,7 @@ function renderSidebarNav() {
       </a>
       ` : ''}
     `;
+    nav.prepend(indicator);
   }
 
   document.querySelectorAll('.nav-item[data-page]').forEach(item => {
