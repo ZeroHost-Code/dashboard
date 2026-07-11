@@ -1313,6 +1313,9 @@ function renderSidebarNav() {
   if (notifItem) {
     notifItem.addEventListener('click', (e) => {
       e.preventDefault();
+      itemsContainer.querySelectorAll('.nav-item, .nav-parent').forEach(n => n.classList.remove('active'));
+      notifItem.classList.add('active');
+      updateNavIndicator();
       toggleNotifPanel();
     });
   }
