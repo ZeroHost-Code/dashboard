@@ -544,9 +544,9 @@ router.post('/power/:identifier', authenticateToken, powerLimiter, async (req, r
   try {
     const { identifier } = req.params;
     const { signal } = req.body;
-    const userId = req.user.userId;
+    const pteroId = req.user.pteroId;
 
-    if (!await verifyServerOwnership(userId, identifier)) {
+    if (!await verifyServerOwnership(pteroId, identifier)) {
       return res.status(403).json({ error: 'You do not own this server' });
     }
 
@@ -555,7 +555,7 @@ router.post('/power/:identifier', authenticateToken, powerLimiter, async (req, r
       return res.status(400).json({ error: 'Invalid power signal. Valid signals: start, stop, restart, kill' });
     }
 
-    const users = await query('SELECT ptero_client_api_key FROM users WHERE id = ?', [userId]);
+    const users = await query('SELECT ptero_client_api_key FROM users WHERE id = ?', [req.user.userId]);
     if (!users[0]?.ptero_client_api_key) {
       return res.status(400).json({ error: 'No Pyrodactyl API key configured' });
     }
