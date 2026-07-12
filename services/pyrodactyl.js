@@ -162,6 +162,8 @@ export async function getAllServers(limit = null, offset = null) {
 
   const total = allServers.length;
 
+  allServers.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
   let serversToEnrich = allServers;
   if (limit !== null && offset !== null) {
     serversToEnrich = allServers.slice(offset, offset + limit);
