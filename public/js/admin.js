@@ -567,7 +567,7 @@ async function fetchAdminServers(pageNum) {
           <td data-label="Status"><span class="server-card-status ${statusClass}">${escapeHtml(statusLabel)}</span></td>
           <td data-label="Actions">
             <a class="btn btn-ghost btn-sm" href="/admin/server/${s.id}" onclick="event.preventDefault();adminNavigateTo('server/${s.id}')">Details</a>
-            <button class="btn btn-ghost btn-sm" onclick="window.open('${PTERO_URL}/server/${s.server_uuid}', '_blank')">Open Hydrodactyl</button>
+            <button class="btn btn-ghost btn-sm" onclick="window.open('${PTERO_URL}/server/${s.identifier}', '_blank')">Open Hydrodactyl</button>
           </td>
         </tr>
       `;
@@ -1300,7 +1300,7 @@ async function renderAdminUserDetail(userId) {
                       <td data-label="Expires">${formatDateWithTooltip(s.expires_at)}</td>
                       <td data-label="Actions" style="display:flex;gap:6px;flex-wrap:wrap">
                         <a class="btn btn-ghost btn-sm" href="/admin/server/${s.ptero_server_id}" onclick="event.preventDefault();adminNavigateTo('server/${s.ptero_server_id}')">Manage</a>
-                        <button class="btn btn-ghost btn-sm" onclick="window.open('${PTERO_URL}/server/${s.server_uuid}', '_blank')">Open Pyrodactyl</button>
+                        <button class="btn btn-ghost btn-sm" onclick="window.open('${PTERO_URL}/server/${s.identifier}', '_blank')">Open Pyrodactyl</button>
                       </td>
                     </tr>
                   `).join('')}
