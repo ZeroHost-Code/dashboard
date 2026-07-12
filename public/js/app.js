@@ -247,13 +247,13 @@ async function api(path, options = {}) {
   } catch {
     throw new Error('Server error: please try again in a few moments.');
   }
-  if (res.status === 403 && data.error === 'Invalid or expired token') {
+  if (res.status === 403 && (data.error === 'Invalid or expired token' || data.error === 'Session expired. Please log in again.')) {
     state.token = null;
     state.user = null;
     localStorage.removeItem('zh_token');
     localStorage.removeItem('zh_user');
     navigateTo('login');
-    throw new Error('Session expired. Please sign in again.');
+    return;
   }
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data;
