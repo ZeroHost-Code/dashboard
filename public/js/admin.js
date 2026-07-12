@@ -226,9 +226,6 @@ function adminNavigateTo(page) {
   } else if (basePage === 'dashboard') {
     renderAdminDashboard();
     history.pushState({ adminPage: 'dashboard' }, '', '/admin/dashboard');
-  } else if (basePage === 'activity') {
-    window.location.href = '/logs';
-    return;
   } else if (basePage === 'settings') {
     const sub = parts[1];
     if (sub === 'eggs') {
@@ -360,10 +357,6 @@ function renderAdminLayout() {
             <i data-lucide="users" style="width:18px;height:18px"></i>
             Users
           </a>
-          <a class="admin-nav-link" data-page="activity" href="/logs">
-            <i data-lucide="activity" style="width:18px;height:18px"></i>
-            Activity
-          </a>
           <a class="admin-nav-link" data-page="settings" href="/admin/settings">
             <i data-lucide="settings" style="width:18px;height:18px"></i>
             Settings
@@ -385,7 +378,6 @@ function renderAdminLayout() {
         <div class="admin-page" id="admin-page-node-detail"></div>
         <div class="admin-page" id="admin-page-users"></div>
         <div class="admin-page" id="admin-page-user-detail"></div>
-        <div class="admin-page" id="admin-page-activity"></div>
         <div class="admin-page" id="admin-page-settings"></div>
       </main>
       <div id="admin-date-tooltip"></div>
@@ -451,10 +443,6 @@ function renderAdminLayout() {
     adminState.currentPage = 'dashboard';
     updateAdminNav();
     renderAdminDashboard();
-  } else if (basePage === 'activity') {
-    adminState.currentPage = 'activity';
-    updateAdminNav();
-    renderAdminActivity();
   } else if (basePage === 'settings') {
     adminState.currentPage = 'settings';
     adminState.settingsNestId = null;
@@ -1501,59 +1489,6 @@ function initUserActions(userId) {
       btn.innerHTML = 'Delete User';
     }
   });
-}
-
-// ─── Activity Log ───────────────────────────────────────
-async function renderAdminActivity() {
-  document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
-  const el = $a('#admin-page-activity');
-  if (!el) return;
-  el.classList.add('active');
-
-  el.innerHTML = ahtml`
-    <div class="page-header">
-      <h1 class="page-title">Activity Log</h1>
-      <p class="page-subtitle">All platform activity</p>
-    </div>
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th>Time</th>
-            <th>User</th>
-            <th>Action</th>
-            <th>Details</th>
-          </tr>
-        </thead>
-        <tbody id="admin-activity-tbody">
-          <tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
-        </tbody>
-      </table>
-    </div>
-  `;
-
-  try {
-    const data = await adminApi('/activity');
-    const tbody = $a('#admin-activity-tbody');
-    if (!tbody) return;
-
-    if (data.activities.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-secondary)">No activity found.</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = data.activities.map(a => ahtml`
-      <tr>
-        <td data-label="Time" style="white-space:nowrap;font-size:0.82rem;color:var(--text-secondary)">${formatDateWithTooltip(a.created_at)}</td>
-        <td data-label="User">${a.username || 'Unknown'}</td>
-        <td data-label="Action"><span class="server-detail-tag">${a.action}</span></td>
-        <td data-label="Details" style="color:var(--text-secondary);font-size:0.85rem">${a.details || ''}</td>
-      </tr>
-    `).join('');
-  } catch (err) {
-    const tbody = $a('#admin-activity-tbody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
-  }
 }
 
 // ─── Settings ───────────────────────────────────────────
@@ -2798,8 +2733,6 @@ window.addEventListener('popstate', () => {
     adminNavigateTo('users');
   } else if (basePage === 'dashboard' || !basePage || basePage === 'login') {
     adminNavigateTo('dashboard');
-  } else if (basePage === 'activity') {
-    window.location.href = '/logs';
     return;
   } else if (basePage === 'settings') {
     adminNavigateTo(pathParts.join('/'));
