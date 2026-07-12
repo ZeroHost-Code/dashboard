@@ -566,8 +566,10 @@ async function fetchAdminServers(pageNum) {
           <td data-label="Egg"><span class="server-detail-tag">${escapeHtml(eggName)}</span></td>
           <td data-label="Status"><span class="server-card-status ${statusClass}">${escapeHtml(statusLabel)}</span></td>
           <td data-label="Actions">
-            <a class="btn btn-ghost btn-sm" href="/admin/server/${s.id}" onclick="event.preventDefault();adminNavigateTo('server/${s.id}')">Details</a>
-            <button class="btn btn-ghost btn-sm" onclick="window.open('${PTERO_URL}/server/${s.identifier}', '_blank')">Open Hydrodactyl</button>
+            <div style="display:flex;gap:8px;align-items:center">
+              <a class="btn btn-ghost btn-sm" href="/admin/server/${s.id}" onclick="event.preventDefault();adminNavigateTo('server/${s.id}')">Details</a>
+              <button class="btn btn-ghost btn-sm" onclick="window.open('${PTERO_URL}/server/${s.identifier}', '_blank')">Open Hydrodactyl</button>
+            </div>
           </td>
         </tr>
       `;
