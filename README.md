@@ -4,7 +4,7 @@ Game server management dashboard for the ZeroHost platform. Provides user-facing
 
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/403b7c93-1121-4f4c-b407-ed1235b73218" />
 
-[![ZeroHost](https://img.zero-host.org/assets/github.png)](https://github.com/ZeroHost-Code/legal/blob/main/zhsl.md)
+[![ZHSL](https://img.zero-host.org/assets/github.png)](https://github.com/ZeroHost-Code/legal/blob/main/zhsl.md)
 
 ---
 
