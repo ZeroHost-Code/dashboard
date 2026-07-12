@@ -512,6 +512,8 @@ function updateAdminNav() {
   });
 }
 
+let adminServersPage = 1;
+
 async function renderAdminServers() {
   document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
   const el = $a('#admin-page-servers');
@@ -538,16 +540,27 @@ async function renderAdminServers() {
           <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
         </tbody>
       </table>
+      <div id="admin-servers-pagination" style="display:none"></div>
     </div>
   `;
 
+  await fetchAdminServers(adminServersPage);
+}
+
+async function fetchAdminServers(pageNum) {
+  pageNum = pageNum || 1;
+  const limit = 10;
+  const offset = (pageNum - 1) * limit;
+  const paginationEl = $a('#admin-servers-pagination');
+
   try {
-    const data = await adminApi('/servers');
+    const data = await adminApi(`/servers?limit=${limit}&offset=${offset}`);
     const tbody = $a('#admin-servers-tbody');
     if (!tbody) return;
 
     if (data.servers.length === 0) {
       tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary)">No servers found.</td></tr>';
+      if (paginationEl) paginationEl.style.display = 'none';
       return;
     }
 
@@ -574,11 +587,29 @@ async function renderAdminServers() {
         </tr>
       `;
     }).join('');
+
+    if (data.totalPages > 1) {
+      paginationEl.innerHTML = ahtml`
+        <div class="log-pagination">
+          <button class="btn btn-ghost btn-sm" onclick="changeAdminServersPage(${pageNum - 1})" ${pageNum <= 1 ? 'disabled' : ''}>Previous</button>
+          <span class="log-pagination-info">Page ${data.page} of ${data.totalPages} (${data.total} total)</span>
+          <button class="btn btn-ghost btn-sm" onclick="changeAdminServersPage(${pageNum + 1})" ${pageNum >= data.totalPages ? 'disabled' : ''}>Next</button>
+        </div>
+      `;
+      paginationEl.style.display = '';
+    } else {
+      paginationEl.style.display = 'none';
+    }
   } catch (err) {
     const tbody = $a('#admin-servers-tbody');
     if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
   }
   initIcons();
+}
+
+function changeAdminServersPage(pageNum) {
+  adminServersPage = pageNum;
+  fetchAdminServers(pageNum);
 }
 
 async function renderAdminServerDetail(serverId) {

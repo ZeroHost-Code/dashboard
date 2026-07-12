@@ -143,7 +143,7 @@ export async function getPteroNestEggs(nestId) {
   return data.data.map(e => e.attributes);
 }
 
-export async function getAllServers() {
+export async function getAllServers(limit = null, offset = null) {
   let allServers = [];
   let page = 1;
   let hasMore = true;
@@ -160,7 +160,14 @@ export async function getAllServers() {
     }
   }
 
-  for (const server of allServers) {
+  const total = allServers.length;
+
+  let serversToEnrich = allServers;
+  if (limit !== null && offset !== null) {
+    serversToEnrich = allServers.slice(offset, offset + limit);
+  }
+
+  for (const server of serversToEnrich) {
     try {
       const node = await getNode(server.node);
       server.nodeFqdn = node.fqdn;
@@ -174,6 +181,10 @@ export async function getAllServers() {
       const eggData = await pteroFetch(`/nests/${server.nest}/eggs/${server.egg}`);
       server.eggDetails = { name: eggData.attributes.name };
     } catch { server.eggDetails = null; }
+  }
+
+  if (limit !== null && offset !== null) {
+    return { servers: serversToEnrich, total };
   }
 
   return allServers;
