@@ -531,13 +531,12 @@ async function renderAdminServers() {
             <th>Name</th>
             <th>Owner</th>
             <th>Egg</th>
-            <th>Allocation</th>
             <th>Status</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody id="admin-servers-tbody">
-          <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
+          <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
         </tbody>
       </table>
       <div id="admin-servers-pagination" style="display:none"></div>
@@ -559,15 +558,13 @@ async function fetchAdminServers(pageNum) {
     if (!tbody) return;
 
     if (data.servers.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary)">No servers found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary)">No servers found.</td></tr>';
       if (paginationEl) paginationEl.style.display = 'none';
       return;
     }
 
     tbody.innerHTML = data.servers.map(s => {
       const eggName = s.eggDetails?.name || `Egg #${s.egg}`;
-      const alloc = s.allocationDetails;
-      const allocStr = alloc ? `${alloc.alias || alloc.nodeFqdn || alloc.ip}:${alloc.port}` : (s.nodeFqdn || `Node #${s.node}`);
       const isInstalling = s.status === 'installing' || s.installed === 0 || s.installed === '0' || s.installed === false;
       const isSuspended = s.status === 'suspended';
       const statusClass = isSuspended ? 'status-suspended' : (isInstalling ? 'status-installing' : 'status-active');
@@ -579,7 +576,6 @@ async function fetchAdminServers(pageNum) {
           <td data-label="Name"><strong>${escapeHtml(s.name)}</strong></td>
           <td data-label="Owner">${escapeHtml(ownerName)}</td>
           <td data-label="Egg"><span class="server-detail-tag">${escapeHtml(eggName)}</span></td>
-          <td data-label="Allocation"><span class="server-detail-tag">${escapeHtml(allocStr)}</span></td>
           <td data-label="Status"><span class="server-card-status ${statusClass}">${escapeHtml(statusLabel)}</span></td>
           <td data-label="Actions">
             <a class="btn btn-ghost btn-sm" href="/admin/server/${s.id}" onclick="event.preventDefault();adminNavigateTo('server/${s.id}')">Details</a>
@@ -602,7 +598,7 @@ async function fetchAdminServers(pageNum) {
     }
   } catch (err) {
     const tbody = $a('#admin-servers-tbody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
   }
   initIcons();
 }
@@ -1742,7 +1738,7 @@ async function renderAdminNestEggs(nestId) {
     if (!tbody) return;
 
     if (data.eggs.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary)">No eggs found in this nest.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary)">No eggs found in this nest.</td></tr>';
       return;
     }
 
@@ -1795,7 +1791,7 @@ async function renderAdminNestEggs(nestId) {
     });
   } catch (err) {
     const tbody = $a('#admin-eggs-tbody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
   }
   initIcons();
 }
