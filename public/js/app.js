@@ -3273,10 +3273,6 @@ async function renderServerDetail(serverId) {
       </div>
     `;
 
-    if (activeTab === 'resources') {
-      fetchLiveResources(s.identifier);
-    }
-
     // Disable transition for initial position to prevent sliding from 0
     const indicator = $('#tab-indicator');
     const activeTabEl = $('#server-detail-tabs .tab.active');
@@ -3305,89 +3301,6 @@ async function renderServerDetail(serverId) {
   }
 }
 
-async function fetchLiveResources(identifier) {
-  const container = $('#live-resources-container');
-  if (!container) return;
-
-  try {
-    const data = await api(`/servers/resources/${identifier}`);
-
-    if (!data.resources) {
-      container.innerHTML = html`
-        <div class="empty-state" style="padding:24px">
-          <div class="empty-state-title" style="font-size:0.95rem">No live data</div>
-          <div class="empty-state-desc" style="font-size:0.82rem">
-            ${data.error || 'Add your Pyrodactyl API key in Account → Account Info to enable live monitoring.'}
-          </div>
-          <button class="btn btn-primary btn-sm" onclick="navigateTo('account/info')" style="margin-top:8px;width:auto">Configure API Key</button>
-        </div>
-      `;
-      return;
-    }
-
-    const res = data.resources;
-    const currentState = data.current_state;
-    const cpuPct = Math.round(res.cpu_absolute || 0);
-    const memUsed = res.memory_bytes ? Math.round(res.memory_bytes / (1024 * 1024)) : 0;
-    const memLimit = res.memory_limit_bytes ? Math.round(res.memory_limit_bytes / (1024 * 1024)) : 512;
-    const memPct = memLimit > 0 ? Math.min(100, Math.round((memUsed / memLimit) * 100)) : 0;
-    const diskUsed = res.disk_bytes ? Math.round(res.disk_bytes / (1024 * 1024)) : 0;
-    const diskLimit = 3072;
-    const diskPct = diskLimit > 0 ? Math.min(100, Math.round((diskUsed / diskLimit) * 100)) : 0;
-
-    function usageClass(pct) {
-      if (pct >= 80) return 'usage-high';
-      if (pct >= 50) return 'usage-mid';
-      return 'usage-low';
-    }
-
-    container.innerHTML = html`
-      <div class="resource-gauges">
-        <div class="resource-gauge">
-          <div class="resource-gauge-value" style="color:${cpuPct >= 80 ? 'var(--accent-red)' : cpuPct >= 50 ? 'var(--accent-orange)' : 'var(--accent-cyan)'}">${cpuPct}%</div>
-          <div class="resource-gauge-label">CPU</div>
-          <div class="resource-gauge-bar"><div class="resource-gauge-fill ${usageClass(cpuPct)}" style="width:${cpuPct}%"></div></div>
-          <div class="resource-gauge-sub">${cpuPct >= 80 ? 'High load' : cpuPct >= 50 ? 'Moderate' : 'Idle'}</div>
-        </div>
-        <div class="resource-gauge">
-          <div class="resource-gauge-value" style="color:${memPct >= 80 ? 'var(--accent-red)' : memPct >= 50 ? 'var(--accent-orange)' : 'var(--accent-1)'}">${memUsed} / ${memLimit} MB</div>
-          <div class="resource-gauge-label">Memory</div>
-          <div class="resource-gauge-bar"><div class="resource-gauge-fill ${usageClass(memPct)}" style="width:${memPct}%"></div></div>
-          <div class="resource-gauge-sub">${memPct}% used</div>
-        </div>
-        <div class="resource-gauge">
-          <div class="resource-gauge-value" style="color:${diskPct >= 80 ? 'var(--accent-red)' : diskPct >= 50 ? 'var(--accent-orange)' : 'var(--accent-green)'}">${(diskUsed / 1024).toFixed(1)} / ${(diskLimit / 1024).toFixed(1)} GB</div>
-          <div class="resource-gauge-label">Disk</div>
-          <div class="resource-gauge-bar"><div class="resource-gauge-fill ${usageClass(diskPct)}" style="width:${diskPct}%"></div></div>
-          <div class="resource-gauge-sub">${diskPct}% used</div>
-        </div>
-      </div>
-      <div style="margin-top:12px;text-align:center;font-size:0.72rem;color:var(--text-muted)">
-        Updated ${formatRelativeTime(new Date().toISOString())} · 
-        ${currentState ? html`Status: <strong>${currentState}</strong>` : ''}
-      </div>
-    `;
-
-    const refreshBtn = $('#refresh-resources-btn');
-    if (refreshBtn && !refreshBtn.dataset.listenerAttached) {
-      refreshBtn.dataset.listenerAttached = '1';
-      refreshBtn.addEventListener('click', () => {
-        container.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-secondary)" id="live-resources-loading"><span class="spinner"></span> Fetching live data...</div>';
-        fetchLiveResources(identifier);
-      });
-    }
-
-  } catch (err) {
-    if (container) {
-      container.innerHTML = html`
-        <div style="text-align:center;padding:24px;color:var(--text-muted);font-size:0.88rem">
-          Could not load live resources: ${err.message}
-        </div>
-      `;
-    }
-  }
-}
-
 // ===== TAB SWITCHING =====
 function switchTab(tabBtn) {
   if (!$('#tab-indicator')) return;
@@ -3405,13 +3318,6 @@ function switchTab(tabBtn) {
   if (indicator) {
     indicator.style.left = tabBtn.offsetLeft + 'px';
     indicator.style.width = tabBtn.offsetWidth + 'px';
-  }
-
-  if (tabName === 'resources') {
-    const container = $('#live-resources-container');
-    if (container && container.querySelector('.resource-gauge') === null) {
-      fetchLiveResources(state.serverIdentifier);
-    }
   }
 
   const newUrl = `/server/${state.serverId}/${tabName}`;
