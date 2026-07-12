@@ -3166,7 +3166,11 @@ tbody tr:hover {
   font-weight: 500;
 }
 
-/* server-detail-grid mobile: handled in RESPONSIVE section */
+@media (max-width: 768px) {
+  .server-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
 
 /* ===== RGPD / COOKIE CONSENT ===== */
 .cookie-banner {
