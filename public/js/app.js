@@ -3154,7 +3154,6 @@ async function renderServerDetail(serverId) {
 
       <div class="tabs" id="server-detail-tabs">
         <button class="tab ${activeTab === 'info' ? 'active' : ''}" data-tab="info">Info</button>
-        <button class="tab ${activeTab === 'resources' ? 'active' : ''}" data-tab="resources">Resources</button>
         <button class="tab ${activeTab === 'actions' ? 'active' : ''}" data-tab="actions">Actions</button>
         <div class="tab-indicator" id="tab-indicator"></div>
       </div>
@@ -3169,30 +3168,6 @@ async function renderServerDetail(serverId) {
               <div class="detail-item"><span class="detail-label">IO</span><span class="detail-value">${s.limits.io}</span></div>
               <div class="detail-item"><span class="detail-label">Swap</span><span class="detail-value">${s.limits.swap > 0 ? s.limits.swap + ' MB' : 'Disabled'}</span></div>
               <div class="detail-item"><span class="detail-label">Identifier</span><span class="detail-value" style="font-family:monospace">${s.identifier}</span></div>
-            </div>
-          </div>
-
-          <div class="card" id="server-resources-card">
-            <h2 class="card-title" style="margin-bottom:16px">Resources</h2>
-            <div class="resource-gauges">
-              <div class="resource-gauge">
-                <div class="resource-gauge-value" style="color:var(--accent-1)">${s.limits.memory > 0 ? s.limits.memory + ' MB' : '∞'}</div>
-                <div class="resource-gauge-label">Memory</div>
-                <div class="resource-gauge-bar"><div class="resource-gauge-fill" style="width:${s.limits.memory > 0 ? Math.min(100, (s.limits.memory / 512) * 100) : 100}%;background:linear-gradient(90deg,#ee8132,#f59e0b)"></div></div>
-                <div class="resource-gauge-sub">${s.limits.memory > 0 ? '512 MB max' : 'No limit'}</div>
-              </div>
-              <div class="resource-gauge">
-                <div class="resource-gauge-value" style="color:var(--accent-cyan)">${s.limits.cpu}%</div>
-                <div class="resource-gauge-label">CPU</div>
-                <div class="resource-gauge-bar"><div class="resource-gauge-fill" style="width:${s.limits.cpu}%;background:linear-gradient(90deg,#06b6d4,#3b82f6)"></div></div>
-                <div class="resource-gauge-sub">50% max</div>
-              </div>
-              <div class="resource-gauge">
-                <div class="resource-gauge-value" style="color:var(--accent-green)">${s.limits.disk > 0 ? (s.limits.disk / 1024).toFixed(1) + ' GB' : '∞'}</div>
-                <div class="resource-gauge-label">Disk</div>
-                <div class="resource-gauge-bar"><div class="resource-gauge-fill" style="width:${s.limits.disk > 0 ? Math.min(100, (s.limits.disk / 3072) * 100) : 100}%;background:linear-gradient(90deg,#059669,#10b981)"></div></div>
-                <div class="resource-gauge-sub">3 GB max</div>
-              </div>
             </div>
           </div>
 
@@ -3216,21 +3191,6 @@ async function renderServerDetail(serverId) {
             ` : html`
               <p style="color:var(--text-muted);font-size:0.88rem">No lifetime data available for this server.</p>
             `}
-          </div>
-        </div>
-      </div>
-
-      <div id="server-tab-resources" class="tab-content" style="display:${activeTab === 'resources' ? 'block' : 'none'}">
-        <div class="card">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-            <h2 class="card-title" style="margin:0">Live Resource Usage</h2>
-            <button class="btn btn-ghost btn-sm" id="refresh-resources-btn" style="width:auto">
-              <i data-lucide="refresh-cw" style="width:14px;height:14px"></i>
-              Refresh
-            </button>
-          </div>
-          <div id="live-resources-container">
-            <div style="text-align:center;padding:32px;color:var(--text-secondary)" id="live-resources-loading"><span class="spinner"></span> Fetching live data...</div>
           </div>
         </div>
       </div>

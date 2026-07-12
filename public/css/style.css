@@ -1983,6 +1983,10 @@ tbody tr:hover {
     display: none;
   }
 
+  .table-container tbody td[data-label="Actions"]::before {
+    display: none;
+  }
+
   .table-container tbody td:first-child {
     font-weight: 700;
     font-size: 0.92rem;
