@@ -172,7 +172,7 @@ a:hover { color: var(--accent-1); }
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #ee8132;
+  background: #1c1712;
   position: relative;
   overflow: hidden;
 }
@@ -182,8 +182,8 @@ a:hover { color: var(--accent-1); }
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 60% 50% at 20% 80%, rgba(0,0,0,0.15) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 40% at 80% 20%, rgba(0,0,0,0.1) 0%, transparent 50%);
+    radial-gradient(ellipse 60% 50% at 20% 80%, rgba(238, 129, 50, 0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 80% 20%, rgba(238, 129, 50, 0.03) 0%, transparent 50%);
   pointer-events: none;
 }
 
