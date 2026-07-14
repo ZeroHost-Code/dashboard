@@ -151,6 +151,7 @@ router.post('/register', async (req, res) => {
     const { email, username, password, capToken, rgpdConsent } = req.body;
 
     const ip = getClientIp(req);
+    const userAgent = (req.headers['user-agent'] || 'unknown').toString().slice(0, 512);
 
     if (!email || !username || !password) {
       return res.status(400).json({ error: 'Email, username and password are required' });
@@ -219,12 +220,12 @@ router.post('/register', async (req, res) => {
     createdPteroUserId = pteroUser.id;
 
     const insertResult = await query(
-      'INSERT INTO users (email, username, password_hash, ptero_user_id, ptero_uuid, first_name, last_name, password_set) VALUES (?, ?, ?, ?, ?, ?, ?, 1)',
-      [email, username, passwordHash, pteroUser.id, pteroUser.uuid, username, 'User']
+      'INSERT INTO users (email, username, password_hash, ptero_user_id, ptero_uuid, first_name, last_name, password_set, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)',
+      [email, username, passwordHash, pteroUser.id, pteroUser.uuid, username, 'User', userAgent]
     );
     const localUserId = insertResult.insertId;
 
-    await query('INSERT INTO user_ips (user_id, ip_address) VALUES (?, ?)', [localUserId, ip]).catch(err => {
+    await query('INSERT INTO user_ips (user_id, ip_address, user_agent) VALUES (?, ?, ?)', [localUserId, ip, userAgent]).catch(err => {
       console.error('Failed to log IP:', err.message);
     });
 
@@ -387,6 +388,7 @@ router.post('/login', async (req, res) => {
     }
 
     const ip = getClientIp(req);
+    const userAgent = (req.headers['user-agent'] || 'unknown').toString().slice(0, 512);
 
     // VPN / Proxy detection — checked first for security
     if (await isVpnOrProxy(ip)) {
@@ -450,6 +452,13 @@ router.post('/login', async (req, res) => {
     });
 
     recordLoginAttempt(ip, true);
+
+    await query('UPDATE users SET user_agent = ? WHERE id = ?', [userAgent, user.id]).catch(err => {
+      console.error('Failed to update user_agent:', err.message);
+    });
+    await query('INSERT INTO user_ips (user_id, ip_address, user_agent) VALUES (?, ?, ?)', [user.id, ip, userAgent]).catch(err => {
+      console.error('Failed to log login IP:', err.message);
+    });
 
     res.json({
       token,

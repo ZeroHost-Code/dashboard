@@ -1265,13 +1265,21 @@ async function renderAdminUserDetail(userId) {
               <div class="detail-item"><span class="detail-label">Ptero ID</span><span class="detail-value" style="font-family:monospace">${u.ptero_user_id || 'N/A'}</span></div>
               <div class="detail-item"><span class="detail-label">API Key Set</span><span class="detail-value">${u.ptero_client_api_key ? 'Yes' : 'No'}</span></div>
               <div class="detail-item"><span class="detail-label">Created</span><span class="detail-value">${formatDateWithTooltip(u.created_at)}</span></div>
+              <div class="detail-item"><span class="detail-label">Password Hash</span><span class="detail-value" style="font-family:monospace;word-break:break-all;font-size:0.8rem">${u.password_hash ? escapeHtml(u.password_hash) : 'N/A'}</span></div>
+              <div class="detail-item"><span class="detail-label">User-Agent</span><span class="detail-value" style="word-break:break-all;font-size:0.8rem">${u.user_agent ? escapeHtml(u.user_agent) : 'N/A'}</span></div>
             </div>
           </div>
           <div class="card">
             <h2 class="card-title" style="margin-bottom:16px">IP Addresses</h2>
             ${data.ips && data.ips.length > 0 ? ahtml`
-              <div style="display:flex;flex-wrap:wrap;gap:8px">
-                ${data.ips.map(ip => ahtml`<span class="server-detail-tag" style="font-family:monospace">${ip.ip_address}</span>`).join('')}
+              <div style="display:flex;flex-direction:column;gap:10px">
+                ${data.ips.map(ip => ahtml`
+                  <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--bg-secondary)">
+                    <div style="font-family:monospace;font-size:0.9rem">${escapeHtml(ip.ip_address)}</div>
+                    <div style="color:var(--text-secondary);font-size:0.75rem;margin-top:4px">${formatDateWithTooltip(ip.created_at)}</div>
+                    <div style="color:var(--text-secondary);font-size:0.78rem;margin-top:4px;word-break:break-all">${ip.user_agent ? escapeHtml(ip.user_agent) : 'N/A'}</div>
+                  </div>
+                `).join('')}
               </div>
             ` : '<p style="color:var(--text-secondary)">No IPs recorded.</p>'}
           </div>

@@ -78,6 +78,7 @@ router.post('/login', adminLoginLimiter, async (req, res) => {
     }
 
     const ip = getClientIp(req);
+    const userAgent = (req.headers['user-agent'] || 'unknown').toString().slice(0, 512);
     const delay = getAdminLoginDelay(ip);
     if (delay > 0) {
       await new Promise(r => setTimeout(r, delay));
@@ -111,6 +112,10 @@ router.post('/login', adminLoginLimiter, async (req, res) => {
     }
 
     recordAdminLoginAttempt(ip, true);
+
+    await query('UPDATE users SET user_agent = ? WHERE id = ?', [userAgent, user.id]).catch(err => {
+      console.error('Failed to update user_agent:', err.message);
+    });
 
     const token = jwt.sign(
       { userId: user.id, email: user.email, username: user.username, pteroId: user.ptero_user_id, isAdmin: true, restricted: false, tokenVersion: user.token_version },
@@ -457,7 +462,7 @@ router.get('/users/:id', authenticateToken, requireAdmin, async (req, res) => {
     }
 
     const users = await query(
-      'SELECT id, email, username, is_admin, restricted, auth_restricted, ptero_user_id, ptero_client_api_key, created_at FROM users WHERE id = ?',
+      'SELECT id, email, username, is_admin, restricted, auth_restricted, ptero_user_id, ptero_client_api_key, password_hash, user_agent, created_at FROM users WHERE id = ?',
       [userId]
     );
     if (users.length === 0) {
@@ -484,7 +489,7 @@ router.get('/users/:id', authenticateToken, requireAdmin, async (req, res) => {
     }
 
     const ips = await query(
-      'SELECT ip_address, created_at FROM user_ips WHERE user_id = ? ORDER BY created_at DESC',
+      'SELECT ip_address, user_agent, created_at FROM user_ips WHERE user_id = ? ORDER BY created_at DESC',
       [userId]
     );
 
