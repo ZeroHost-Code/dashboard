@@ -226,9 +226,6 @@ function adminNavigateTo(page) {
   } else if (basePage === 'dashboard') {
     renderAdminDashboard();
     history.pushState({ adminPage: 'dashboard' }, '', '/admin/dashboard');
-  } else if (basePage === 'activity') {
-    window.location.href = '/logs';
-    return;
   } else if (basePage === 'settings') {
     const sub = parts[1];
     if (sub === 'eggs') {
@@ -360,10 +357,6 @@ function renderAdminLayout() {
             <i data-lucide="users" style="width:18px;height:18px"></i>
             Users
           </a>
-          <a class="admin-nav-link" data-page="activity" href="/logs">
-            <i data-lucide="activity" style="width:18px;height:18px"></i>
-            Activity
-          </a>
           <a class="admin-nav-link" data-page="settings" href="/admin/settings">
             <i data-lucide="settings" style="width:18px;height:18px"></i>
             Settings
@@ -385,7 +378,6 @@ function renderAdminLayout() {
         <div class="admin-page" id="admin-page-node-detail"></div>
         <div class="admin-page" id="admin-page-users"></div>
         <div class="admin-page" id="admin-page-user-detail"></div>
-        <div class="admin-page" id="admin-page-activity"></div>
         <div class="admin-page" id="admin-page-settings"></div>
       </main>
       <div id="admin-date-tooltip"></div>
@@ -451,10 +443,6 @@ function renderAdminLayout() {
     adminState.currentPage = 'dashboard';
     updateAdminNav();
     renderAdminDashboard();
-  } else if (basePage === 'activity') {
-    adminState.currentPage = 'activity';
-    updateAdminNav();
-    renderAdminActivity();
   } else if (basePage === 'settings') {
     adminState.currentPage = 'settings';
     adminState.settingsNestId = null;
@@ -512,6 +500,8 @@ function updateAdminNav() {
   });
 }
 
+let adminServersPage = 1;
+
 async function renderAdminServers() {
   document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
   const el = $a('#admin-page-servers');
@@ -529,32 +519,40 @@ async function renderAdminServers() {
             <th>Name</th>
             <th>Owner</th>
             <th>Egg</th>
-            <th>Allocation</th>
             <th>Status</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody id="admin-servers-tbody">
-          <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
+          <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
         </tbody>
       </table>
+      <div id="admin-servers-pagination" style="display:none"></div>
     </div>
   `;
 
+  await fetchAdminServers(adminServersPage);
+}
+
+async function fetchAdminServers(pageNum) {
+  pageNum = pageNum || 1;
+  const limit = 10;
+  const offset = (pageNum - 1) * limit;
+  const paginationEl = $a('#admin-servers-pagination');
+
   try {
-    const data = await adminApi('/servers');
+    const data = await adminApi(`/servers?limit=${limit}&offset=${offset}`);
     const tbody = $a('#admin-servers-tbody');
     if (!tbody) return;
 
     if (data.servers.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary)">No servers found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary)">No servers found.</td></tr>';
+      if (paginationEl) paginationEl.style.display = 'none';
       return;
     }
 
     tbody.innerHTML = data.servers.map(s => {
       const eggName = s.eggDetails?.name || `Egg #${s.egg}`;
-      const alloc = s.allocationDetails;
-      const allocStr = alloc ? `${alloc.alias || alloc.nodeFqdn || alloc.ip}:${alloc.port}` : (s.nodeFqdn || `Node #${s.node}`);
       const isInstalling = s.status === 'installing' || s.installed === 0 || s.installed === '0' || s.installed === false;
       const isSuspended = s.status === 'suspended';
       const statusClass = isSuspended ? 'status-suspended' : (isInstalling ? 'status-installing' : 'status-active');
@@ -566,19 +564,39 @@ async function renderAdminServers() {
           <td data-label="Name"><strong>${escapeHtml(s.name)}</strong></td>
           <td data-label="Owner">${escapeHtml(ownerName)}</td>
           <td data-label="Egg"><span class="server-detail-tag">${escapeHtml(eggName)}</span></td>
-          <td data-label="Allocation"><span class="server-detail-tag">${escapeHtml(allocStr)}</span></td>
           <td data-label="Status"><span class="server-card-status ${statusClass}">${escapeHtml(statusLabel)}</span></td>
           <td data-label="Actions">
-            <a class="btn btn-ghost btn-sm" href="/admin/server/${s.id}" onclick="event.preventDefault();adminNavigateTo('server/${s.id}')">Details</a>
+            <div style="display:flex;gap:8px;align-items:center">
+              <a class="btn btn-ghost btn-sm" href="/admin/server/${s.id}" onclick="event.preventDefault();adminNavigateTo('server/${s.id}')">Details</a>
+              <a class="btn btn-ghost btn-sm" href="${PTERO_URL}/server/${s.identifier}" target="_blank">Open Hydrodactyl</a>
+            </div>
           </td>
         </tr>
       `;
     }).join('');
+
+    if (data.totalPages > 1) {
+      paginationEl.innerHTML = ahtml`
+        <div class="log-pagination">
+          <button class="btn btn-ghost btn-sm" onclick="changeAdminServersPage(${pageNum - 1})" ${pageNum <= 1 ? 'disabled' : ''}>Previous</button>
+          <span class="log-pagination-info">Page ${data.page} of ${data.totalPages} (${data.total} total)</span>
+          <button class="btn btn-ghost btn-sm" onclick="changeAdminServersPage(${pageNum + 1})" ${pageNum >= data.totalPages ? 'disabled' : ''}>Next</button>
+        </div>
+      `;
+      paginationEl.style.display = '';
+    } else {
+      paginationEl.style.display = 'none';
+    }
   } catch (err) {
     const tbody = $a('#admin-servers-tbody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
   }
   initIcons();
+}
+
+function changeAdminServersPage(pageNum) {
+  adminServersPage = pageNum;
+  fetchAdminServers(pageNum);
 }
 
 async function renderAdminServerDetail(serverId) {
@@ -1284,7 +1302,7 @@ async function renderAdminUserDetail(userId) {
                       <td data-label="Expires">${formatDateWithTooltip(s.expires_at)}</td>
                       <td data-label="Actions" style="display:flex;gap:6px;flex-wrap:wrap">
                         <a class="btn btn-ghost btn-sm" href="/admin/server/${s.ptero_server_id}" onclick="event.preventDefault();adminNavigateTo('server/${s.ptero_server_id}')">Manage</a>
-                        <button class="btn btn-ghost btn-sm" onclick="window.open('${PTERO_URL}/server/${s.server_uuid}', '_blank')">Open Pyrodactyl</button>
+                        <a class="btn btn-ghost btn-sm" href="${PTERO_URL}/server/${s.identifier}" target="_blank">Open Pyrodactyl</a>
                       </td>
                     </tr>
                   `).join('')}
@@ -1475,59 +1493,6 @@ function initUserActions(userId) {
   });
 }
 
-// ─── Activity Log ───────────────────────────────────────
-async function renderAdminActivity() {
-  document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
-  const el = $a('#admin-page-activity');
-  if (!el) return;
-  el.classList.add('active');
-
-  el.innerHTML = ahtml`
-    <div class="page-header">
-      <h1 class="page-title">Activity Log</h1>
-      <p class="page-subtitle">All platform activity</p>
-    </div>
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th>Time</th>
-            <th>User</th>
-            <th>Action</th>
-            <th>Details</th>
-          </tr>
-        </thead>
-        <tbody id="admin-activity-tbody">
-          <tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-secondary)"><span class="spinner"></span> Loading...</td></tr>
-        </tbody>
-      </table>
-    </div>
-  `;
-
-  try {
-    const data = await adminApi('/activity');
-    const tbody = $a('#admin-activity-tbody');
-    if (!tbody) return;
-
-    if (data.activities.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-secondary)">No activity found.</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = data.activities.map(a => ahtml`
-      <tr>
-        <td data-label="Time" style="white-space:nowrap;font-size:0.82rem;color:var(--text-secondary)">${formatDateWithTooltip(a.created_at)}</td>
-        <td data-label="User">${a.username || 'Unknown'}</td>
-        <td data-label="Action"><span class="server-detail-tag">${a.action}</span></td>
-        <td data-label="Details" style="color:var(--text-secondary);font-size:0.85rem">${a.details || ''}</td>
-      </tr>
-    `).join('');
-  } catch (err) {
-    const tbody = $a('#admin-activity-tbody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
-  }
-}
-
 // ─── Settings ───────────────────────────────────────────
 async function renderAdminSettings() {
   document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
@@ -1711,7 +1676,7 @@ async function renderAdminNestEggs(nestId) {
     if (!tbody) return;
 
     if (data.eggs.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary)">No eggs found in this nest.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary)">No eggs found in this nest.</td></tr>';
       return;
     }
 
@@ -1764,7 +1729,7 @@ async function renderAdminNestEggs(nestId) {
     });
   } catch (err) {
     const tbody = $a('#admin-eggs-tbody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
   }
   initIcons();
 }
@@ -2770,8 +2735,6 @@ window.addEventListener('popstate', () => {
     adminNavigateTo('users');
   } else if (basePage === 'dashboard' || !basePage || basePage === 'login') {
     adminNavigateTo('dashboard');
-  } else if (basePage === 'activity') {
-    window.location.href = '/logs';
     return;
   } else if (basePage === 'settings') {
     adminNavigateTo(pathParts.join('/'));

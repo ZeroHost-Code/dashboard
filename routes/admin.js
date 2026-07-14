@@ -131,14 +131,21 @@ router.get('/check', authenticateToken, requireAdmin, (req, res) => {
 
 router.get('/servers', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const allServers = await getAllServers();
+    const limit = Math.min(parseInt(req.query.limit, 10) || 10, 50);
+    const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+
+    const result = await getAllServers(limit, offset);
+    const { servers: paginatedServers, total } = result;
+    const page = Math.floor(offset / limit) + 1;
+    const totalPages = Math.ceil(total / limit) || 1;
+
     const users = await query('SELECT id, email, username, ptero_user_id FROM users');
     const userMap = {};
     for (const u of users) {
       userMap[u.ptero_user_id] = { id: u.id, email: u.email, username: u.username };
     }
 
-    for (const s of allServers) {
+    for (const s of paginatedServers) {
       s.owner = userMap[s.user] || { id: null, email: 'Unknown', username: 'Unknown' };
       try {
         const meta = await query('SELECT * FROM server_meta WHERE ptero_server_id = ?', [s.id]);
@@ -148,7 +155,7 @@ router.get('/servers', authenticateToken, requireAdmin, async (req, res) => {
       }
     }
 
-    res.json({ servers: allServers });
+    res.json({ servers: paginatedServers, total, page, totalPages, limit });
   } catch (err) {
     console.error('Admin servers list error:', err.message);
     res.status(500).json({ error: 'Failed to fetch servers' });

@@ -540,48 +540,13 @@ async function verifyServerOwnership(userId, identifier) {
   }
 }
 
-router.get('/resources/:identifier', authenticateToken, async (req, res) => {
-  try {
-    const { identifier } = req.params;
-    const userId = req.user.userId;
-
-    if (!await verifyServerOwnership(userId, identifier)) {
-      return res.status(403).json({ error: 'You do not own this server' });
-    }
-
-    const users = await query('SELECT ptero_client_api_key FROM users WHERE id = ?', [userId]);
-    if (users.length === 0 || !users[0].ptero_client_api_key) {
-      return res.json({ resources: null, error: 'No Pyrodactyl API key configured. Set one in Account settings.' });
-    }
-
-    const apiKey = users[0].ptero_client_api_key;
-    const pteroRes = await fetch(`${PTERO_URL}/api/client/servers/${identifier}/resources`, {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Accept': 'application/json',
-      },
-      signal: AbortSignal.timeout(8000),
-    });
-
-    if (!pteroRes.ok) {
-      return res.status(502).json({ error: 'Failed to fetch resources from panel' });
-    }
-
-    const data = await pteroRes.json();
-    res.json({ resources: data.attributes.resources, current_state: data.attributes.current_state });
-  } catch (err) {
-    console.error('Resources error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch server resources' });
-  }
-});
-
 router.post('/power/:identifier', authenticateToken, powerLimiter, async (req, res) => {
   try {
     const { identifier } = req.params;
     const { signal } = req.body;
-    const userId = req.user.userId;
+    const pteroId = req.user.pteroId;
 
-    if (!await verifyServerOwnership(userId, identifier)) {
+    if (!await verifyServerOwnership(pteroId, identifier)) {
       return res.status(403).json({ error: 'You do not own this server' });
     }
 
@@ -590,7 +555,7 @@ router.post('/power/:identifier', authenticateToken, powerLimiter, async (req, r
       return res.status(400).json({ error: 'Invalid power signal. Valid signals: start, stop, restart, kill' });
     }
 
-    const users = await query('SELECT ptero_client_api_key FROM users WHERE id = ?', [userId]);
+    const users = await query('SELECT ptero_client_api_key FROM users WHERE id = ?', [req.user.userId]);
     if (!users[0]?.ptero_client_api_key) {
       return res.status(400).json({ error: 'No Pyrodactyl API key configured' });
     }

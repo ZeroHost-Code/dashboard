@@ -14,7 +14,6 @@ export const PERMISSIONS = {
   SERVER_LIST: 'server:list',
   SERVER_DETAILS: 'server:details',
   SERVER_OVERVIEW: 'server:overview',
-  SERVER_RESOURCES: 'server:resources',
 
   // API key actions
   API_KEY_READ: 'api_key:read',
@@ -72,7 +71,6 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.SERVER_LIST,
     PERMISSIONS.SERVER_DETAILS,
     PERMISSIONS.SERVER_OVERVIEW,
-    PERMISSIONS.SERVER_RESOURCES,
     PERMISSIONS.API_KEY_READ,
     PERMISSIONS.API_KEY_WRITE,
     PERMISSIONS.API_KEY_DELETE,

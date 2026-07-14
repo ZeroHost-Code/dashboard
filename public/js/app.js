@@ -247,13 +247,13 @@ async function api(path, options = {}) {
   } catch {
     throw new Error('Server error: please try again in a few moments.');
   }
-  if (res.status === 403 && data.error === 'Invalid or expired token') {
+  if (res.status === 403 && (data.error === 'Invalid or expired token' || data.error === 'Session expired. Please log in again.')) {
     state.token = null;
     state.user = null;
     localStorage.removeItem('zh_token');
     localStorage.removeItem('zh_user');
     navigateTo('login');
-    throw new Error('Session expired. Please sign in again.');
+    return;
   }
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data;
@@ -539,50 +539,78 @@ function showCapModal() {
 function renderLoginPage() {
   const app = $('#app');
   app.innerHTML = html`
-    <div class="auth-page">
-      <div class="auth-card">
-        <div class="auth-logo">
+    <div class="login-page">
+      <div class="login-left">
+        <div class="login-left-top">
           <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
-          <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span></span>
+          <span>| Dashboard</span>
         </div>
-        <h1 class="auth-title">Welcome back</h1>
-        <p class="auth-subtitle">Sign in to your dashboard</p>
-        <form id="login-form">
-          <div class="auth-error"></div>
-          <div class="form-group">
-            <label for="login-email">Email</label>
-            <input type="email" id="login-email" placeholder="your@email.com" required autocomplete="webauthn" />
+      </div>
+      <div class="login-right">
+        <div class="login-card">
+          <h1 class="auth-title">Welcome back</h1>
+          <p class="auth-subtitle">Sign in to your dashboard</p>
+
+          <div id="login-choices">
+            <button type="button" class="btn btn-primary btn-full login-choice-btn" id="login-email-btn">
+              <i data-lucide="mail" style="width:18px;height:18px"></i>
+              Login with E-mail
+            </button>
+            <button type="button" class="btn btn-ghost btn-full login-choice-btn" id="login-passkey-btn" style="border:1px solid var(--border)">
+              <i data-lucide="fingerprint" style="width:18px;height:18px"></i>
+              Login with Passkey
+            </button>
           </div>
-          <div class="form-group">
-            <label for="login-password">Password</label>
-            <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password" />
+
+          <div id="login-email-form" style="display:none">
+            <div class="auth-error"></div>
+            <form id="login-form">
+              <div class="form-group">
+                <label for="login-email">Email</label>
+                <input type="email" id="login-email" placeholder="your@email.com" required autocomplete="webauthn" />
+              </div>
+              <div class="form-group">
+                <label for="login-password">Password</label>
+                <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password" />
+              </div>
+              <button type="submit" class="btn btn-primary btn-full" id="login-btn">
+                Sign In
+              </button>
+            </form>
+            <button type="button" class="btn btn-ghost btn-full" id="login-back-btn" style="margin-top:12px">
+              <i data-lucide="arrow-left" style="width:16px;height:16px"></i>
+              Back
+            </button>
           </div>
-          <button type="submit" class="btn btn-primary btn-full" id="login-btn">
-            Sign In
-          </button>
-          <div style="position:relative;margin:12px 0;text-align:center">
-            <span style="background:var(--card-bg);padding:0 12px;color:var(--text-muted);font-size:0.8rem">or</span>
+
+          <div class="auth-footer">
+            Don't have an account? <a href="/signup" id="go-register">Create one</a>
           </div>
-          <button type="button" class="btn btn-ghost btn-full" id="passkey-login-btn" style="border:1px solid var(--border)">
-            <i data-lucide="fingerprint" style="width:16px;height:16px"></i>
-            Sign in with Passkey
-          </button>
-        </form>
-        <div class="auth-footer">
-          Don't have an account? <a href="/signup" id="go-register">Create one</a>
         </div>
       </div>
     </div>
   `;
 
+  $('#login-email-btn').addEventListener('click', () => {
+    $('#login-choices').style.display = 'none';
+    $('#login-email-form').style.display = 'block';
+    setupPasskeyAutofill();
+    initIcons();
+  });
+
+  $('#login-back-btn').addEventListener('click', () => {
+    $('#login-email-form').style.display = 'none';
+    $('#login-choices').style.display = 'block';
+    initIcons();
+  });
+
   $('#login-form').addEventListener('submit', handleLogin);
-  $('#passkey-login-btn').addEventListener('click', handlePasskeyLogin);
+  $('#login-passkey-btn').addEventListener('click', handlePasskeyLogin);
   $('#go-register').addEventListener('click', (e) => {
     e.preventDefault();
     navigateTo('signup');
   });
 
-  setupPasskeyAutofill();
   initIcons();
   setTimeout(initIcons, 100);
 }
@@ -718,8 +746,8 @@ async function setupPasskeyAutofill() {
 }
 
 async function handlePasskeyLogin() {
-  const btn = $('#passkey-login-btn');
-  const errorEl = $('#login-form .auth-error');
+  const btn = $('#login-passkey-btn');
+  const errorEl = $('#login-email-form .auth-error');
   if (errorEl) errorEl.classList.remove('show');
 
   btn.disabled = true;
@@ -745,7 +773,7 @@ async function handlePasskeyLogin() {
     }
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<i data-lucide="fingerprint" style="width:16px;height:16px"></i> Sign in with Passkey';
+    btn.innerHTML = '<i data-lucide="fingerprint" style="width:18px;height:18px"></i> Login with Passkey';
     initIcons();
   }
 }
@@ -1034,7 +1062,7 @@ async function renderDashboard() {
           <div style="padding:8px 12px 0;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
 
           </div>
-          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v1.0.5</div>
+          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v1.0.6</div>
         </div>
         <div class="sidebar-resizer" id="sidebar-resizer"></div>
       </aside>
@@ -1278,20 +1306,20 @@ function renderSidebarNav() {
         Create Server
       </a>
       <div class="nav-section-label">Links</div>
-      <a class="nav-item" href="https://hub.zero-host.org" target="_blank">
-        <i data-lucide="globe"></i>
-        Links Hub
-      </a>
-      <a class="nav-item" href="${window.location.hostname === 'beta.zero-host.org' ? 'https://dashboard.zero-host.org' : 'https://beta.zero-host.org'}" target="_blank">
-        <i data-lucide="globe"></i>
-        ${window.location.hostname === 'beta.zero-host.org' ? 'Switch to Stable' : 'Switch to Beta'}
-      </a>
       ${state.user?.isAdmin ? html`
       <a class="nav-item" href="/admin">
         <i data-lucide="shield"></i>
         Switch Admin
       </a>
       ` : ''}
+      <a class="nav-item" href="https://discord.zero-host.org" target="_blank">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
+        Discord
+      </a>
+      <a class="nav-item" href="https://www.trustpilot.com/review/zero-host.org" target="_blank">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.227 16.67l2.19 6.742-7.413-5.388 5.223-1.354zM24 9.31h-9.165L12.005.589l-2.84 8.723L0 9.3l7.422 5.397-2.84 8.714 7.422-5.388 4.583-3.326L24 9.311z"/></svg>
+        Leave a Review
+      </a>
     `;
   }
 
@@ -3154,7 +3182,6 @@ async function renderServerDetail(serverId) {
 
       <div class="tabs" id="server-detail-tabs">
         <button class="tab ${activeTab === 'info' ? 'active' : ''}" data-tab="info">Info</button>
-        <button class="tab ${activeTab === 'resources' ? 'active' : ''}" data-tab="resources">Resources</button>
         <button class="tab ${activeTab === 'actions' ? 'active' : ''}" data-tab="actions">Actions</button>
         <div class="tab-indicator" id="tab-indicator"></div>
       </div>
@@ -3169,30 +3196,6 @@ async function renderServerDetail(serverId) {
               <div class="detail-item"><span class="detail-label">IO</span><span class="detail-value">${s.limits.io}</span></div>
               <div class="detail-item"><span class="detail-label">Swap</span><span class="detail-value">${s.limits.swap > 0 ? s.limits.swap + ' MB' : 'Disabled'}</span></div>
               <div class="detail-item"><span class="detail-label">Identifier</span><span class="detail-value" style="font-family:monospace">${s.identifier}</span></div>
-            </div>
-          </div>
-
-          <div class="card" id="server-resources-card">
-            <h2 class="card-title" style="margin-bottom:16px">Resources</h2>
-            <div class="resource-gauges">
-              <div class="resource-gauge">
-                <div class="resource-gauge-value" style="color:var(--accent-1)">${s.limits.memory > 0 ? s.limits.memory + ' MB' : '∞'}</div>
-                <div class="resource-gauge-label">Memory</div>
-                <div class="resource-gauge-bar"><div class="resource-gauge-fill" style="width:${s.limits.memory > 0 ? Math.min(100, (s.limits.memory / 512) * 100) : 100}%;background:linear-gradient(90deg,#ee8132,#f59e0b)"></div></div>
-                <div class="resource-gauge-sub">${s.limits.memory > 0 ? '512 MB max' : 'No limit'}</div>
-              </div>
-              <div class="resource-gauge">
-                <div class="resource-gauge-value" style="color:var(--accent-cyan)">${s.limits.cpu}%</div>
-                <div class="resource-gauge-label">CPU</div>
-                <div class="resource-gauge-bar"><div class="resource-gauge-fill" style="width:${s.limits.cpu}%;background:linear-gradient(90deg,#06b6d4,#3b82f6)"></div></div>
-                <div class="resource-gauge-sub">50% max</div>
-              </div>
-              <div class="resource-gauge">
-                <div class="resource-gauge-value" style="color:var(--accent-green)">${s.limits.disk > 0 ? (s.limits.disk / 1024).toFixed(1) + ' GB' : '∞'}</div>
-                <div class="resource-gauge-label">Disk</div>
-                <div class="resource-gauge-bar"><div class="resource-gauge-fill" style="width:${s.limits.disk > 0 ? Math.min(100, (s.limits.disk / 3072) * 100) : 100}%;background:linear-gradient(90deg,#059669,#10b981)"></div></div>
-                <div class="resource-gauge-sub">3 GB max</div>
-              </div>
             </div>
           </div>
 
@@ -3216,21 +3219,6 @@ async function renderServerDetail(serverId) {
             ` : html`
               <p style="color:var(--text-muted);font-size:0.88rem">No lifetime data available for this server.</p>
             `}
-          </div>
-        </div>
-      </div>
-
-      <div id="server-tab-resources" class="tab-content" style="display:${activeTab === 'resources' ? 'block' : 'none'}">
-        <div class="card">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-            <h2 class="card-title" style="margin:0">Live Resource Usage</h2>
-            <button class="btn btn-ghost btn-sm" id="refresh-resources-btn" style="width:auto">
-              <i data-lucide="refresh-cw" style="width:14px;height:14px"></i>
-              Refresh
-            </button>
-          </div>
-          <div id="live-resources-container">
-            <div style="text-align:center;padding:32px;color:var(--text-secondary)" id="live-resources-loading"><span class="spinner"></span> Fetching live data...</div>
           </div>
         </div>
       </div>
@@ -3271,7 +3259,7 @@ async function renderServerDetail(serverId) {
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button class="btn ${s.currentState === 'running' ? 'btn-ghost' : 'btn-success'} btn-full" style="flex:1" onclick="sendPowerCommand('${s.identifier}','start',event)" ${s.currentState === 'running' ? 'disabled' : ''}>Start</button>
-              <button class="btn btn-warning btn-full" style="flex:1" onclick="sendPowerCommand('${s.identifier}','stop',event)" ${s.currentState !== 'running' ? 'disabled' : ''}>Stop</button>
+              <button class="btn btn-danger btn-full" style="flex:1" onclick="sendPowerCommand('${s.identifier}','stop',event)" ${s.currentState !== 'running' ? 'disabled' : ''}>Stop</button>
               <button class="btn btn-ghost btn-full" style="flex:1" onclick="sendPowerCommand('${s.identifier}','restart',event)" ${s.currentState !== 'running' ? 'disabled' : ''}>Restart</button>
             </div>
           </div>
@@ -3313,10 +3301,6 @@ async function renderServerDetail(serverId) {
       </div>
     `;
 
-    if (activeTab === 'resources') {
-      fetchLiveResources(s.identifier);
-    }
-
     // Disable transition for initial position to prevent sliding from 0
     const indicator = $('#tab-indicator');
     const activeTabEl = $('#server-detail-tabs .tab.active');
@@ -3345,89 +3329,6 @@ async function renderServerDetail(serverId) {
   }
 }
 
-async function fetchLiveResources(identifier) {
-  const container = $('#live-resources-container');
-  if (!container) return;
-
-  try {
-    const data = await api(`/servers/resources/${identifier}`);
-
-    if (!data.resources) {
-      container.innerHTML = html`
-        <div class="empty-state" style="padding:24px">
-          <div class="empty-state-title" style="font-size:0.95rem">No live data</div>
-          <div class="empty-state-desc" style="font-size:0.82rem">
-            ${data.error || 'Add your Pyrodactyl API key in Account → Account Info to enable live monitoring.'}
-          </div>
-          <button class="btn btn-primary btn-sm" onclick="navigateTo('account/info')" style="margin-top:8px;width:auto">Configure API Key</button>
-        </div>
-      `;
-      return;
-    }
-
-    const res = data.resources;
-    const currentState = data.current_state;
-    const cpuPct = Math.round(res.cpu_absolute || 0);
-    const memUsed = res.memory_bytes ? Math.round(res.memory_bytes / (1024 * 1024)) : 0;
-    const memLimit = res.memory_limit_bytes ? Math.round(res.memory_limit_bytes / (1024 * 1024)) : 512;
-    const memPct = memLimit > 0 ? Math.min(100, Math.round((memUsed / memLimit) * 100)) : 0;
-    const diskUsed = res.disk_bytes ? Math.round(res.disk_bytes / (1024 * 1024)) : 0;
-    const diskLimit = 3072;
-    const diskPct = diskLimit > 0 ? Math.min(100, Math.round((diskUsed / diskLimit) * 100)) : 0;
-
-    function usageClass(pct) {
-      if (pct >= 80) return 'usage-high';
-      if (pct >= 50) return 'usage-mid';
-      return 'usage-low';
-    }
-
-    container.innerHTML = html`
-      <div class="resource-gauges">
-        <div class="resource-gauge">
-          <div class="resource-gauge-value" style="color:${cpuPct >= 80 ? 'var(--accent-red)' : cpuPct >= 50 ? 'var(--accent-orange)' : 'var(--accent-cyan)'}">${cpuPct}%</div>
-          <div class="resource-gauge-label">CPU</div>
-          <div class="resource-gauge-bar"><div class="resource-gauge-fill ${usageClass(cpuPct)}" style="width:${cpuPct}%"></div></div>
-          <div class="resource-gauge-sub">${cpuPct >= 80 ? 'High load' : cpuPct >= 50 ? 'Moderate' : 'Idle'}</div>
-        </div>
-        <div class="resource-gauge">
-          <div class="resource-gauge-value" style="color:${memPct >= 80 ? 'var(--accent-red)' : memPct >= 50 ? 'var(--accent-orange)' : 'var(--accent-1)'}">${memUsed} / ${memLimit} MB</div>
-          <div class="resource-gauge-label">Memory</div>
-          <div class="resource-gauge-bar"><div class="resource-gauge-fill ${usageClass(memPct)}" style="width:${memPct}%"></div></div>
-          <div class="resource-gauge-sub">${memPct}% used</div>
-        </div>
-        <div class="resource-gauge">
-          <div class="resource-gauge-value" style="color:${diskPct >= 80 ? 'var(--accent-red)' : diskPct >= 50 ? 'var(--accent-orange)' : 'var(--accent-green)'}">${(diskUsed / 1024).toFixed(1)} / ${(diskLimit / 1024).toFixed(1)} GB</div>
-          <div class="resource-gauge-label">Disk</div>
-          <div class="resource-gauge-bar"><div class="resource-gauge-fill ${usageClass(diskPct)}" style="width:${diskPct}%"></div></div>
-          <div class="resource-gauge-sub">${diskPct}% used</div>
-        </div>
-      </div>
-      <div style="margin-top:12px;text-align:center;font-size:0.72rem;color:var(--text-muted)">
-        Updated ${formatRelativeTime(new Date().toISOString())} · 
-        ${currentState ? html`Status: <strong>${currentState}</strong>` : ''}
-      </div>
-    `;
-
-    const refreshBtn = $('#refresh-resources-btn');
-    if (refreshBtn && !refreshBtn.dataset.listenerAttached) {
-      refreshBtn.dataset.listenerAttached = '1';
-      refreshBtn.addEventListener('click', () => {
-        container.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-secondary)" id="live-resources-loading"><span class="spinner"></span> Fetching live data...</div>';
-        fetchLiveResources(identifier);
-      });
-    }
-
-  } catch (err) {
-    if (container) {
-      container.innerHTML = html`
-        <div style="text-align:center;padding:24px;color:var(--text-muted);font-size:0.88rem">
-          Could not load live resources: ${err.message}
-        </div>
-      `;
-    }
-  }
-}
-
 // ===== TAB SWITCHING =====
 function switchTab(tabBtn) {
   if (!$('#tab-indicator')) return;
@@ -3445,13 +3346,6 @@ function switchTab(tabBtn) {
   if (indicator) {
     indicator.style.left = tabBtn.offsetLeft + 'px';
     indicator.style.width = tabBtn.offsetWidth + 'px';
-  }
-
-  if (tabName === 'resources') {
-    const container = $('#live-resources-container');
-    if (container && container.querySelector('.resource-gauge') === null) {
-      fetchLiveResources(state.serverIdentifier);
-    }
   }
 
   const newUrl = `/server/${state.serverId}/${tabName}`;
