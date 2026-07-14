@@ -7,11 +7,11 @@ import {
   verifyAuthenticationResponse,
 } from '@simplewebauthn/server';
 import { isoBase64URL } from '@simplewebauthn/server/helpers';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, generateToken } from '../middleware/auth.js';
 import { createHash, randomBytes } from 'crypto';
 import { query } from '../config/db.js';
-import { generateToken } from '../middleware/auth.js';
 import { logActivity } from '../services/activity.js';
+import { isVpnOrProxy } from './auth.js';
 
 const router = Router();
 
@@ -166,6 +166,12 @@ router.post('/passkeys/register/complete', authenticateToken, passkeyRegisterLim
 
 router.post('/passkeys/login/begin', passkeyLoginLimiter, async (req, res) => {
   try {
+    const ip = getClientIp(req);
+
+    if (await isVpnOrProxy(ip)) {
+      return res.status(403).json({ error: 'VPN or proxy detected. Please disable your VPN for security reasons.' });
+    }
+
     const { email } = req.body;
     let userId = null;
     let allowCredentials;
@@ -221,6 +227,12 @@ router.post('/passkeys/login/begin', passkeyLoginLimiter, async (req, res) => {
 
 router.post('/passkeys/login/complete', passkeyLoginLimiter, async (req, res) => {
   try {
+    const ip = getClientIp(req);
+
+    if (await isVpnOrProxy(ip)) {
+      return res.status(403).json({ error: 'VPN or proxy detected. Please disable your VPN for security reasons.' });
+    }
+
     const { response, sessionToken } = req.body;
     if (!response) {
       return res.status(400).json({ error: 'Response is required' });

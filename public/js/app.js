@@ -781,6 +781,11 @@ async function handleLogin(e) {
 }
 
 async function completePasskeyLogin(credential) {
+  if (await checkVpn()) {
+    await showVpnBlockModal();
+    return;
+  }
+
   const data = await api('/auth/passkeys/login/complete', {
     method: 'POST',
     body: JSON.stringify({
