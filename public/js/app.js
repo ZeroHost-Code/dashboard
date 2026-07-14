@@ -746,8 +746,8 @@ async function setupPasskeyAutofill() {
 }
 
 async function handlePasskeyLogin() {
-  const btn = $('#passkey-login-btn');
-  const errorEl = $('#login-form .auth-error');
+  const btn = $('#login-passkey-btn');
+  const errorEl = $('#login-email-form .auth-error');
   if (errorEl) errorEl.classList.remove('show');
 
   btn.disabled = true;
@@ -773,7 +773,7 @@ async function handlePasskeyLogin() {
     }
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<i data-lucide="fingerprint" style="width:16px;height:16px"></i> Sign in with Passkey';
+    btn.innerHTML = '<i data-lucide="fingerprint" style="width:18px;height:18px"></i> Login with Passkey';
     initIcons();
   }
 }
