@@ -119,9 +119,10 @@ async function isVpnOrProxy(ip) {
   try {
     const res = await fetchWithTimeout(`https://ipinfo.io/${cleanIp}/json`);
     const data = await res.json();
-    console.log('[VPN] ipinfo response for', cleanIp, ':', JSON.stringify({ org: data.org, hosting: data.hosting }));
-    if (data.org && (data.org.startsWith('AS') || data.org.toLowerCase().includes('vpn') ||
-        data.org.toLowerCase().includes('proxy') || data.org.toLowerCase().includes('hosting'))) {
+    console.log('[VPN] ipinfo response for', cleanIp, ':', JSON.stringify({ org: data.org }));
+    const orgLower = (data.org || '').toLowerCase();
+    if (orgLower.includes('vpn') || orgLower.includes('proxy') || orgLower.includes('tor') ||
+        orgLower.includes('hosting') || orgLower.includes('cloud') || orgLower.includes('datacenter')) {
       return true;
     }
   } catch (err) {
