@@ -910,6 +910,165 @@ async function renderVerifyEmail(token) {
   }
 }
 
+async function renderChangeEmailVerify(token) {
+  const app = $('#app');
+
+  if (!token) {
+    app.innerHTML = html`
+      <div class="auth-page">
+        <div class="auth-card" style="text-align:center;">
+          <div style="margin:24px 0 16px;">
+            <i data-lucide="x-circle" style="width:48px;height:48px;color:var(--accent-red);"></i>
+          </div>
+          <h1 class="auth-title">Invalid Link</h1>
+          <p class="auth-subtitle">This email change link is invalid or has expired.</p>
+          <div style="margin-top:24px;">
+            <a href="/login" class="btn btn-primary">Sign In</a>
+          </div>
+        </div>
+      </div>
+    `;
+    initIcons();
+    return;
+  }
+
+  app.innerHTML = html`
+    <div class="login-page">
+      <div class="login-left">
+        <div class="login-left-top">
+          <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
+          <span>| Dashboard</span>
+        </div>
+      </div>
+      <div class="login-right">
+        <div class="login-card">
+          <div style="margin:0 auto 24px;width:fit-content;">
+            <span class="spinner" style="width:36px;height:36px;"></span>
+          </div>
+          <h1 class="auth-title" style="text-align:center">Verifying link...</h1>
+        </div>
+      </div>
+    </div>
+  `;
+  initIcons();
+
+  try {
+    const data = await api(`/auth/change-email/verify?token=${encodeURIComponent(token)}`);
+
+    app.innerHTML = html`
+      <div class="login-page">
+        <div class="login-left">
+          <div class="login-left-top">
+            <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
+            <span>| Dashboard</span>
+          </div>
+        </div>
+        <div class="login-right">
+          <div class="login-card">
+            <h1 class="auth-title">Enter verification code</h1>
+            <p class="auth-subtitle">A 6-digit code was sent to <strong style="color:var(--text-primary)">${escapeHtml(data.pendingEmail)}</strong></p>
+            <form id="change-email-code-form">
+              <div class="auth-error"></div>
+              <div class="form-group">
+                <label for="change-email-code">Verification Code</label>
+                <input type="text" id="change-email-code" placeholder="000000" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" required style="text-align:center;font-size:1.4rem;letter-spacing:8px;font-family:'JetBrains Mono',monospace;" />
+              </div>
+              <button type="submit" class="btn btn-primary btn-full" id="change-email-code-btn">
+                Confirm
+              </button>
+            </form>
+            <button type="button" class="btn btn-ghost btn-full" id="change-email-resend-btn" style="margin-top:12px;border:1px solid var(--border)">
+              Resend code
+            </button>
+            <div class="auth-footer">
+              <a href="/account/info" id="change-email-cancel">Cancel</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    $('#change-email-code-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = $('#change-email-code-btn');
+      const errorEl = $('#change-email-code-form .auth-error');
+      const code = $('#change-email-code').value.trim();
+
+      if (code.length !== 6) {
+        errorEl.textContent = 'Please enter the 6-digit code';
+        errorEl.classList.add('show');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>';
+
+      try {
+        const result = await api('/auth/change-email/confirm', {
+          method: 'POST',
+          body: JSON.stringify({ code }),
+        });
+        state.token = result.token;
+        state.user = result.user;
+        localStorage.setItem('zh_token', result.token);
+        localStorage.setItem('zh_user', JSON.stringify(result.user));
+        showToast('Email updated successfully', 'success');
+        navigateTo('account/info');
+      } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.classList.add('show');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Confirm';
+      }
+    });
+
+    $('#change-email-resend-btn').addEventListener('click', async () => {
+      const btn = $('#change-email-resend-btn');
+      btn.disabled = true;
+      try {
+        await api(`/auth/change-email/verify?token=${encodeURIComponent(token)}`);
+        showToast('New code sent', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    $('#change-email-cancel').addEventListener('click', (e) => {
+      e.preventDefault();
+      navigateTo('account/info');
+    });
+
+    initIcons();
+  } catch (err) {
+    app.innerHTML = html`
+      <div class="login-page">
+        <div class="login-left">
+          <div class="login-left-top">
+            <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
+            <span>| Dashboard</span>
+          </div>
+        </div>
+        <div class="login-right">
+          <div class="login-card" style="text-align:center;">
+            <div style="margin:0 auto 24px;width:fit-content;">
+              <i data-lucide="x-circle" style="width:48px;height:48px;color:var(--accent-red);"></i>
+            </div>
+            <h1 class="auth-title">Link expired</h1>
+            <p class="auth-subtitle">${escapeHtml(err.message)}</p>
+            <div style="margin-top:24px;">
+              <a href="/account/info" class="btn btn-primary">Back to Account</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    initIcons();
+  }
+}
+
 function renderVerificationSent(email) {
   const app = $('#app');
   app.innerHTML = html`
@@ -1470,6 +1629,13 @@ function navigateTo(page) {
     const token = params.get('token');
     renderVerifyEmail(token);
     history.replaceState({ page: 'verify-email' }, '', window.location.pathname + window.location.search);
+    return;
+  }
+  if (basePage === 'change-email') {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    renderChangeEmailVerify(token);
+    history.replaceState({ page: 'change-email' }, '', window.location.pathname + window.location.search);
     return;
   }
 
@@ -3013,21 +3179,13 @@ async function handleChangeEmail(e) {
       showToast('Please fill in all fields', 'error');
       return;
     }
-    const data = await api('/auth/change-email', {
+    await api('/auth/change-email', {
       method: 'POST',
       body: JSON.stringify({ newEmail, password }),
     });
-    state.token = data.token;
-    state.user = data.user;
-    localStorage.setItem('zh_token', data.token);
-    localStorage.setItem('zh_user', JSON.stringify(data.user));
-    $('#acc-new-email').placeholder = newEmail;
     $('#acc-new-email').value = '';
     $('#acc-email-pw').value = '';
-    showToast('Email updated successfully', 'success');
-
-    const sidebarImg = document.querySelector('#avatar-container img');
-    if (sidebarImg) sidebarImg.src = gravatarUrl(state.user.email, 32);
+    showToast('Confirmation link sent to your current email', 'success');
   } catch (err) {
     showToast(err.message, 'error');
   } finally {
@@ -3585,6 +3743,13 @@ function init() {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
     renderVerifyEmail(token);
+    return;
+  }
+
+  if (basePage === 'change-email') {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    renderChangeEmailVerify(token);
     return;
   }
 

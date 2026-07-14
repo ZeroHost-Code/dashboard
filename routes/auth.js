@@ -9,7 +9,7 @@ import { generateToken, authenticateToken } from '../middleware/auth.js';
 import { createPteroUser, updatePteroPassword, updatePteroEmail, deletePteroUser, getServersByUser, deletePteroServer } from '../services/pyrodactyl.js';
 import { verifyCap } from '../config/cap.js';
 import { logActivity } from '../services/activity.js';
-import { sendVerificationEmail } from '../services/email.js';
+import { sendVerificationEmail, sendEmailChangeLink, sendEmailChangeCode } from '../services/email.js';
 
 const router = Router();
 
@@ -491,7 +491,6 @@ router.post('/change-password', authenticateToken, sensitiveLimiter, async (req,
 router.post('/change-email', authenticateToken, sensitiveLimiter, async (req, res) => {
   try {
     const { newEmail, password } = req.body;
-    const pteroId = req.user?.pteroId;
     const userId = req.user?.userId;
 
     if (!newEmail || !password) {
@@ -513,34 +512,109 @@ router.post('/change-email', authenticateToken, sensitiveLimiter, async (req, re
 
     const user = users[0];
 
+    if (newEmail === user.email) {
+      return res.status(400).json({ error: 'New email is the same as current email' });
+    }
+
     const valid = await argon2.verify(user.password_hash, password, { type: argon2.argon2id });
     if (!valid) {
       return res.status(401).json({ error: 'Password is incorrect' });
     }
 
-    // Check if new email is already taken
     const existing = await query('SELECT id FROM users WHERE email = ? AND id != ?', [newEmail, userId]);
     if (existing.length > 0) {
       return res.status(409).json({ error: 'Email is already in use' });
     }
 
-    // Update Pyrodactyl
+    const token = randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 60 * 60 * 1000);
+
+    await query(
+      'UPDATE users SET pending_email = ?, email_change_token = ?, email_change_expires = ? WHERE id = ?',
+      [newEmail, token, expires, userId]
+    );
+
+    await sendEmailChangeLink(user.email, user.username, token, newEmail);
+
+    res.json({ message: 'Confirmation link sent to your current email' });
+  } catch (err) {
+    console.error('Change email initiate error:', err.message);
+    res.status(500).json({ error: 'Failed to initiate email change' });
+  }
+});
+
+router.get('/change-email/verify', async (req, res) => {
+  try {
+    const { token } = req.query;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Token is required' });
+    }
+
+    const users = await query(
+      'SELECT * FROM users WHERE email_change_token = ? AND email_change_expires > NOW()',
+      [token]
+    );
+
+    if (users.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired token' });
+    }
+
+    const user = users[0];
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const codeExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+    await query(
+      'UPDATE users SET email_change_code = ?, email_change_expires = ? WHERE id = ?',
+      [code, codeExpires, user.id]
+    );
+
+    await sendEmailChangeCode(user.pending_email, user.username, code);
+
+    res.json({ message: 'Verification code sent to your new email', pendingEmail: user.pending_email });
+  } catch (err) {
+    console.error('Change email verify error:', err.message);
+    res.status(500).json({ error: 'Failed to verify email change' });
+  }
+});
+
+router.post('/change-email/confirm', authenticateToken, sensitiveLimiter, async (req, res) => {
+  try {
+    const { code } = req.body;
+    const userId = req.user?.userId;
+
+    if (!code) {
+      return res.status(400).json({ error: 'Verification code is required' });
+    }
+
+    const users = await query(
+      'SELECT * FROM users WHERE id = ? AND email_change_code = ? AND email_change_expires > NOW()',
+      [userId, code]
+    );
+
+    if (users.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired code' });
+    }
+
+    const user = users[0];
+    const newEmail = user.pending_email;
+
     try {
-      await updatePteroEmail(pteroId, newEmail);
+      await updatePteroEmail(user.ptero_user_id, newEmail);
     } catch (err) {
       console.error('Failed to update Pyrodactyl email:', err.message);
       return res.status(500).json({ error: 'Failed to update email on panel' });
     }
 
-    // Update local DB and invalidate existing sessions
-    await query('UPDATE users SET email = ?, token_version = token_version + 1 WHERE id = ?', [newEmail, userId]);
+    await query(
+      'UPDATE users SET email = ?, pending_email = NULL, email_change_token = NULL, email_change_code = NULL, email_change_expires = NULL, token_version = token_version + 1 WHERE id = ?',
+      [newEmail, userId]
+    );
 
     await logActivity(userId, 'email_changed', `Changed email to ${newEmail}`);
 
-    // Fetch updated token_version
     const [updatedUser] = await query('SELECT token_version FROM users WHERE id = ?', [userId]);
 
-    // Generate new token with updated email
     const token = generateToken({
       userId: user.id,
       email: newEmail,
@@ -566,8 +640,8 @@ router.post('/change-email', authenticateToken, sensitiveLimiter, async (req, re
       message: 'Email updated successfully',
     });
   } catch (err) {
-    console.error('Change email error:', err.message);
-    res.status(500).json({ error: 'Failed to change email' });
+    console.error('Change email confirm error:', err.message);
+    res.status(500).json({ error: 'Failed to confirm email change' });
   }
 });
 
