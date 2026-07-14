@@ -548,10 +548,6 @@ function renderLoginPage() {
       </div>
       <div class="login-right">
         <div class="login-card">
-          <div class="auth-logo">
-            <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
-            <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span></span>
-          </div>
           <h1 class="auth-title">Welcome back</h1>
           <p class="auth-subtitle">Sign in to your dashboard</p>
           <form id="login-form">
