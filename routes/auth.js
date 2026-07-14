@@ -13,6 +13,16 @@ import { sendVerificationEmail, sendEmailChangeLink, sendEmailChangeCode } from 
 
 const router = Router();
 
+router.get('/check-vpn', async (req, res) => {
+  try {
+    const ip = getClientIp(req);
+    const isVpn = await isVpnOrProxy(ip);
+    res.json({ vpn: isVpn });
+  } catch {
+    res.json({ vpn: false });
+  }
+});
+
 function gravatarHash(email) {
   return createHash('md5').update(email.trim().toLowerCase()).digest('hex');
 }
@@ -139,6 +149,10 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Password must be between 8 and 128 characters' });
     }
 
+    if (await isVpnOrProxy(ip)) {
+      return res.status(403).json({ error: 'VPN or proxy detected. Please disable your VPN for security reasons.' });
+    }
+
     const delay = getLoginDelay(ip);
     if (delay > 0) {
       await new Promise(r => setTimeout(r, delay));
@@ -147,10 +161,6 @@ router.post('/register', async (req, res) => {
     if (!await verifyCap(capToken)) {
       recordLoginAttempt(ip, false);
       return res.status(400).json({ error: 'Please complete the security check' });
-    }
-
-    if (await isVpnOrProxy(ip)) {
-      return res.status(403).json({ error: 'VPNs and proxies are not allowed. Please disable them to register.' });
     }
 
     const ipCount = await query('SELECT COUNT(DISTINCT user_id) AS cnt FROM user_ips WHERE ip_address = ?', [ip]);
@@ -351,16 +361,15 @@ router.post('/login', async (req, res) => {
 
     const ip = getClientIp(req);
 
+    // VPN / Proxy detection — checked first for security
+    if (await isVpnOrProxy(ip)) {
+      return res.status(403).json({ error: 'VPN or proxy detected. Please disable your VPN for security reasons.' });
+    }
+
     // Cap verification
     if (!await verifyCap(capToken)) {
       recordLoginAttempt(ip, false);
       return res.status(400).json({ error: 'Please complete the security check' });
-    }
-
-    // VPN / Proxy detection
-    
-    if (await isVpnOrProxy(ip)) {
-      return res.status(403).json({ error: 'VPNs and proxies are not allowed. Please disable them to sign in.' });
     }
 
     // Progressive delay applied only after validation to prevent resource exhaustion

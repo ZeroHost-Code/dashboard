@@ -559,6 +559,54 @@ function showCapModal() {
   });
 }
 
+function showVpnBlockModal() {
+  return new Promise((resolve) => {
+    const existing = document.getElementById('vpn-block-modal-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'vpn-block-modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:10000;display:flex;align-items:center;justify-content:center';
+    overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); resolve(); } };
+
+    overlay.innerHTML = html`
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:32px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.5);text-align:center" onclick="event.stopPropagation()">
+        <div style="margin-bottom:16px;">
+          <i data-lucide="shield-alert" style="width:48px;height:48px;color:var(--accent-red);"></i>
+        </div>
+        <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:8px;color:var(--text-primary)">VPN / Proxy Detected</h2>
+        <p style="font-size:0.9rem;color:var(--text-secondary);line-height:1.6;margin-bottom:8px">
+          For security reasons, VPN and proxy connections are <strong style="color:var(--text-primary)">not allowed</strong> on ZeroHost.
+        </p>
+        <p style="font-size:0.85rem;color:var(--text-secondary);line-height:1.6;margin-bottom:20px">
+          Please disable your VPN or proxy and try again.
+        </p>
+        <button class="btn btn-primary btn-full vpn-block-ok-btn" style="justify-content:center">
+          I understand
+        </button>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+    initIcons();
+
+    overlay.querySelector('.vpn-block-ok-btn').onclick = () => {
+      overlay.remove();
+      resolve();
+    };
+  });
+}
+
+async function checkVpn() {
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/check-vpn`);
+    const data = await res.json();
+    return data.vpn === true;
+  } catch {
+    return false;
+  }
+}
+
 // ===== AUTH PAGES =====
 function renderLoginPage() {
   const app = $('#app');
@@ -700,6 +748,11 @@ async function handleLogin(e) {
   btn.innerHTML = '<span class="spinner"></span> Signing in...';
 
   try {
+    if (await checkVpn()) {
+      await showVpnBlockModal();
+      return;
+    }
+
     const capToken = await showCapModal();
     const data = await api('/auth/login', {
       method: 'POST',
@@ -716,7 +769,11 @@ async function handleLogin(e) {
     history.replaceState({ page: 'overview' }, '', '/');
     renderDashboard();
   } catch (err) {
-    showError(e.target, err.message);
+    if (err.message && err.message.toLowerCase().includes('vpn')) {
+      await showVpnBlockModal();
+    } else {
+      showError(e.target, err.message);
+    }
   } finally {
     btn.disabled = false;
     btn.innerHTML = 'Sign In';
@@ -778,6 +835,11 @@ async function handlePasskeyLogin() {
   btn.innerHTML = '<span class="spinner"></span>';
 
   try {
+    if (await checkVpn()) {
+      await showVpnBlockModal();
+      return;
+    }
+
     const email = $('#login-email').value.trim();
     const body = email ? { email } : {};
     const beginData = await api('/auth/passkeys/login/begin', {
@@ -791,7 +853,9 @@ async function handlePasskeyLogin() {
 
     await completePasskeyLogin(credential);
   } catch (err) {
-    if (errorEl) {
+    if (err.message && err.message.toLowerCase().includes('vpn')) {
+      await showVpnBlockModal();
+    } else if (errorEl) {
       errorEl.textContent = err.message;
       errorEl.classList.add('show');
     }
@@ -817,6 +881,11 @@ async function handleRegister(e) {
   btn.innerHTML = '<span class="spinner"></span> Creating...';
 
   try {
+    if (await checkVpn()) {
+      await showVpnBlockModal();
+      return;
+    }
+
     const capToken = await showCapModal();
     const data = await api('/auth/register', {
       method: 'POST',
@@ -830,7 +899,11 @@ async function handleRegister(e) {
     });
     renderVerificationSent($('#reg-email').value);
   } catch (err) {
-    showError(e.target, err.message);
+    if (err.message && err.message.toLowerCase().includes('vpn')) {
+      await showVpnBlockModal();
+    } else {
+      showError(e.target, err.message);
+    }
   } finally {
     btn.disabled = false;
     btn.innerHTML = 'Create Account';
