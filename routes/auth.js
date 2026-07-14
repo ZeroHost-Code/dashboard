@@ -91,21 +91,44 @@ async function fetchWithTimeout(url, options = {}, timeout = 5000) {
   }
 }
 
+function isPrivateIp(ip) {
+  if (ip === '127.0.0.1' || ip === '::1' || ip === '0.0.0.0' || ip === '::ffff:127.0.0.1') return true;
+  if (ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.16.')) return true;
+  if (ip.startsWith('fc00:') || ip.startsWith('fd00:') || ip.startsWith('fe80:')) return true;
+  if (ip.startsWith('::ffff:192.168.') || ip.startsWith('::ffff:10.') || ip.startsWith('::ffff:172.16.')) return true;
+  return false;
+}
+
 async function isVpnOrProxy(ip) {
-  if (ip === '127.0.0.1' || ip === '::1' || ip === '0.0.0.0' ||
-      ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.16.')) {
+  if (isPrivateIp(ip)) {
     console.log('[VPN] Skipping private IP:', ip);
     return false;
   }
+
+  const cleanIp = ip.replace(/^::ffff:/, '');
+
   try {
-    const res = await fetchWithTimeout(`https://ip-api.com/json/${ip}?fields=proxy,hosting,isp,org,query`);
+    const res = await fetchWithTimeout(`http://ip-api.com/json/${cleanIp}?fields=proxy,hosting,isp,org,query`);
     const data = await res.json();
-    console.log('[VPN] ip-api response for', ip, ':', JSON.stringify(data));
-    return data.proxy === true || data.hosting === true;
+    console.log('[VPN] ip-api response for', cleanIp, ':', JSON.stringify(data));
+    if (data.proxy === true || data.hosting === true) return true;
   } catch (err) {
-    console.log('[VPN] ip-api failed for', ip, ':', err.message);
-    return false;
+    console.log('[VPN] ip-api failed for', cleanIp, ':', err.message);
   }
+
+  try {
+    const res = await fetchWithTimeout(`https://ipinfo.io/${cleanIp}/json`);
+    const data = await res.json();
+    console.log('[VPN] ipinfo response for', cleanIp, ':', JSON.stringify({ org: data.org, hosting: data.hosting }));
+    if (data.org && (data.org.startsWith('AS') || data.org.toLowerCase().includes('vpn') ||
+        data.org.toLowerCase().includes('proxy') || data.org.toLowerCase().includes('hosting'))) {
+      return true;
+    }
+  } catch (err) {
+    console.log('[VPN] ipinfo failed for', cleanIp, ':', err.message);
+  }
+
+  return false;
 }
 
 const MAX_EMAIL_LENGTH = 254;
