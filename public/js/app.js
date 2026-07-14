@@ -3075,9 +3075,7 @@ async function handleRegisterPasskey() {
       body: JSON.stringify({ response: serializeCredential(credential) }),
     });
 
-    showToast('Passkey registered successfully', 'success');
-    status.textContent = 'Passkey registered!';
-    status.style.color = 'var(--accent-green)';
+    showModal('Passkey registered', 'Your new passkey has been registered successfully. You can now use it to sign in.', 'Got it');
     loadPasskeys();
   } catch (err) {
     status.textContent = err.message;
