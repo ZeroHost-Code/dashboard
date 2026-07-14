@@ -98,7 +98,7 @@ a:hover { color: var(--accent-1); }
 }
 
 .login-left {
-  width: 52%;
+  width: 44%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -157,7 +157,7 @@ a:hover { color: var(--accent-1); }
 }
 
 .login-right {
-  width: 48%;
+  width: 56%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -190,7 +190,7 @@ a:hover { color: var(--accent-1); }
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: 460px;
+  max-width: 520px;
   padding: 48px 56px;
 }
 
@@ -226,7 +226,7 @@ a:hover { color: var(--accent-1); }
   }
 
   .login-card {
-    max-width: 460px;
+    max-width: 560px;
     padding: 40px 32px;
   }
 }
