@@ -16,8 +16,9 @@ const router = Router();
 router.get('/check-vpn', async (req, res) => {
   try {
     const ip = getClientIp(req);
+    const forwarded = req.headers['x-forwarded-for'] || 'none';
     const isVpn = await isVpnOrProxy(ip);
-    res.json({ vpn: isVpn });
+    res.json({ vpn: isVpn, ip, forwarded });
   } catch {
     res.json({ vpn: false });
   }
@@ -93,13 +94,16 @@ async function fetchWithTimeout(url, options = {}, timeout = 5000) {
 async function isVpnOrProxy(ip) {
   if (ip === '127.0.0.1' || ip === '::1' || ip === '0.0.0.0' ||
       ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.16.')) {
+    console.log('[VPN] Skipping private IP:', ip);
     return false;
   }
   try {
-    const res = await fetchWithTimeout(`https://ip-api.com/json/${ip}?fields=proxy,hosting,query`);
+    const res = await fetchWithTimeout(`https://ip-api.com/json/${ip}?fields=proxy,hosting,isp,org,query`);
     const data = await res.json();
+    console.log('[VPN] ip-api response for', ip, ':', JSON.stringify(data));
     return data.proxy === true || data.hosting === true;
-  } catch {
+  } catch (err) {
+    console.log('[VPN] ip-api failed for', ip, ':', err.message);
     return false;
   }
 }
