@@ -1999,6 +1999,10 @@ let activityIcons = {
   admin_suspend: '<i data-lucide="shield-off" style="width:14px;height:14px"></i>',
   admin_unsuspend: '<i data-lucide="shield-check" style="width:14px;height:14px"></i>',
   admin_renew_now: '<i data-lucide="refresh-cw" style="width:14px;height:14px"></i>',
+  passkey_login: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/><path d="M12 17v3"/><path d="M9.5 7.5L12 10l2.5-2.5"/><path d="M7 12h.01"/><path d="M17 12h.01"/></svg>',
+  passkey_registered: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/><path d="M12 17v3"/><path d="M15 7l-3 3-2-2"/><path d="M18.5 8.5a2.121 2.121 0 0 1-3 3"/></svg>',
+  email_verified: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><path d="M9 12l2 2 4-4"/></svg>',
+  passkey_deleted: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/><path d="M12 17v3"/><path d="M9.5 7.5L14.5 12.5"/><path d="M14.5 7.5L9.5 12.5"/></svg>',
 };
 
 function formatRelativeTime(dateStr) {
@@ -2029,6 +2033,10 @@ function getActionLabel(action) {
     admin_suspend: 'Server suspended (Admin)',
     admin_unsuspend: 'Server unsuspended (Admin)',
     admin_renew_now: 'Server force-renewed (Admin)',
+    passkey_login: 'Signed in with passkey',
+    passkey_registered: 'Passkey registered',
+    email_verified: 'Email verified',
+    passkey_deleted: 'Passkey deleted',
   };
   return labels[action] || action;
 }

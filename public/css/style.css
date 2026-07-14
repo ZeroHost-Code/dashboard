@@ -3589,6 +3589,10 @@ tbody tr:hover {
 .activity-icon-admin_suspend { background: rgba(245,158,11,0.15); color: var(--accent-orange); }
 .activity-icon-admin_unsuspend { background: rgba(16,185,129,0.15); color: var(--accent-green); }
 .activity-icon-admin_renew_now { background: rgba(6,182,212,0.15); color: var(--accent-cyan); }
+.activity-icon-passkey_login { background: rgba(5,150,105,0.15); color: #059669; }
+.activity-icon-passkey_registered { background: rgba(6,182,212,0.15); color: #06b6d4; }
+.activity-icon-email_verified { background: rgba(5,150,105,0.15); color: #059669; }
+.activity-icon-passkey_deleted { background: rgba(239,68,68,0.15); color: #ef4444; }
 
 .activity-content {
   flex: 1;
