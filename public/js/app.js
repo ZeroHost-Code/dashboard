@@ -107,6 +107,30 @@ async function sendPowerCommand(identifier, signal, event) {
 }
 
 function $(sel) { return document.querySelector(sel); }
+
+function showModal(title, message, buttonText) {
+  let overlay = $('#standalone-modal-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'standalone-modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center';
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML = html`
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.4);text-align:center" onclick="event.stopPropagation()">
+      <div style="margin-bottom:16px;">
+        <i data-lucide="mail-check" style="width:40px;height:40px;color:var(--accent-1);"></i>
+      </div>
+      <h2 style="font-size:1.15rem;font-weight:700;margin-bottom:8px">${title}</h2>
+      <p style="font-size:0.88rem;color:var(--text-secondary);line-height:1.6;margin-bottom:20px">${message}</p>
+      <button class="btn btn-primary btn-full standalone-modal-ok" style="justify-content:center">${buttonText || 'OK'}</button>
+    </div>
+  `;
+  overlay.style.display = 'flex';
+  initIcons();
+  overlay.querySelector('.standalone-modal-ok').onclick = () => overlay.remove();
+}
 function md5(s) {
   function F(x,y,z) { return (x & y) | (~x & z); }
   function G(x,y,z) { return (x & z) | (y & ~z); }
@@ -1029,16 +1053,27 @@ async function renderChangeEmailVerify(token) {
       try {
         await api(`/auth/change-email/verify?token=${encodeURIComponent(token)}`);
         showToast('New code sent', 'success');
+        let countdown = 30;
+        btn.textContent = `Resend code (${countdown}s)`;
+        const timer = setInterval(() => {
+          countdown--;
+          if (countdown <= 0) {
+            clearInterval(timer);
+            btn.disabled = false;
+            btn.textContent = 'Resend code';
+          } else {
+            btn.textContent = `Resend code (${countdown}s)`;
+          }
+        }, 1000);
       } catch (err) {
         showToast(err.message, 'error');
-      } finally {
         btn.disabled = false;
       }
     });
 
     $('#change-email-cancel').addEventListener('click', (e) => {
       e.preventDefault();
-      navigateTo('account/info');
+      navigateTo('login');
     });
 
     initIcons();
@@ -1059,7 +1094,7 @@ async function renderChangeEmailVerify(token) {
             <h1 class="auth-title">Link expired</h1>
             <p class="auth-subtitle">${escapeHtml(err.message)}</p>
             <div style="margin-top:24px;">
-              <a href="/account/info" class="btn btn-primary">Back to Account</a>
+              <a href="/login" class="btn btn-primary">Sign In</a>
             </div>
           </div>
         </div>
@@ -3185,7 +3220,7 @@ async function handleChangeEmail(e) {
     });
     $('#acc-new-email').value = '';
     $('#acc-email-pw').value = '';
-    showToast('Confirmation link sent to your current email', 'success');
+    showModal('Check your email', 'A confirmation link has been sent to your current email address. Click the link to proceed with the email change. The link expires in 30 minutes.', 'Got it');
   } catch (err) {
     showToast(err.message, 'error');
   } finally {

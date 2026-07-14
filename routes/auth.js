@@ -527,7 +527,7 @@ router.post('/change-email', authenticateToken, sensitiveLimiter, async (req, re
     }
 
     const token = randomBytes(32).toString('hex');
-    const expires = new Date(Date.now() + 60 * 60 * 1000);
+    const expires = new Date(Date.now() + 30 * 60 * 1000);
 
     await query(
       'UPDATE users SET pending_email = ?, email_change_token = ?, email_change_expires = ? WHERE id = ?',
@@ -562,7 +562,7 @@ router.get('/change-email/verify', async (req, res) => {
 
     const user = users[0];
     const code = String(Math.floor(100000 + Math.random() * 900000));
-    const codeExpires = new Date(Date.now() + 10 * 60 * 1000);
+    const codeExpires = new Date(Date.now() + 30 * 60 * 1000);
 
     await query(
       'UPDATE users SET email_change_code = ?, email_change_expires = ? WHERE id = ?',

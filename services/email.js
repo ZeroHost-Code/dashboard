@@ -192,7 +192,7 @@ export function getEmailChangeLinkHtml(username, verifyUrl, newEmail) {
                 </tr>
                 <tr>
                   <td style="padding-bottom:24px;">
-                    <p style="margin:0;font-size:15px;line-height:1.6;color:#a0a0b8;">Hi ${username}, you requested to change your email to <strong style="color:#ffffff;">${newEmail}</strong>. Click the button below to confirm. This link expires in 1 hour.</p>
+                    <p style="margin:0;font-size:15px;line-height:1.6;color:#a0a0b8;">Hi ${username}, you requested to change your email to <strong style="color:#ffffff;">${newEmail}</strong>. Click the button below to confirm. This link expires in 30 minutes.</p>
                   </td>
                 </tr>
                 <tr>
@@ -231,7 +231,7 @@ export function getEmailChangeLinkHtml(username, verifyUrl, newEmail) {
 export function getEmailChangeLinkText(username, verifyUrl, newEmail) {
   return `Confirm your email change
 
-Hi ${username}, you requested to change your email to ${newEmail}. Click the link below to confirm. This link expires in 1 hour.
+Hi ${username}, you requested to change your email to ${newEmail}. Click the link below to confirm. This link expires in 30 minutes.
 
 ${verifyUrl}
 
@@ -277,7 +277,7 @@ export function getEmailChangeCodeHtml(username, code) {
                 </tr>
                 <tr>
                   <td style="padding-bottom:24px;">
-                    <p style="margin:0;font-size:15px;line-height:1.6;color:#a0a0b8;">Hi ${username}, here is your verification code to confirm your new email address. This code expires in 10 minutes.</p>
+                    <p style="margin:0;font-size:15px;line-height:1.6;color:#a0a0b8;">Hi ${username}, here is your verification code to confirm your new email address. This code expires in 30 minutes.</p>
                   </td>
                 </tr>
                 <tr>
@@ -309,7 +309,7 @@ export function getEmailChangeCodeHtml(username, code) {
 export function getEmailChangeCodeText(username, code) {
   return `Your verification code
 
-Hi ${username}, here is your verification code to confirm your new email address. This code expires in 10 minutes.
+Hi ${username}, here is your verification code to confirm your new email address. This code expires in 30 minutes.
 
 ${code}
 
