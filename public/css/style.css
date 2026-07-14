@@ -194,6 +194,10 @@ a:hover { color: var(--accent-1); }
   padding: 48px 32px;
 }
 
+.login-choice-btn + .login-choice-btn {
+  margin-top: 14px;
+}
+
 @media (max-width: 1024px) {
   .login-page {
     flex-direction: column;

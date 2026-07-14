@@ -550,27 +550,39 @@ function renderLoginPage() {
         <div class="login-card">
           <h1 class="auth-title">Welcome back</h1>
           <p class="auth-subtitle">Sign in to your dashboard</p>
-          <form id="login-form">
+
+          <div id="login-choices">
+            <button type="button" class="btn btn-primary btn-full login-choice-btn" id="login-email-btn">
+              <i data-lucide="mail" style="width:18px;height:18px"></i>
+              Login with E-mail
+            </button>
+            <button type="button" class="btn btn-ghost btn-full login-choice-btn" id="login-passkey-btn" style="border:1px solid var(--border)">
+              <i data-lucide="fingerprint" style="width:18px;height:18px"></i>
+              Login with Passkey
+            </button>
+          </div>
+
+          <div id="login-email-form" style="display:none">
             <div class="auth-error"></div>
-            <div class="form-group">
-              <label for="login-email">Email</label>
-              <input type="email" id="login-email" placeholder="your@email.com" required autocomplete="webauthn" />
-            </div>
-            <div class="form-group">
-              <label for="login-password">Password</label>
-              <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password" />
-            </div>
-            <button type="submit" class="btn btn-primary btn-full" id="login-btn">
-              Sign In
+            <form id="login-form">
+              <div class="form-group">
+                <label for="login-email">Email</label>
+                <input type="email" id="login-email" placeholder="your@email.com" required autocomplete="webauthn" />
+              </div>
+              <div class="form-group">
+                <label for="login-password">Password</label>
+                <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password" />
+              </div>
+              <button type="submit" class="btn btn-primary btn-full" id="login-btn">
+                Sign In
+              </button>
+            </form>
+            <button type="button" class="btn btn-ghost btn-full" id="login-back-btn" style="margin-top:12px">
+              <i data-lucide="arrow-left" style="width:16px;height:16px"></i>
+              Back
             </button>
-            <div style="position:relative;margin:20px 0;text-align:center">
-              <span style="background:#1c1712;padding:0 14px;color:var(--text-muted);font-size:0.85rem">or</span>
-            </div>
-            <button type="button" class="btn btn-ghost btn-full" id="passkey-login-btn" style="border:1px solid var(--border)">
-              <i data-lucide="fingerprint" style="width:16px;height:16px"></i>
-              Sign in with Passkey
-            </button>
-          </form>
+          </div>
+
           <div class="auth-footer">
             Don't have an account? <a href="/signup" id="go-register">Create one</a>
           </div>
@@ -579,14 +591,25 @@ function renderLoginPage() {
     </div>
   `;
 
+  $('#login-email-btn').addEventListener('click', () => {
+    $('#login-choices').style.display = 'none';
+    $('#login-email-form').style.display = 'block';
+    initIcons();
+  });
+
+  $('#login-back-btn').addEventListener('click', () => {
+    $('#login-email-form').style.display = 'none';
+    $('#login-choices').style.display = 'block';
+    initIcons();
+  });
+
   $('#login-form').addEventListener('submit', handleLogin);
-  $('#passkey-login-btn').addEventListener('click', handlePasskeyLogin);
+  $('#login-passkey-btn').addEventListener('click', handlePasskeyLogin);
   $('#go-register').addEventListener('click', (e) => {
     e.preventDefault();
     navigateTo('signup');
   });
 
-  setupPasskeyAutofill();
   initIcons();
   setTimeout(initIcons, 100);
 }
