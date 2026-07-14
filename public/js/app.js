@@ -539,37 +539,46 @@ function showCapModal() {
 function renderLoginPage() {
   const app = $('#app');
   app.innerHTML = html`
-    <div class="auth-page">
-      <div class="auth-card">
-        <div class="auth-logo">
-          <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
-          <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span></span>
+    <div class="login-page">
+      <div class="login-left">
+        <div class="login-left-content">
+          <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" class="login-left-logo" />
+          <span class="login-left-brand">Zero<span>Host</span></span>
+          <p class="login-left-tagline">Deploy, manage, and scale your infrastructure.</p>
         </div>
-        <h1 class="auth-title">Welcome back</h1>
-        <p class="auth-subtitle">Sign in to your dashboard</p>
-        <form id="login-form">
-          <div class="auth-error"></div>
-          <div class="form-group">
-            <label for="login-email">Email</label>
-            <input type="email" id="login-email" placeholder="your@email.com" required autocomplete="webauthn" />
+      </div>
+      <div class="login-right">
+        <div class="login-card">
+          <div class="auth-logo">
+            <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
+            <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span></span>
           </div>
-          <div class="form-group">
-            <label for="login-password">Password</label>
-            <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password" />
+          <h1 class="auth-title">Welcome back</h1>
+          <p class="auth-subtitle">Sign in to your dashboard</p>
+          <form id="login-form">
+            <div class="auth-error"></div>
+            <div class="form-group">
+              <label for="login-email">Email</label>
+              <input type="email" id="login-email" placeholder="your@email.com" required autocomplete="webauthn" />
+            </div>
+            <div class="form-group">
+              <label for="login-password">Password</label>
+              <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password" />
+            </div>
+            <button type="submit" class="btn btn-primary btn-full" id="login-btn">
+              Sign In
+            </button>
+            <div style="position:relative;margin:12px 0;text-align:center">
+              <span style="background:var(--card-bg);padding:0 12px;color:var(--text-muted);font-size:0.8rem">or</span>
+            </div>
+            <button type="button" class="btn btn-ghost btn-full" id="passkey-login-btn" style="border:1px solid var(--border)">
+              <i data-lucide="fingerprint" style="width:16px;height:16px"></i>
+              Sign in with Passkey
+            </button>
+          </form>
+          <div class="auth-footer">
+            Don't have an account? <a href="/signup" id="go-register">Create one</a>
           </div>
-          <button type="submit" class="btn btn-primary btn-full" id="login-btn">
-            Sign In
-          </button>
-          <div style="position:relative;margin:12px 0;text-align:center">
-            <span style="background:var(--card-bg);padding:0 12px;color:var(--text-muted);font-size:0.8rem">or</span>
-          </div>
-          <button type="button" class="btn btn-ghost btn-full" id="passkey-login-btn" style="border:1px solid var(--border)">
-            <i data-lucide="fingerprint" style="width:16px;height:16px"></i>
-            Sign in with Passkey
-          </button>
-        </form>
-        <div class="auth-footer">
-          Don't have an account? <a href="/signup" id="go-register">Create one</a>
         </div>
       </div>
     </div>
