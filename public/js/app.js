@@ -541,10 +541,9 @@ function renderLoginPage() {
   app.innerHTML = html`
     <div class="login-page">
       <div class="login-left">
-        <div class="login-left-content">
-          <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" class="login-left-logo" />
-          <span class="login-left-brand">Zero<span>Host</span></span>
-          <p class="login-left-tagline">Deploy, manage, and scale your infrastructure.</p>
+        <div class="login-left-top">
+          <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
+          <span>| Dashboard</span>
         </div>
       </div>
       <div class="login-right">
