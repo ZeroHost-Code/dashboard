@@ -166,12 +166,6 @@ router.post('/passkeys/register/complete', authenticateToken, passkeyRegisterLim
 
 router.post('/passkeys/login/begin', passkeyLoginLimiter, async (req, res) => {
   try {
-    const ip = getClientIp(req);
-
-    if (await isVpnOrProxy(ip)) {
-      return res.status(403).json({ error: 'VPN or proxy detected. Please disable your VPN for security reasons.' });
-    }
-
     const { email } = req.body;
     let userId = null;
     let allowCredentials;
