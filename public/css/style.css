@@ -190,8 +190,8 @@ a:hover { color: var(--accent-1); }
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: 400px;
-  padding: 40px;
+  max-width: 420px;
+  padding: 48px 56px;
 }
 
 @media (max-width: 1024px) {
@@ -226,7 +226,8 @@ a:hover { color: var(--accent-1); }
   }
 
   .login-card {
-    max-width: 440px;
+    max-width: 460px;
+    padding: 40px 32px;
   }
 }
 
@@ -250,7 +251,7 @@ a:hover { color: var(--accent-1); }
   }
 
   .login-card {
-    padding: 24px 16px;
+    padding: 32px 20px;
   }
 }
 
@@ -296,7 +297,7 @@ a:hover { color: var(--accent-1); }
 .auth-subtitle {
   font-size: 0.9rem;
   color: var(--text-secondary);
-  margin-bottom: 32px;
+  margin-bottom: 36px;
 }
 
 .form-group {
