@@ -111,7 +111,7 @@ async function isVpnOrProxy(ip) {
     const res = await fetchWithTimeout(`http://ip-api.com/json/${cleanIp}?fields=proxy,hosting,isp,org,query`);
     const data = await res.json();
     console.log('[VPN] ip-api response for', cleanIp, ':', JSON.stringify(data));
-    if (data.proxy === true || data.hosting === true) return true;
+    return data.proxy === true || data.hosting === true;
   } catch (err) {
     console.log('[VPN] ip-api failed for', cleanIp, ':', err.message);
   }
@@ -121,8 +121,7 @@ async function isVpnOrProxy(ip) {
     const data = await res.json();
     console.log('[VPN] ipinfo response for', cleanIp, ':', JSON.stringify({ org: data.org }));
     const orgLower = (data.org || '').toLowerCase();
-    if (orgLower.includes('vpn') || orgLower.includes('proxy') || orgLower.includes('tor') ||
-        orgLower.includes('hosting') || orgLower.includes('cloud') || orgLower.includes('datacenter')) {
+    if (orgLower.includes('vpn') || orgLower.includes('proxy') || orgLower.includes('tor')) {
       return true;
     }
   } catch (err) {
