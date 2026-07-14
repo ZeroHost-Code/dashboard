@@ -563,8 +563,8 @@ function renderLoginPage() {
           </div>
 
           <div id="login-email-form" style="display:none">
-            <div class="auth-error"></div>
             <form id="login-form">
+              <div class="auth-error"></div>
               <div class="form-group">
                 <label for="login-email">Email</label>
                 <input type="email" id="login-email" placeholder="your@email.com" required autocomplete="webauthn" />
@@ -747,7 +747,7 @@ async function setupPasskeyAutofill() {
 
 async function handlePasskeyLogin() {
   const btn = $('#login-passkey-btn');
-  const errorEl = $('#login-email-form .auth-error');
+  const errorEl = $('#login-form .auth-error');
   if (errorEl) errorEl.classList.remove('show');
 
   btn.disabled = true;
