@@ -107,6 +107,30 @@ async function sendPowerCommand(identifier, signal, event) {
 }
 
 function $(sel) { return document.querySelector(sel); }
+
+function showModal(title, message, buttonText) {
+  let overlay = $('#standalone-modal-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'standalone-modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center';
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML = html`
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.4);text-align:center" onclick="event.stopPropagation()">
+      <div style="margin-bottom:16px;">
+        <i data-lucide="mail-check" style="width:40px;height:40px;color:var(--accent-1);"></i>
+      </div>
+      <h2 style="font-size:1.15rem;font-weight:700;margin-bottom:8px">${title}</h2>
+      <p style="font-size:0.88rem;color:var(--text-secondary);line-height:1.6;margin-bottom:20px">${message}</p>
+      <button class="btn btn-primary btn-full standalone-modal-ok" style="justify-content:center">${buttonText || 'OK'}</button>
+    </div>
+  `;
+  overlay.style.display = 'flex';
+  initIcons();
+  overlay.querySelector('.standalone-modal-ok').onclick = () => overlay.remove();
+}
 function md5(s) {
   function F(x,y,z) { return (x & y) | (~x & z); }
   function G(x,y,z) { return (x & z) | (y & ~z); }
@@ -535,6 +559,54 @@ function showCapModal() {
   });
 }
 
+function showVpnBlockModal() {
+  return new Promise((resolve) => {
+    const existing = document.getElementById('vpn-block-modal-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'vpn-block-modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:10000;display:flex;align-items:center;justify-content:center';
+    overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); resolve(); } };
+
+    overlay.innerHTML = html`
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:32px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.5);text-align:center" onclick="event.stopPropagation()">
+        <div style="margin-bottom:16px;">
+          <i data-lucide="shield-alert" style="width:48px;height:48px;color:var(--accent-red);"></i>
+        </div>
+        <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:8px;color:var(--text-primary)">VPN / Proxy Detected</h2>
+        <p style="font-size:0.9rem;color:var(--text-secondary);line-height:1.6;margin-bottom:8px">
+          For security reasons, VPN and proxy connections are <strong style="color:var(--text-primary)">not allowed</strong> on ZeroHost.
+        </p>
+        <p style="font-size:0.85rem;color:var(--text-secondary);line-height:1.6;margin-bottom:20px">
+          Please disable your VPN or proxy and try again.
+        </p>
+        <button class="btn btn-primary btn-full vpn-block-ok-btn" style="justify-content:center">
+          I understand
+        </button>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+    initIcons();
+
+    overlay.querySelector('.vpn-block-ok-btn').onclick = () => {
+      overlay.remove();
+      resolve();
+    };
+  });
+}
+
+async function checkVpn() {
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/check-vpn`);
+    const data = await res.json();
+    return data.vpn === true;
+  } catch {
+    return false;
+  }
+}
+
 // ===== AUTH PAGES =====
 function renderLoginPage() {
   const app = $('#app');
@@ -563,8 +635,8 @@ function renderLoginPage() {
           </div>
 
           <div id="login-email-form" style="display:none">
-            <div class="auth-error"></div>
             <form id="login-form">
+              <div class="auth-error"></div>
               <div class="form-group">
                 <label for="login-email">Email</label>
                 <input type="email" id="login-email" placeholder="your@email.com" required autocomplete="webauthn" />
@@ -676,6 +748,11 @@ async function handleLogin(e) {
   btn.innerHTML = '<span class="spinner"></span> Signing in...';
 
   try {
+    if (await checkVpn()) {
+      await showVpnBlockModal();
+      return;
+    }
+
     const capToken = await showCapModal();
     const data = await api('/auth/login', {
       method: 'POST',
@@ -692,7 +769,11 @@ async function handleLogin(e) {
     history.replaceState({ page: 'overview' }, '', '/');
     renderDashboard();
   } catch (err) {
-    showError(e.target, err.message);
+    if (err.message && err.message.toLowerCase().includes('vpn')) {
+      await showVpnBlockModal();
+    } else {
+      showError(e.target, err.message);
+    }
   } finally {
     btn.disabled = false;
     btn.innerHTML = 'Sign In';
@@ -700,6 +781,11 @@ async function handleLogin(e) {
 }
 
 async function completePasskeyLogin(credential) {
+  if (await checkVpn()) {
+    await showVpnBlockModal();
+    return;
+  }
+
   const data = await api('/auth/passkeys/login/complete', {
     method: 'POST',
     body: JSON.stringify({
@@ -747,13 +833,18 @@ async function setupPasskeyAutofill() {
 
 async function handlePasskeyLogin() {
   const btn = $('#login-passkey-btn');
-  const errorEl = $('#login-email-form .auth-error');
+  const errorEl = $('#login-form .auth-error');
   if (errorEl) errorEl.classList.remove('show');
 
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>';
 
   try {
+    if (await checkVpn()) {
+      await showVpnBlockModal();
+      return;
+    }
+
     const email = $('#login-email').value.trim();
     const body = email ? { email } : {};
     const beginData = await api('/auth/passkeys/login/begin', {
@@ -767,7 +858,9 @@ async function handlePasskeyLogin() {
 
     await completePasskeyLogin(credential);
   } catch (err) {
-    if (errorEl) {
+    if (err.message && err.message.toLowerCase().includes('vpn')) {
+      await showVpnBlockModal();
+    } else if (errorEl) {
       errorEl.textContent = err.message;
       errorEl.classList.add('show');
     }
@@ -793,6 +886,11 @@ async function handleRegister(e) {
   btn.innerHTML = '<span class="spinner"></span> Creating...';
 
   try {
+    if (await checkVpn()) {
+      await showVpnBlockModal();
+      return;
+    }
+
     const capToken = await showCapModal();
     const data = await api('/auth/register', {
       method: 'POST',
@@ -806,7 +904,11 @@ async function handleRegister(e) {
     });
     renderVerificationSent($('#reg-email').value);
   } catch (err) {
-    showError(e.target, err.message);
+    if (err.message && err.message.toLowerCase().includes('vpn')) {
+      await showVpnBlockModal();
+    } else {
+      showError(e.target, err.message);
+    }
   } finally {
     btn.disabled = false;
     btn.innerHTML = 'Create Account';
@@ -902,6 +1004,176 @@ async function renderVerifyEmail(token) {
           <p class="auth-subtitle">${escapeHtml(err.message)}</p>
           <div style="margin-top:24px;">
             <a href="/signup" class="btn btn-primary">Create Account</a>
+          </div>
+        </div>
+      </div>
+    `;
+    initIcons();
+  }
+}
+
+async function renderChangeEmailVerify(token) {
+  const app = $('#app');
+
+  if (!token) {
+    app.innerHTML = html`
+      <div class="auth-page">
+        <div class="auth-card" style="text-align:center;">
+          <div style="margin:24px 0 16px;">
+            <i data-lucide="x-circle" style="width:48px;height:48px;color:var(--accent-red);"></i>
+          </div>
+          <h1 class="auth-title">Invalid Link</h1>
+          <p class="auth-subtitle">This email change link is invalid or has expired.</p>
+          <div style="margin-top:24px;">
+            <a href="/login" class="btn btn-primary">Sign In</a>
+          </div>
+        </div>
+      </div>
+    `;
+    initIcons();
+    return;
+  }
+
+  app.innerHTML = html`
+    <div class="login-page">
+      <div class="login-left">
+        <div class="login-left-top">
+          <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
+          <span>| Dashboard</span>
+        </div>
+      </div>
+      <div class="login-right">
+        <div class="login-card">
+          <div style="margin:0 auto 24px;width:fit-content;">
+            <span class="spinner" style="width:36px;height:36px;"></span>
+          </div>
+          <h1 class="auth-title" style="text-align:center">Verifying link...</h1>
+        </div>
+      </div>
+    </div>
+  `;
+  initIcons();
+
+  try {
+    const data = await api(`/auth/change-email/verify?token=${encodeURIComponent(token)}`);
+
+    app.innerHTML = html`
+      <div class="login-page">
+        <div class="login-left">
+          <div class="login-left-top">
+            <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
+            <span>| Dashboard</span>
+          </div>
+        </div>
+        <div class="login-right">
+          <div class="login-card">
+            <h1 class="auth-title">Enter verification code</h1>
+            <p class="auth-subtitle">A 6-digit code was sent to <strong style="color:var(--text-primary)">${escapeHtml(data.pendingEmail)}</strong></p>
+            <form id="change-email-code-form">
+              <div class="auth-error"></div>
+              <div class="form-group">
+                <label for="change-email-code">Verification Code</label>
+                <input type="text" id="change-email-code" placeholder="000000" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" required style="text-align:center;font-size:1.4rem;letter-spacing:8px;font-family:'JetBrains Mono',monospace;" />
+              </div>
+              <button type="submit" class="btn btn-primary btn-full" id="change-email-code-btn">
+                Confirm
+              </button>
+            </form>
+            <button type="button" class="btn btn-ghost btn-full" id="change-email-resend-btn" style="margin-top:12px;border:1px solid var(--border)">
+              Resend code
+            </button>
+            <div class="auth-footer">
+              <a href="/account/info" id="change-email-cancel">Cancel</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    $('#change-email-code-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = $('#change-email-code-btn');
+      const errorEl = $('#change-email-code-form .auth-error');
+      const code = $('#change-email-code').value.trim();
+
+      if (code.length !== 6) {
+        errorEl.textContent = 'Please enter the 6-digit code';
+        errorEl.classList.add('show');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>';
+
+      try {
+        const result = await api('/auth/change-email/confirm', {
+          method: 'POST',
+          body: JSON.stringify({ code }),
+        });
+        state.token = result.token;
+        state.user = result.user;
+        localStorage.setItem('zh_token', result.token);
+        localStorage.setItem('zh_user', JSON.stringify(result.user));
+        showToast('Email updated successfully', 'success');
+        navigateTo('account/info');
+      } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.classList.add('show');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Confirm';
+      }
+    });
+
+    $('#change-email-resend-btn').addEventListener('click', async () => {
+      const btn = $('#change-email-resend-btn');
+      btn.disabled = true;
+      try {
+        await api(`/auth/change-email/verify?token=${encodeURIComponent(token)}`);
+        showToast('New code sent', 'success');
+        let countdown = 30;
+        btn.textContent = `Resend code (${countdown}s)`;
+        const timer = setInterval(() => {
+          countdown--;
+          if (countdown <= 0) {
+            clearInterval(timer);
+            btn.disabled = false;
+            btn.textContent = 'Resend code';
+          } else {
+            btn.textContent = `Resend code (${countdown}s)`;
+          }
+        }, 1000);
+      } catch (err) {
+        showToast(err.message, 'error');
+        btn.disabled = false;
+      }
+    });
+
+    $('#change-email-cancel').addEventListener('click', (e) => {
+      e.preventDefault();
+      navigateTo('login');
+    });
+
+    initIcons();
+  } catch (err) {
+    app.innerHTML = html`
+      <div class="login-page">
+        <div class="login-left">
+          <div class="login-left-top">
+            <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
+            <span>| Dashboard</span>
+          </div>
+        </div>
+        <div class="login-right">
+          <div class="login-card" style="text-align:center;">
+            <div style="margin:0 auto 24px;width:fit-content;">
+              <i data-lucide="x-circle" style="width:48px;height:48px;color:var(--accent-red);"></i>
+            </div>
+            <h1 class="auth-title">Link expired</h1>
+            <p class="auth-subtitle">${escapeHtml(err.message)}</p>
+            <div style="margin-top:24px;">
+              <a href="/login" class="btn btn-primary">Sign In</a>
+            </div>
           </div>
         </div>
       </div>
@@ -1062,7 +1334,7 @@ async function renderDashboard() {
           <div style="padding:8px 12px 0;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
 
           </div>
-          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v1.0.6</div>
+          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v1.0.7</div>
         </div>
         <div class="sidebar-resizer" id="sidebar-resizer"></div>
       </aside>
@@ -1472,6 +1744,13 @@ function navigateTo(page) {
     history.replaceState({ page: 'verify-email' }, '', window.location.pathname + window.location.search);
     return;
   }
+  if (basePage === 'change-email') {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    renderChangeEmailVerify(token);
+    history.replaceState({ page: 'change-email' }, '', window.location.pathname + window.location.search);
+    return;
+  }
 
   // Auth guard: require valid token for all other pages
   if (!state.token) {
@@ -1798,6 +2077,10 @@ let activityIcons = {
   admin_suspend: '<i data-lucide="shield-off" style="width:14px;height:14px"></i>',
   admin_unsuspend: '<i data-lucide="shield-check" style="width:14px;height:14px"></i>',
   admin_renew_now: '<i data-lucide="refresh-cw" style="width:14px;height:14px"></i>',
+  passkey_login: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/><path d="M12 17v3"/><path d="M9.5 7.5L12 10l2.5-2.5"/><path d="M7 12h.01"/><path d="M17 12h.01"/></svg>',
+  passkey_registered: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/><path d="M12 17v3"/><path d="M15 7l-3 3-2-2"/><path d="M18.5 8.5a2.121 2.121 0 0 1-3 3"/></svg>',
+  email_verified: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><path d="M9 12l2 2 4-4"/></svg>',
+  passkey_deleted: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/><path d="M12 17v3"/><path d="M9.5 7.5L14.5 12.5"/><path d="M14.5 7.5L9.5 12.5"/></svg>',
 };
 
 function formatRelativeTime(dateStr) {
@@ -1828,6 +2111,10 @@ function getActionLabel(action) {
     admin_suspend: 'Server suspended (Admin)',
     admin_unsuspend: 'Server unsuspended (Admin)',
     admin_renew_now: 'Server force-renewed (Admin)',
+    passkey_login: 'Signed in with passkey',
+    passkey_registered: 'Passkey registered',
+    email_verified: 'Email verified',
+    passkey_deleted: 'Passkey deleted',
   };
   return labels[action] || action;
 }
@@ -2866,9 +3153,7 @@ async function handleRegisterPasskey() {
       body: JSON.stringify({ response: serializeCredential(credential) }),
     });
 
-    showToast('Passkey registered successfully', 'success');
-    status.textContent = 'Passkey registered!';
-    status.style.color = 'var(--accent-green)';
+    showModal('Passkey registered', 'Your new passkey has been registered successfully. You can now use it to sign in.', 'Got it');
     loadPasskeys();
   } catch (err) {
     status.textContent = err.message;
@@ -3013,21 +3298,13 @@ async function handleChangeEmail(e) {
       showToast('Please fill in all fields', 'error');
       return;
     }
-    const data = await api('/auth/change-email', {
+    await api('/auth/change-email', {
       method: 'POST',
       body: JSON.stringify({ newEmail, password }),
     });
-    state.token = data.token;
-    state.user = data.user;
-    localStorage.setItem('zh_token', data.token);
-    localStorage.setItem('zh_user', JSON.stringify(data.user));
-    $('#acc-new-email').placeholder = newEmail;
     $('#acc-new-email').value = '';
     $('#acc-email-pw').value = '';
-    showToast('Email updated successfully', 'success');
-
-    const sidebarImg = document.querySelector('#avatar-container img');
-    if (sidebarImg) sidebarImg.src = gravatarUrl(state.user.email, 32);
+    showModal('Check your email', 'A confirmation link has been sent to your current email address. Click the link to proceed with the email change. The link expires in 30 minutes.', 'Got it');
   } catch (err) {
     showToast(err.message, 'error');
   } finally {
@@ -3585,6 +3862,13 @@ function init() {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
     renderVerifyEmail(token);
+    return;
+  }
+
+  if (basePage === 'change-email') {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    renderChangeEmailVerify(token);
     return;
   }
 

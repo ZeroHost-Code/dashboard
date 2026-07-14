@@ -9,9 +9,20 @@ import { generateToken, authenticateToken } from '../middleware/auth.js';
 import { createPteroUser, updatePteroPassword, updatePteroEmail, deletePteroUser, getServersByUser, deletePteroServer } from '../services/pyrodactyl.js';
 import { verifyCap } from '../config/cap.js';
 import { logActivity } from '../services/activity.js';
-import { sendVerificationEmail } from '../services/email.js';
+import { sendVerificationEmail, sendEmailChangeLink, sendEmailChangeCode } from '../services/email.js';
 
 const router = Router();
+
+router.get('/check-vpn', async (req, res) => {
+  try {
+    const ip = getClientIp(req);
+    const forwarded = req.headers['x-forwarded-for'] || 'none';
+    const isVpn = await isVpnOrProxy(ip);
+    res.json({ vpn: isVpn, ip, forwarded });
+  } catch {
+    res.json({ vpn: false });
+  }
+});
 
 function gravatarHash(email) {
   return createHash('md5').update(email.trim().toLowerCase()).digest('hex');
@@ -80,18 +91,44 @@ async function fetchWithTimeout(url, options = {}, timeout = 5000) {
   }
 }
 
+function isPrivateIp(ip) {
+  if (ip === '127.0.0.1' || ip === '::1' || ip === '0.0.0.0' || ip === '::ffff:127.0.0.1') return true;
+  if (ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.16.')) return true;
+  if (ip.startsWith('fc00:') || ip.startsWith('fd00:') || ip.startsWith('fe80:')) return true;
+  if (ip.startsWith('::ffff:192.168.') || ip.startsWith('::ffff:10.') || ip.startsWith('::ffff:172.16.')) return true;
+  return false;
+}
+
 async function isVpnOrProxy(ip) {
-  if (ip === '127.0.0.1' || ip === '::1' || ip === '0.0.0.0' ||
-      ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.16.')) {
+  if (isPrivateIp(ip)) {
+    console.log('[VPN] Skipping private IP:', ip);
     return false;
   }
+
+  const cleanIp = ip.replace(/^::ffff:/, '');
+
   try {
-    const res = await fetchWithTimeout(`https://ip-api.com/json/${ip}?fields=proxy,hosting,query`);
+    const res = await fetchWithTimeout(`http://ip-api.com/json/${cleanIp}?fields=proxy,hosting,isp,org,query`);
     const data = await res.json();
+    console.log('[VPN] ip-api response for', cleanIp, ':', JSON.stringify(data));
     return data.proxy === true || data.hosting === true;
-  } catch {
-    return false;
+  } catch (err) {
+    console.log('[VPN] ip-api failed for', cleanIp, ':', err.message);
   }
+
+  try {
+    const res = await fetchWithTimeout(`https://ipinfo.io/${cleanIp}/json`);
+    const data = await res.json();
+    console.log('[VPN] ipinfo response for', cleanIp, ':', JSON.stringify({ org: data.org }));
+    const orgLower = (data.org || '').toLowerCase();
+    if (orgLower.includes('vpn') || orgLower.includes('proxy') || orgLower.includes('tor')) {
+      return true;
+    }
+  } catch (err) {
+    console.log('[VPN] ipinfo failed for', cleanIp, ':', err.message);
+  }
+
+  return false;
 }
 
 const MAX_EMAIL_LENGTH = 254;
@@ -114,6 +151,7 @@ router.post('/register', async (req, res) => {
     const { email, username, password, capToken, rgpdConsent } = req.body;
 
     const ip = getClientIp(req);
+    const userAgent = (req.headers['user-agent'] || 'unknown').toString().slice(0, 512);
 
     if (!email || !username || !password) {
       return res.status(400).json({ error: 'Email, username and password are required' });
@@ -139,6 +177,10 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Password must be between 8 and 128 characters' });
     }
 
+    if (await isVpnOrProxy(ip)) {
+      return res.status(403).json({ error: 'VPN or proxy detected. Please disable your VPN for security reasons.' });
+    }
+
     const delay = getLoginDelay(ip);
     if (delay > 0) {
       await new Promise(r => setTimeout(r, delay));
@@ -147,10 +189,6 @@ router.post('/register', async (req, res) => {
     if (!await verifyCap(capToken)) {
       recordLoginAttempt(ip, false);
       return res.status(400).json({ error: 'Please complete the security check' });
-    }
-
-    if (await isVpnOrProxy(ip)) {
-      return res.status(403).json({ error: 'VPNs and proxies are not allowed. Please disable them to register.' });
     }
 
     const ipCount = await query('SELECT COUNT(DISTINCT user_id) AS cnt FROM user_ips WHERE ip_address = ?', [ip]);
@@ -182,12 +220,12 @@ router.post('/register', async (req, res) => {
     createdPteroUserId = pteroUser.id;
 
     const insertResult = await query(
-      'INSERT INTO users (email, username, password_hash, ptero_user_id, ptero_uuid, first_name, last_name, password_set) VALUES (?, ?, ?, ?, ?, ?, ?, 1)',
-      [email, username, passwordHash, pteroUser.id, pteroUser.uuid, username, 'User']
+      'INSERT INTO users (email, username, password_hash, ptero_user_id, ptero_uuid, first_name, last_name, password_set, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)',
+      [email, username, passwordHash, pteroUser.id, pteroUser.uuid, username, 'User', userAgent]
     );
     const localUserId = insertResult.insertId;
 
-    await query('INSERT INTO user_ips (user_id, ip_address) VALUES (?, ?)', [localUserId, ip]).catch(err => {
+    await query('INSERT INTO user_ips (user_id, ip_address, user_agent) VALUES (?, ?, ?)', [localUserId, ip, userAgent]).catch(err => {
       console.error('Failed to log IP:', err.message);
     });
 
@@ -350,17 +388,17 @@ router.post('/login', async (req, res) => {
     }
 
     const ip = getClientIp(req);
+    const userAgent = (req.headers['user-agent'] || 'unknown').toString().slice(0, 512);
+
+    // VPN / Proxy detection — checked first for security
+    if (await isVpnOrProxy(ip)) {
+      return res.status(403).json({ error: 'VPN or proxy detected. Please disable your VPN for security reasons.' });
+    }
 
     // Cap verification
     if (!await verifyCap(capToken)) {
       recordLoginAttempt(ip, false);
       return res.status(400).json({ error: 'Please complete the security check' });
-    }
-
-    // VPN / Proxy detection
-    
-    if (await isVpnOrProxy(ip)) {
-      return res.status(403).json({ error: 'VPNs and proxies are not allowed. Please disable them to sign in.' });
     }
 
     // Progressive delay applied only after validation to prevent resource exhaustion
@@ -414,6 +452,13 @@ router.post('/login', async (req, res) => {
     });
 
     recordLoginAttempt(ip, true);
+
+    await query('UPDATE users SET user_agent = ? WHERE id = ?', [userAgent, user.id]).catch(err => {
+      console.error('Failed to update user_agent:', err.message);
+    });
+    await query('INSERT INTO user_ips (user_id, ip_address, user_agent) VALUES (?, ?, ?)', [user.id, ip, userAgent]).catch(err => {
+      console.error('Failed to log login IP:', err.message);
+    });
 
     res.json({
       token,
@@ -491,7 +536,6 @@ router.post('/change-password', authenticateToken, sensitiveLimiter, async (req,
 router.post('/change-email', authenticateToken, sensitiveLimiter, async (req, res) => {
   try {
     const { newEmail, password } = req.body;
-    const pteroId = req.user?.pteroId;
     const userId = req.user?.userId;
 
     if (!newEmail || !password) {
@@ -513,34 +557,109 @@ router.post('/change-email', authenticateToken, sensitiveLimiter, async (req, re
 
     const user = users[0];
 
+    if (newEmail === user.email) {
+      return res.status(400).json({ error: 'New email is the same as current email' });
+    }
+
     const valid = await argon2.verify(user.password_hash, password, { type: argon2.argon2id });
     if (!valid) {
       return res.status(401).json({ error: 'Password is incorrect' });
     }
 
-    // Check if new email is already taken
     const existing = await query('SELECT id FROM users WHERE email = ? AND id != ?', [newEmail, userId]);
     if (existing.length > 0) {
       return res.status(409).json({ error: 'Email is already in use' });
     }
 
-    // Update Pyrodactyl
+    const token = randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 30 * 60 * 1000);
+
+    await query(
+      'UPDATE users SET pending_email = ?, email_change_token = ?, email_change_expires = ? WHERE id = ?',
+      [newEmail, token, expires, userId]
+    );
+
+    await sendEmailChangeLink(user.email, user.username, token, newEmail);
+
+    res.json({ message: 'Confirmation link sent to your current email' });
+  } catch (err) {
+    console.error('Change email initiate error:', err.message);
+    res.status(500).json({ error: 'Failed to initiate email change' });
+  }
+});
+
+router.get('/change-email/verify', async (req, res) => {
+  try {
+    const { token } = req.query;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Token is required' });
+    }
+
+    const users = await query(
+      'SELECT * FROM users WHERE email_change_token = ? AND email_change_expires > NOW()',
+      [token]
+    );
+
+    if (users.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired token' });
+    }
+
+    const user = users[0];
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const codeExpires = new Date(Date.now() + 30 * 60 * 1000);
+
+    await query(
+      'UPDATE users SET email_change_code = ?, email_change_expires = ? WHERE id = ?',
+      [code, codeExpires, user.id]
+    );
+
+    await sendEmailChangeCode(user.pending_email, user.username, code);
+
+    res.json({ message: 'Verification code sent to your new email', pendingEmail: user.pending_email });
+  } catch (err) {
+    console.error('Change email verify error:', err.message);
+    res.status(500).json({ error: 'Failed to verify email change' });
+  }
+});
+
+router.post('/change-email/confirm', authenticateToken, sensitiveLimiter, async (req, res) => {
+  try {
+    const { code } = req.body;
+    const userId = req.user?.userId;
+
+    if (!code) {
+      return res.status(400).json({ error: 'Verification code is required' });
+    }
+
+    const users = await query(
+      'SELECT * FROM users WHERE id = ? AND email_change_code = ? AND email_change_expires > NOW()',
+      [userId, code]
+    );
+
+    if (users.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired code' });
+    }
+
+    const user = users[0];
+    const newEmail = user.pending_email;
+
     try {
-      await updatePteroEmail(pteroId, newEmail);
+      await updatePteroEmail(user.ptero_user_id, newEmail);
     } catch (err) {
       console.error('Failed to update Pyrodactyl email:', err.message);
       return res.status(500).json({ error: 'Failed to update email on panel' });
     }
 
-    // Update local DB and invalidate existing sessions
-    await query('UPDATE users SET email = ?, token_version = token_version + 1 WHERE id = ?', [newEmail, userId]);
+    await query(
+      'UPDATE users SET email = ?, pending_email = NULL, email_change_token = NULL, email_change_code = NULL, email_change_expires = NULL, token_version = token_version + 1 WHERE id = ?',
+      [newEmail, userId]
+    );
 
     await logActivity(userId, 'email_changed', `Changed email to ${newEmail}`);
 
-    // Fetch updated token_version
     const [updatedUser] = await query('SELECT token_version FROM users WHERE id = ?', [userId]);
 
-    // Generate new token with updated email
     const token = generateToken({
       userId: user.id,
       email: newEmail,
@@ -566,8 +685,8 @@ router.post('/change-email', authenticateToken, sensitiveLimiter, async (req, re
       message: 'Email updated successfully',
     });
   } catch (err) {
-    console.error('Change email error:', err.message);
-    res.status(500).json({ error: 'Failed to change email' });
+    console.error('Change email confirm error:', err.message);
+    res.status(500).json({ error: 'Failed to confirm email change' });
   }
 });
 
@@ -714,5 +833,7 @@ router.get('/export-data', authenticateToken, sensitiveLimiter, async (req, res)
     res.status(500).json({ error: 'Failed to export data' });
   }
 });
+
+export { isVpnOrProxy, getClientIp };
 
 export default router;
