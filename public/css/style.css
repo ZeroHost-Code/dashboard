@@ -189,13 +189,9 @@ a:hover { color: var(--accent-1); }
 .login-card {
   position: relative;
   z-index: 1;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  padding: 48px 40px;
   width: 100%;
   max-width: 400px;
-  box-shadow: 0 24px 80px rgba(0,0,0,0.35);
+  padding: 40px;
 }
 
 @media (max-width: 1024px) {
@@ -254,8 +250,7 @@ a:hover { color: var(--accent-1); }
   }
 
   .login-card {
-    padding: 28px 20px;
-    border-radius: var(--radius-lg);
+    padding: 24px 16px;
   }
 }
 

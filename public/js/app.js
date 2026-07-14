@@ -564,7 +564,7 @@ function renderLoginPage() {
               Sign In
             </button>
             <div style="position:relative;margin:12px 0;text-align:center">
-              <span style="background:var(--card-bg);padding:0 12px;color:var(--text-muted);font-size:0.8rem">or</span>
+              <span style="background:#1c1712;padding:0 12px;color:var(--text-muted);font-size:0.8rem">or</span>
             </div>
             <button type="button" class="btn btn-ghost btn-full" id="passkey-login-btn" style="border:1px solid var(--border)">
               <i data-lucide="fingerprint" style="width:16px;height:16px"></i>
