@@ -594,6 +594,7 @@ function renderLoginPage() {
   $('#login-email-btn').addEventListener('click', () => {
     $('#login-choices').style.display = 'none';
     $('#login-email-form').style.display = 'block';
+    setupPasskeyAutofill();
     initIcons();
   });
 
