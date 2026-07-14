@@ -98,7 +98,7 @@ a:hover { color: var(--accent-1); }
 }
 
 .login-left {
-  flex: 1;
+  width: 54%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -168,7 +168,7 @@ a:hover { color: var(--accent-1); }
 }
 
 .login-right {
-  width: 440px;
+  width: 46%;
   display: flex;
   align-items: center;
   justify-content: center;
