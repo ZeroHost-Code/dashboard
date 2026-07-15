@@ -162,6 +162,30 @@ app.use((err, req, res, next) => {
 });
 app.use(cookieParser(process.env.COOKIE_SECRET));
 
+const csrfExemptPaths = ['/api/auth/login', '/api/auth/register', '/api/auth/passkey/options', '/api/auth/passkey/verify'];
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/api/')) return next();
+  if (csrfExemptPaths.includes(req.path)) return next();
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    const token = crypto.randomBytes(32).toString('hex');
+    if (!req.cookies['XSRF-TOKEN']) {
+      res.cookie('XSRF-TOKEN', token, {
+        sameSite: 'strict',
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: false,
+        maxAge: 24 * 60 * 60 * 1000,
+      });
+    }
+    return next();
+  }
+  const headerToken = req.headers['x-csrf-token'];
+  const cookieToken = req.cookies['XSRF-TOKEN'];
+  if (!headerToken || !cookieToken || headerToken !== cookieToken) {
+    return res.status(403).json({ error: 'Invalid CSRF token', requestId: req.requestId });
+  }
+  next();
+});
+
 app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('X-Robots-Tag', 'noindex, nofollow');
