@@ -755,6 +755,7 @@ function renderRegisterPage() {
 }
 
 const registerAvailability = { email: null, username: null };
+const registerFocus = { email: false, username: false };
 let registerAvailabilityTimer = null;
 
 function setFieldStatus(field, state, message) {
@@ -771,11 +772,23 @@ function setFieldStatus(field, state, message) {
   } else {
     statusEl.innerHTML = '';
   }
+  const showText = registerFocus[field] && (state === 'ok' || state === 'taken');
   if (hintEl) {
-    hintEl.textContent = message || '';
-    hintEl.className = `field-hint ${state === 'ok' || state === 'taken' ? state : ''}`;
+    hintEl.textContent = showText ? message : '';
+    hintEl.className = `field-hint ${showText ? state : ''}`;
   }
   if (state === 'taken' || state === 'ok') initIcons();
+}
+
+function renderStoredStatus(field) {
+  const availability = registerAvailability[field];
+  if (availability === true) {
+    setFieldStatus(field, 'ok', 'Available');
+  } else if (availability === false) {
+    setFieldStatus(field, 'taken', field === 'email' ? 'This email is already taken' : 'This username is already taken');
+  } else {
+    setFieldStatus(field, '');
+  }
 }
 
 function setupRegisterAvailabilityChecks() {
@@ -813,14 +826,12 @@ function setupRegisterAvailabilityChecks() {
       if (username && validateRegUsername(username)) params.set('username', username);
       const data = await api(`/auth/check-availability?${params.toString()}`);
       if (email && validateRegEmail(email)) {
-        const available = data.email?.available;
-        registerAvailability.email = available;
-        setFieldStatus('email', available ? 'ok' : 'taken', available ? 'Available' : 'This email is already taken');
+        registerAvailability.email = !!data.email?.available;
+        renderStoredStatus('email');
       }
       if (username && validateRegUsername(username)) {
-        const available = data.username?.available;
-        registerAvailability.username = available;
-        setFieldStatus('username', available ? 'ok' : 'taken', available ? 'Available' : 'This username is already taken');
+        registerAvailability.username = !!data.username?.available;
+        renderStoredStatus('username');
       }
     } catch {
       setFieldStatus('email', '');
@@ -833,10 +844,22 @@ function setupRegisterAvailabilityChecks() {
     registerAvailabilityTimer = setTimeout(runCheck, 400);
   };
 
+  const onFocus = (field) => {
+    registerFocus[field] = true;
+    renderStoredStatus(field);
+  };
+
+  const onBlur = (field) => {
+    registerFocus[field] = false;
+    renderStoredStatus(field);
+  };
+
   emailInput.addEventListener('input', onInput);
   usernameInput.addEventListener('input', onInput);
-  emailInput.addEventListener('blur', runCheck);
-  usernameInput.addEventListener('blur', runCheck);
+  emailInput.addEventListener('focus', () => onFocus('email'));
+  emailInput.addEventListener('blur', () => onBlur('email'));
+  usernameInput.addEventListener('focus', () => onFocus('username'));
+  usernameInput.addEventListener('blur', () => onBlur('username'));
 }
 
 function validateRegEmail(email) {
