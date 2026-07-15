@@ -221,6 +221,15 @@ const activityLimiter = rateLimit({
   trustProxy: trustProxy ? 1 : 0,
 });
 
+const staticLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  message: { error: 'Too many requests' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  trustProxy: trustProxy ? 1 : 0,
+});
+
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 app.use('/api/activity', activityLimiter);
@@ -311,17 +320,17 @@ app.get('/api/health', async (req, res) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.get('/admin/*', (req, res) => {
+app.get('/admin/*', staticLimiter, (req, res) => {
   res.set('X-Robots-Tag', 'noindex, nofollow');
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.get('/admin', (req, res) => {
+app.get('/admin', staticLimiter, (req, res) => {
   res.set('X-Robots-Tag', 'noindex, nofollow');
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.get('*', (req, res) => {
+app.get('*', staticLimiter, (req, res) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'Not found' });
   }
