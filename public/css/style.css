@@ -4468,15 +4468,23 @@ tbody tr:hover {
   transform: translate(-50%, -50%);
 }
 
-.onboarding-card[data-arrow]::before,
-.onboarding-card[data-arrow]::after {
+.card-arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.card-arrow::after {
   content: '';
   position: absolute;
   width: 0;
   height: 0;
 }
 
-.onboarding-card[data-arrow="up"]::before {
+/* Up arrow (card below element) */
+.card-arrow[data-dir="up"] {
   top: -10px;
   left: 50%;
   margin-left: -10px;
@@ -4485,16 +4493,16 @@ tbody tr:hover {
   border-bottom: 10px solid var(--border);
 }
 
-.onboarding-card[data-arrow="up"]::after {
-  top: -9px;
-  left: 50%;
-  margin-left: -9px;
+.card-arrow[data-dir="up"]::after {
+  top: 2px;
+  left: -9px;
   border-left: 9px solid transparent;
   border-right: 9px solid transparent;
   border-bottom: 9px solid var(--bg-card);
 }
 
-.onboarding-card[data-arrow="down"]::before {
+/* Down arrow (card above element) */
+.card-arrow[data-dir="down"] {
   bottom: -10px;
   left: 50%;
   margin-left: -10px;
@@ -4503,16 +4511,16 @@ tbody tr:hover {
   border-top: 10px solid var(--border);
 }
 
-.onboarding-card[data-arrow="down"]::after {
-  bottom: -9px;
-  left: 50%;
-  margin-left: -9px;
+.card-arrow[data-dir="down"]::after {
+  bottom: 2px;
+  left: -9px;
   border-left: 9px solid transparent;
   border-right: 9px solid transparent;
   border-top: 9px solid var(--bg-card);
 }
 
-.onboarding-card[data-arrow="left"]::before {
+/* Left arrow (card to the right of element) */
+.card-arrow[data-dir="left"] {
   left: -10px;
   top: 50%;
   margin-top: -10px;
@@ -4521,10 +4529,9 @@ tbody tr:hover {
   border-right: 10px solid var(--border);
 }
 
-.onboarding-card[data-arrow="left"]::after {
-  left: -9px;
-  top: 50%;
-  margin-top: -9px;
+.card-arrow[data-dir="left"]::after {
+  left: 2px;
+  top: -9px;
   border-top: 9px solid transparent;
   border-bottom: 9px solid transparent;
   border-right: 9px solid var(--bg-card);

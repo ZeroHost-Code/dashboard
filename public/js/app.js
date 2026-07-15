@@ -4085,12 +4085,15 @@ function positionOnboardingCard(selector) {
   const card = $('#onboarding-card');
   if (!card) return;
 
+  // Remove old arrow
+  const oldArrow = card.querySelector('.card-arrow');
+  if (oldArrow) oldArrow.remove();
+
   if (!selector) {
     card.classList.add('centered');
     card.style.top = '';
     card.style.left = '';
     card.style.transform = '';
-    delete card.dataset.arrow;
     return;
   }
 
@@ -4142,9 +4145,10 @@ function positionOnboardingCard(selector) {
   card.style.transform = 'none';
 
   if (arrowDir) {
-    card.dataset.arrow = arrowDir;
-  } else {
-    delete card.dataset.arrow;
+    const arrow = document.createElement('div');
+    arrow.className = 'card-arrow';
+    arrow.dataset.dir = arrowDir;
+    card.appendChild(arrow);
   }
 }
 
