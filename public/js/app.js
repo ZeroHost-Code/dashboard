@@ -4149,6 +4149,17 @@ function positionOnboardingCard(selector) {
     arrow.className = 'card-arrow';
     arrow.dataset.dir = arrowDir;
     card.appendChild(arrow);
+
+    if (arrowDir === 'left') {
+      arrow.style.left = (left - 10) + 'px';
+      arrow.style.top = (elRect.top + elRect.height / 2) + 'px';
+    } else if (arrowDir === 'up') {
+      arrow.style.left = (elRect.left + elRect.width / 2) + 'px';
+      arrow.style.top = (top - 10) + 'px';
+    } else if (arrowDir === 'down') {
+      arrow.style.left = (elRect.left + elRect.width / 2) + 'px';
+      arrow.style.top = (top + approxCardH) + 'px';
+    }
   }
 }
 

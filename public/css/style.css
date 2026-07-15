@@ -4469,11 +4469,11 @@ tbody tr:hover {
 }
 
 .card-arrow {
-  position: absolute;
+  position: fixed;
   width: 0;
   height: 0;
   pointer-events: none;
-  z-index: 2;
+  z-index: 10002;
 }
 
 .card-arrow::after {
@@ -4485,9 +4485,6 @@ tbody tr:hover {
 
 /* Up arrow (card below element) */
 .card-arrow[data-dir="up"] {
-  top: -10px;
-  left: 50%;
-  margin-left: -10px;
   border-left: 10px solid transparent;
   border-right: 10px solid transparent;
   border-bottom: 10px solid var(--border);
@@ -4503,9 +4500,6 @@ tbody tr:hover {
 
 /* Down arrow (card above element) */
 .card-arrow[data-dir="down"] {
-  bottom: -10px;
-  left: 50%;
-  margin-left: -10px;
   border-left: 10px solid transparent;
   border-right: 10px solid transparent;
   border-top: 10px solid var(--border);
@@ -4521,9 +4515,6 @@ tbody tr:hover {
 
 /* Left arrow (card to the right of element) */
 .card-arrow[data-dir="left"] {
-  left: -10px;
-  top: 50%;
-  margin-top: -10px;
   border-top: 10px solid transparent;
   border-bottom: 10px solid transparent;
   border-right: 10px solid var(--border);
