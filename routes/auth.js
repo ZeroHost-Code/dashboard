@@ -906,6 +906,6 @@ router.get('/export-data', authenticateToken, sensitiveLimiter, async (req, res)
   }
 });
 
-export { isVpnOrProxy, getClientIp };
+export { getClientIp };
 
 export default router;
