@@ -4112,28 +4112,38 @@ function positionOnboardingCard(selector) {
   arrow.className = 'card-arrow';
   card.appendChild(arrow);
 
-  let top, arrowDir;
-
-  // Try below first
-  const spaceBelow = window.innerHeight - elRect.bottom;
-  const spaceAbove = elRect.top;
+  let top, left, arrowDir;
   const approxCardH = Math.min(360, cardMaxH);
 
-  if (spaceBelow >= approxCardH + gap + 20) {
-    top = elRect.bottom + gap;
-    arrowDir = 'up';
-  } else if (spaceAbove >= approxCardH + gap + 20) {
-    top = elRect.top - gap - approxCardH;
-    arrowDir = 'down';
+  // Try right first (sidebar items are on the left)
+  const spaceRight = window.innerWidth - elRect.right;
+  if (spaceRight >= cardW + gap + 30) {
+    left = elRect.right + gap;
+    top = elRect.top + elRect.height / 2 - approxCardH / 2;
+    arrowDir = 'left';
   } else {
-    // Center as fallback
-    top = Math.max(20, (window.innerHeight - approxCardH) / 2);
-    arrowDir = null;
+    // Try below
+    const spaceBelow = window.innerHeight - elRect.bottom;
+    const spaceAbove = elRect.top;
+    if (spaceBelow >= approxCardH + gap + 20) {
+      top = elRect.bottom + gap;
+      left = elRect.left + elRect.width / 2 - cardW / 2;
+      arrowDir = 'up';
+    } else if (spaceAbove >= approxCardH + gap + 20) {
+      top = elRect.top - gap - approxCardH;
+      left = elRect.left + elRect.width / 2 - cardW / 2;
+      arrowDir = 'down';
+    } else {
+      // Center as fallback
+      top = Math.max(20, (window.innerHeight - approxCardH) / 2);
+      left = Math.max(16, (window.innerWidth - cardW) / 2);
+      arrowDir = null;
+    }
   }
 
-  // Center card horizontally under the element, but clamp to viewport
-  let left = elRect.left + elRect.width / 2 - cardW / 2;
+  // Clamp to viewport
   left = Math.max(16, Math.min(left, window.innerWidth - cardW - 16));
+  top = Math.max(16, Math.min(top, window.innerHeight - approxCardH - 16));
 
   top = Math.max(16, Math.min(top, window.innerHeight - approxCardH - 16));
 

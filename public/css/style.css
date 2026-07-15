@@ -4500,6 +4500,17 @@ tbody tr:hover {
   border-bottom: none;
 }
 
+.onboarding-card .card-arrow.left {
+  left: -8px;
+  top: 50%;
+  margin-top: -7px;
+  transform: rotate(-45deg);
+  border-left-color: var(--border);
+  border-top-color: var(--border);
+  border-right: none;
+  border-bottom: none;
+}
+
 .onboarding-card h2 {
   font-size: 1.3rem;
   font-weight: 700;
