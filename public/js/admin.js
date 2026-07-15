@@ -589,7 +589,7 @@ async function fetchAdminServers(pageNum) {
     }
   } catch (err) {
     const tbody = $a('#admin-servers-tbody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${escapeHtml(err.message)}</td></tr>`;
   }
   initIcons();
 }
@@ -1151,7 +1151,7 @@ async function renderAdminDashboard() {
       });
     }
   } catch (err) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-state-title">Error</div><div class="empty-state-desc">${err.message}</div></div>`;
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-title">Error</div><div class="empty-state-desc">${escapeHtml(err.message)}</div></div>`;
   }
 }
 
@@ -1212,7 +1212,7 @@ async function renderAdminUsers() {
     `).join('');
   } catch (err) {
     const tbody = $a('#admin-users-tbody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${escapeHtml(err.message)}</td></tr>`;
   }
   initIcons();
 }
@@ -1639,7 +1639,7 @@ async function renderAdminEggsSettings() {
     });
   } catch (err) {
     const tbody = $a('#admin-nests-tbody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${escapeHtml(err.message)}</td></tr>`;
   }
 }
 
@@ -1737,7 +1737,7 @@ async function renderAdminNestEggs(nestId) {
     });
   } catch (err) {
     const tbody = $a('#admin-eggs-tbody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${escapeHtml(err.message)}</td></tr>`;
   }
   initIcons();
 }
@@ -2381,7 +2381,7 @@ async function renderAdminNodes() {
     }).join('');
   } catch (err) {
     const tbody = $a('#admin-nodes-tbody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${escapeHtml(err.message)}</td></tr>`;
   }
 }
 

@@ -3296,7 +3296,7 @@ async function loadPasskeys() {
     initIcons();
   } catch (err) {
     const list = $('#passkey-list');
-    if (list) list.innerHTML = `<p style="color:var(--accent-red);font-size:0.85rem">Failed to load passkeys: ${err.message}</p>`;
+    if (list) list.innerHTML = `<p style="color:var(--accent-red);font-size:0.85rem">Failed to load passkeys: ${escapeHtml(err.message)}</p>`;
   }
 }
 
