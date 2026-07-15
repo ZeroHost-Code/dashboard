@@ -786,6 +786,25 @@ router.post('/delete-account', authenticateToken, sensitiveLimiter, async (req, 
   }
 });
 
+router.get('/onboarding-status', authenticateToken, async (req, res) => {
+  try {
+    const users = await query('SELECT onboarding_done FROM users WHERE id = ?', [req.user.userId]);
+    if (users.length === 0) return res.status(404).json({ error: 'User not found' });
+    res.json({ done: !!users[0].onboarding_done });
+  } catch {
+    res.status(500).json({ error: 'Failed to check onboarding status' });
+  }
+});
+
+router.post('/complete-onboarding', authenticateToken, async (req, res) => {
+  try {
+    await query('UPDATE users SET onboarding_done = 1 WHERE id = ?', [req.user.userId]);
+    res.json({ done: true });
+  } catch {
+    res.status(500).json({ error: 'Failed to update onboarding status' });
+  }
+});
+
 router.post('/logout', authenticateToken, async (req, res) => {
   try {
     // Bump token_version to invalidate all existing sessions

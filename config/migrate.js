@@ -26,6 +26,7 @@ const tables = {
       { name: 'email_change_code', def: 'VARCHAR(10) DEFAULT NULL' },
       { name: 'email_change_expires', def: 'DATETIME DEFAULT NULL' },
       { name: 'user_agent', def: 'VARCHAR(512) DEFAULT NULL' },
+      { name: 'onboarding_done', def: 'TINYINT(1) NOT NULL DEFAULT 0' },
       { name: 'created_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
     ],
   },

@@ -1139,6 +1139,7 @@ async function renderVerifyEmail(token) {
     localStorage.setItem('zh_user', JSON.stringify(data.user));
     history.replaceState({ page: 'overview' }, '', '/');
     renderDashboard();
+    checkAndStartOnboarding();
     showToast('Email verified successfully!', 'success');
   } catch (err) {
     app.innerHTML = html`
@@ -1481,6 +1482,10 @@ async function renderDashboard() {
                 <i data-lucide="settings" style="width:16px;height:16px"></i>
                 Settings
               </a>
+              <a class="sidebar-user-dropdown-item" id="user-dropdown-tour">
+                <i data-lucide="map" style="width:16px;height:16px"></i>
+                Take a Tour
+              </a>
               <a class="sidebar-user-dropdown-item" id="user-dropdown-logout">
                 <i data-lucide="log-out" style="width:16px;height:16px"></i>
                 Logout
@@ -1550,6 +1555,12 @@ async function renderDashboard() {
     e.preventDefault();
     closeUserDropdown();
     navigateTo('account/info');
+  });
+
+  $('#user-dropdown-tour').addEventListener('click', (e) => {
+    e.preventDefault();
+    closeUserDropdown();
+    startOnboarding();
   });
 
   $('#user-dropdown-logout').addEventListener('click', async (e) => {
@@ -3997,6 +4008,159 @@ async function handleExportData() {
   }
 }
 
+// ===== ONBOARDING TOUR =====
+const ONBOARDING_STEPS = [
+  {
+    title: 'Welcome to ZeroHost!',
+    description: 'Would you like a quick tour of your dashboard? It only takes a minute.',
+    highlight: null,
+    buttons: ['Skip', 'Start'],
+  },
+  {
+    title: 'Dashboard Overview',
+    description: `This is your Dashboard — the central hub. Here you get an overview of all your servers, their status, and resource usage at a glance.`,
+    highlight: '#sidebar-nav a.nav-item[data-page="overview"]',
+    buttons: ['Skip', 'Next'],
+  },
+  {
+    title: 'Create a Server',
+    description: 'Use this button to deploy a new server. You can choose from different game types and configurations.',
+    highlight: '#sidebar-nav a.nav-item[data-page="create"]',
+    buttons: ['Skip', 'Next'],
+  },
+  {
+    title: 'My Servers',
+    description: 'All your servers live here. Manage them, check their status, rename them, and more.',
+    highlight: '#nav-servers-toggle',
+    buttons: ['Skip', 'Next'],
+  },
+  {
+    title: 'Two things to remember',
+    description: `<strong>Dashboard</strong> — Where you create servers, change names, view status, and manage your account.<br><br><strong>Hydrodactyl Panel</strong> — Where you start/stop your server, manage files, use the console, and control everything.`,
+    highlight: null,
+    buttons: ['Skip', 'Got it!'],
+  },
+];
+
+let onboardingActive = false;
+let onboardingStep = 0;
+let onboardingHighlightEl = null;
+
+function clearOnboardingHighlight() {
+  if (onboardingHighlightEl) {
+    onboardingHighlightEl.classList.remove('onboarding-highlight');
+    onboardingHighlightEl = null;
+  }
+}
+
+function applyOnboardingHighlight(selector) {
+  clearOnboardingHighlight();
+  if (!selector) return;
+  const el = document.querySelector(selector);
+  if (el) {
+    el.classList.add('onboarding-highlight');
+    onboardingHighlightEl = el;
+  }
+}
+
+function renderOnboardingStep(stepIndex) {
+  const card = $('#onboarding-card');
+  if (!card) return;
+
+  const step = ONBOARDING_STEPS[stepIndex];
+  const isLast = stepIndex === ONBOARDING_STEPS.length - 1;
+  const isFirst = stepIndex === 0;
+
+  let dotsHtml = '<div class="onboarding-dots">';
+  ONBOARDING_STEPS.forEach((_, i) => {
+    dotsHtml += `<span class="onboarding-dot ${i === stepIndex ? 'active' : ''}"></span>`;
+  });
+  dotsHtml += '</div>';
+
+  const leftBtn = step.buttons[0]; // Skip
+  const rightBtn = step.buttons[1]; // Start / Next / Got it!
+
+  card.innerHTML = html`
+    ${dotsHtml}
+    <h2>${escapeHtml(step.title)}</h2>
+    <p>${step.description}</p>
+    <div class="onboarding-actions">
+      <button class="btn btn-ghost" id="onboarding-skip">${leftBtn}</button>
+      <button class="btn btn-primary" id="onboarding-next">${rightBtn}</button>
+    </div>
+  `;
+
+  applyOnboardingHighlight(step.highlight);
+  initIcons();
+}
+
+async function startOnboarding() {
+  if (onboardingActive) return;
+  onboardingActive = true;
+  onboardingStep = 0;
+
+  const existing = $('#onboarding-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'onboarding-overlay';
+  overlay.className = 'onboarding-overlay';
+  overlay.innerHTML = html`
+    <div class="onboarding-backdrop" id="onboarding-backdrop"></div>
+    <div class="onboarding-card" id="onboarding-card"></div>
+  `;
+  document.body.appendChild(overlay);
+
+  renderOnboardingStep(0);
+
+  $('#onboarding-skip').addEventListener('click', stopOnboarding);
+  $('#onboarding-next').addEventListener('click', () => {
+    if (onboardingStep === 0) {
+      onboardingStep = 1;
+      renderOnboardingStep(onboardingStep);
+      $('#onboarding-skip').addEventListener('click', stopOnboarding);
+      $('#onboarding-next').addEventListener('click', handleOnboardingNext);
+    } else {
+      handleOnboardingNext();
+    }
+  });
+}
+
+function handleOnboardingNext() {
+  if (onboardingStep < ONBOARDING_STEPS.length - 1) {
+    onboardingStep++;
+    renderOnboardingStep(onboardingStep);
+    $('#onboarding-skip').addEventListener('click', stopOnboarding);
+    $('#onboarding-next').addEventListener('click', handleOnboardingNext);
+  } else if (onboardingStep === ONBOARDING_STEPS.length - 1) {
+    stopOnboarding(true);
+  }
+}
+
+async function stopOnboarding(done) {
+  if (!onboardingActive) return;
+  onboardingActive = false;
+  clearOnboardingHighlight();
+  const overlay = $('#onboarding-overlay');
+  if (overlay) overlay.remove();
+
+  if (done && state.token) {
+    try {
+      await api('/auth/complete-onboarding', { method: 'POST' });
+    } catch {}
+  }
+}
+
+async function checkAndStartOnboarding() {
+  if (!state.token) return;
+  try {
+    const data = await api('/auth/onboarding-status');
+    if (!data.done) {
+      startOnboarding();
+    }
+  } catch {}
+}
+
 // ===== INIT =====
 function init() {
   const path = window.location.pathname;
@@ -4033,6 +4197,7 @@ function init() {
     if (state.token) {
       history.replaceState({ page: 'overview' }, '', '/');
       renderDashboard();
+      if (basePage !== 'signup') checkAndStartOnboarding();
     } else if (basePage === 'login') {
       renderLoginPage();
     } else {
@@ -4041,6 +4206,7 @@ function init() {
   } else if (state.token) {
     api('/servers/overview').then(() => {
       renderDashboard();
+      checkAndStartOnboarding();
       fetchUnreadCount();
       setInterval(fetchUnreadCount, 30000);
     }).catch(() => {
