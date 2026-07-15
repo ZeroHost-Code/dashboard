@@ -690,44 +690,48 @@ function renderLoginPage() {
 function renderRegisterPage() {
   const app = $('#app');
   app.innerHTML = html`
-    <div class="auth-page">
-      <div class="auth-card">
-        <div class="auth-logo">
+    <div class="login-page">
+      <div class="login-left">
+        <div class="login-left-top">
           <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
-          <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span></span>
+          <span>| Dashboard</span>
         </div>
-        <h1 class="auth-title">Create account</h1>
-        <p class="auth-subtitle">Start hosting for free</p>
-        <form id="register-form">
-          <div class="auth-error"></div>
-          <div class="form-group">
-            <label for="reg-email">Email</label>
-            <input type="email" id="reg-email" placeholder="your@email.com" required autocomplete="email" />
-          </div>
-          <div class="form-group">
-            <label for="reg-username">Username</label>
-            <input type="text" id="reg-username" placeholder="myusername" required autocomplete="username" />
-          </div>
-          <div class="form-group">
-            <label for="reg-password">Password</label>
-            <input type="password" id="reg-password" placeholder="At least 8 characters" required autocomplete="new-password" />
-          </div>
-          <div class="consent-group">
-            <label class="custom-checkbox">
-              <input type="checkbox" id="reg-rgpd-consent" required />
-              <span class="checkmark"></span>
-            </label>
-            <label for="reg-rgpd-consent">
-              I agree to the privacy policy and consent to the processing of my personal data (email, username, IP address) for account management purposes. <span style="color:var(--accent-red)">*</span>
-            </label>
-          </div>
-          <button type="submit" class="btn btn-primary btn-full" id="register-btn">
-            Create Account
-          </button>
+      </div>
+      <div class="login-right">
+        <div class="login-card">
+          <h1 class="auth-title">Create account</h1>
+          <p class="auth-subtitle">Start hosting for free</p>
+          <form id="register-form">
+            <div class="auth-error"></div>
+            <div class="form-group">
+              <label for="reg-email">Email</label>
+              <input type="email" id="reg-email" placeholder="your@email.com" required autocomplete="email" />
+            </div>
+            <div class="form-group">
+              <label for="reg-username">Username</label>
+              <input type="text" id="reg-username" placeholder="myusername" required autocomplete="username" />
+            </div>
+            <div class="form-group">
+              <label for="reg-password">Password</label>
+              <input type="password" id="reg-password" placeholder="At least 8 characters" required autocomplete="new-password" />
+            </div>
+            <div class="consent-group">
+              <label class="custom-checkbox">
+                <input type="checkbox" id="reg-rgpd-consent" required />
+                <span class="checkmark"></span>
+              </label>
+              <label for="reg-rgpd-consent">
+                I agree to the privacy policy and consent to the processing of my personal data (email, username, IP address) for account management purposes. <span style="color:var(--accent-red)">*</span>
+              </label>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full" id="register-btn">
+              Create Account
+            </button>
 
-        </form>
-        <div class="auth-footer">
-          Already have an account? <a href="/login" id="go-login">Sign in</a>
+          </form>
+          <div class="auth-footer">
+            Already have an account? <a href="/login" id="go-login">Sign in</a>
+          </div>
         </div>
       </div>
     </div>
@@ -918,16 +922,20 @@ async function handleRegister(e) {
 async function renderVerifyEmail(token) {
   const app = $('#app');
   app.innerHTML = html`
-    <div class="auth-page">
-      <div class="auth-card" style="text-align:center;">
-        <div class="auth-logo">
+    <div class="login-page">
+      <div class="login-left">
+        <div class="login-left-top">
           <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
-          <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span></span>
+          <span>| Dashboard</span>
         </div>
-        <div style="margin:24px 0 16px;">
-          <span class="spinner" style="width:48px;height:48px;"></span>
+      </div>
+      <div class="login-right">
+        <div class="login-card" style="text-align:center;">
+          <div style="margin:0 auto 24px;width:fit-content;">
+            <span class="spinner" style="width:48px;height:48px;"></span>
+          </div>
+          <h1 class="auth-title">Verifying your email...</h1>
         </div>
-        <h1 class="auth-title">Verifying your email...</h1>
       </div>
     </div>
   `;
@@ -935,19 +943,23 @@ async function renderVerifyEmail(token) {
 
   if (!token) {
     app.innerHTML = html`
-      <div class="auth-page">
-        <div class="auth-card" style="text-align:center;">
-          <div class="auth-logo">
+      <div class="login-page">
+        <div class="login-left">
+          <div class="login-left-top">
             <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
-            <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span></span>
+            <span>| Dashboard</span>
           </div>
-          <div style="margin:24px 0 16px;">
-            <i data-lucide="x-circle" style="width:48px;height:48px;color:var(--accent-red);"></i>
-          </div>
-          <h1 class="auth-title">Invalid Link</h1>
-          <p class="auth-subtitle">This verification link is invalid. Please try registering again.</p>
-          <div style="margin-top:24px;">
-            <a href="/signup" class="btn btn-primary">Create Account</a>
+        </div>
+        <div class="login-right">
+          <div class="login-card" style="text-align:center;">
+            <div style="margin:0 auto 24px;width:fit-content;">
+              <i data-lucide="x-circle" style="width:48px;height:48px;color:var(--accent-red);"></i>
+            </div>
+            <h1 class="auth-title">Invalid Link</h1>
+            <p class="auth-subtitle">This verification link is invalid. Please try registering again.</p>
+            <div style="margin-top:24px;">
+              <a href="/signup" class="btn btn-primary">Create Account</a>
+            </div>
           </div>
         </div>
       </div>
@@ -961,19 +973,23 @@ async function renderVerifyEmail(token) {
 
     if (data.alreadyVerified) {
       app.innerHTML = html`
-        <div class="auth-page">
-          <div class="auth-card" style="text-align:center;">
-            <div class="auth-logo">
+        <div class="login-page">
+          <div class="login-left">
+            <div class="login-left-top">
               <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
-              <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span></span>
+              <span>| Dashboard</span>
             </div>
-            <div style="margin:24px 0 16px;">
-              <i data-lucide="check-circle" style="width:48px;height:48px;color:var(--accent-green);"></i>
-            </div>
-            <h1 class="auth-title">Already Verified</h1>
-            <p class="auth-subtitle">Your email was already verified. You can sign in below.</p>
-            <div style="margin-top:24px;">
-              <a href="/login" class="btn btn-primary">Sign In</a>
+          </div>
+          <div class="login-right">
+            <div class="login-card" style="text-align:center;">
+              <div style="margin:0 auto 24px;width:fit-content;">
+                <i data-lucide="check-circle" style="width:48px;height:48px;color:var(--accent-green);"></i>
+              </div>
+              <h1 class="auth-title">Already Verified</h1>
+              <p class="auth-subtitle">Your email was already verified. You can sign in below.</p>
+              <div style="margin-top:24px;">
+                <a href="/login" class="btn btn-primary">Sign In</a>
+              </div>
             </div>
           </div>
         </div>
@@ -991,19 +1007,23 @@ async function renderVerifyEmail(token) {
     showToast('Email verified successfully!', 'success');
   } catch (err) {
     app.innerHTML = html`
-      <div class="auth-page">
-        <div class="auth-card" style="text-align:center;">
-          <div class="auth-logo">
+      <div class="login-page">
+        <div class="login-left">
+          <div class="login-left-top">
             <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
-            <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span></span>
+            <span>| Dashboard</span>
           </div>
-          <div style="margin:24px 0 16px;">
-            <i data-lucide="x-circle" style="width:48px;height:48px;color:var(--accent-red);"></i>
-          </div>
-          <h1 class="auth-title">Verification Failed</h1>
-          <p class="auth-subtitle">${escapeHtml(err.message)}</p>
-          <div style="margin-top:24px;">
-            <a href="/signup" class="btn btn-primary">Create Account</a>
+        </div>
+        <div class="login-right">
+          <div class="login-card" style="text-align:center;">
+            <div style="margin:0 auto 24px;width:fit-content;">
+              <i data-lucide="x-circle" style="width:48px;height:48px;color:var(--accent-red);"></i>
+            </div>
+            <h1 class="auth-title">Verification Failed</h1>
+            <p class="auth-subtitle">${escapeHtml(err.message)}</p>
+            <div style="margin-top:24px;">
+              <a href="/signup" class="btn btn-primary">Create Account</a>
+            </div>
           </div>
         </div>
       </div>
@@ -1185,25 +1205,27 @@ async function renderChangeEmailVerify(token) {
 function renderVerificationSent(email) {
   const app = $('#app');
   app.innerHTML = html`
-    <div class="auth-page">
-      <div class="auth-card" style="text-align:center;">
-        <div class="auth-logo">
+    <div class="login-page">
+      <div class="login-left">
+        <div class="login-left-top">
           <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
-          <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span></span>
+          <span>| Dashboard</span>
         </div>
-        <div style="margin:24px 0 16px;">
-          <i data-lucide="mail-check" style="width:48px;height:48px;color:var(--accent-orange);"></i>
-        </div>
-        <h1 class="auth-title">Check your inbox</h1>
-        <p class="auth-subtitle" style="max-width:360px;margin:0 auto;">
-          We sent a verification email to <strong>${escapeHtml(email)}</strong>.
-          Click the link in the email to activate your account.
-        </p>
-        <div style="margin-top:8px;">
+      </div>
+      <div class="login-right">
+        <div class="login-card" style="text-align:center;">
+          <div style="margin:0 auto 24px;width:fit-content;">
+            <i data-lucide="mail-check" style="width:48px;height:48px;color:var(--accent-orange);"></i>
+          </div>
+          <h1 class="auth-title">Check your inbox</h1>
+          <p class="auth-subtitle" style="max-width:360px;margin:0 auto 8px;">
+            We sent a verification email to <strong>${escapeHtml(email)}</strong>.
+            Click the link in the email to activate your account.
+          </p>
           <p style="font-size:0.8rem;color:var(--text-muted);">Can't find it? Check your spam folder.</p>
-        </div>
-        <div style="margin-top:24px;">
-          <a href="/login" class="btn btn-primary" id="go-to-login-after-register">Go to Sign In</a>
+          <div style="margin-top:24px;">
+            <a href="/login" class="btn btn-primary" id="go-to-login-after-register">Go to Sign In</a>
+          </div>
         </div>
       </div>
     </div>
