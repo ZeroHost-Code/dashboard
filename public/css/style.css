@@ -340,6 +340,45 @@ a:hover { color: var(--accent-1); }
   color: var(--text-muted);
 }
 
+/* ===== REGISTER FIELD AVAILABILITY ===== */
+.input-wrap {
+  position: relative;
+}
+
+.input-wrap input {
+  padding-right: 44px;
+}
+
+.input-status {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.input-status.checking { color: var(--text-muted); }
+.input-status.ok { color: var(--accent-green); }
+.input-status.taken { color: var(--accent-red); }
+
+.field-hint {
+  font-size: 0.78rem;
+  margin-top: 6px;
+  min-height: 0;
+  line-height: 1.3;
+  color: var(--text-secondary);
+}
+
+.field-hint:empty {
+  margin-top: 0;
+}
+
+.field-hint.ok { color: var(--accent-green); }
+.field-hint.taken { color: var(--accent-red); }
+
 .form-group select {
   cursor: pointer;
   appearance: none;
@@ -4392,5 +4431,155 @@ tbody tr:hover {
 .logo-preview-box .logo-preview-clear:hover {
   color: var(--accent-red);
   background: rgba(239, 68, 68, 0.1);
+}
+
+/* ===== ONBOARDING TOUR ===== */
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.onboarding-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+
+.onboarding-card {
+  pointer-events: auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 32px 28px;
+  max-width: 440px;
+  width: 90%;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+  text-align: center;
+  position: fixed;
+  z-index: 10001;
+}
+
+.onboarding-card.centered {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.card-arrow {
+  position: fixed;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 10002;
+}
+
+.card-arrow::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+/* Up arrow (card below element) */
+.card-arrow[data-dir="up"] {
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-bottom: 10px solid var(--border);
+}
+
+.card-arrow[data-dir="up"]::after {
+  top: 2px;
+  left: -9px;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-bottom: 9px solid var(--bg-card);
+}
+
+/* Down arrow (card above element) */
+.card-arrow[data-dir="down"] {
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 10px solid var(--border);
+}
+
+.card-arrow[data-dir="down"]::after {
+  bottom: 2px;
+  left: -9px;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-top: 9px solid var(--bg-card);
+}
+
+/* Left arrow (card to the right of element) */
+.card-arrow[data-dir="left"] {
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-right: 10px solid var(--border);
+}
+
+.card-arrow[data-dir="left"]::after {
+  left: 2px;
+  top: -9px;
+  border-top: 9px solid transparent;
+  border-bottom: 9px solid transparent;
+  border-right: 9px solid var(--bg-card);
+}
+
+.onboarding-card h2 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.onboarding-card p {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.onboarding-card .onboarding-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.onboarding-card .onboarding-actions .btn {
+  min-width: 100px;
+}
+
+.onboarding-spotlight {
+  position: fixed;
+  z-index: 10000;
+  pointer-events: none;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  outline: 2px solid rgba(238, 129, 50, 0.25);
+  outline-offset: -1px;
+}
+
+.onboarding-dots {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.onboarding-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: all var(--transition);
+}
+
+.onboarding-dot.active {
+  background: var(--accent-1);
+  width: 24px;
+  border-radius: 4px;
 }
 

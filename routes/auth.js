@@ -25,6 +25,46 @@ router.get('/check-vpn', async (req, res) => {
   }
 });
 
+const availabilityLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  message: { error: 'Too many requests' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+router.get('/check-availability', availabilityLimiter, async (req, res) => {
+  try {
+    const email = typeof req.query.email === 'string' && req.query.email ? req.query.email : null;
+    const username = typeof req.query.username === 'string' && req.query.username ? req.query.username : null;
+
+    if (!email && !username) {
+      return res.json({});
+    }
+
+    const clauses = [];
+    const params = [];
+    if (email) { clauses.push('email = ?'); params.push(email); }
+    if (username) { clauses.push('username = ?'); params.push(username); }
+
+    const rows = await query(
+      `SELECT email, username FROM users WHERE ${clauses.join(' OR ')}`,
+      params
+    );
+
+    const takenEmails = new Set(rows.map(r => r.email));
+    const takenUsernames = new Set(rows.map(r => r.username));
+
+    const result = {};
+    if (email) result.email = { available: !takenEmails.has(email) };
+    if (username) result.username = { available: !takenUsernames.has(username) };
+
+    res.json(result);
+  } catch {
+    res.status(500).json({ error: 'Availability check failed' });
+  }
+});
+
 function gravatarHash(email) {
   return createHash('md5').update(email.trim().toLowerCase()).digest('hex');
 }
@@ -759,6 +799,25 @@ router.post('/delete-account', authenticateToken, sensitiveLimiter, async (req, 
   }
 });
 
+router.get('/onboarding-status', authenticateToken, async (req, res) => {
+  try {
+    const users = await query('SELECT onboarding_done FROM users WHERE id = ?', [req.user.userId]);
+    if (users.length === 0) return res.status(404).json({ error: 'User not found' });
+    res.json({ done: !!users[0].onboarding_done });
+  } catch {
+    res.status(500).json({ error: 'Failed to check onboarding status' });
+  }
+});
+
+router.post('/complete-onboarding', authenticateToken, async (req, res) => {
+  try {
+    await query('UPDATE users SET onboarding_done = 1 WHERE id = ?', [req.user.userId]);
+    res.json({ done: true });
+  } catch {
+    res.status(500).json({ error: 'Failed to update onboarding status' });
+  }
+});
+
 router.post('/logout', authenticateToken, async (req, res) => {
   try {
     // Bump token_version to invalidate all existing sessions
@@ -847,6 +906,6 @@ router.get('/export-data', authenticateToken, sensitiveLimiter, async (req, res)
   }
 });
 
-export { isVpnOrProxy, getClientIp };
+export { getClientIp };
 
 export default router;

@@ -690,44 +690,56 @@ function renderLoginPage() {
 function renderRegisterPage() {
   const app = $('#app');
   app.innerHTML = html`
-    <div class="auth-page">
-      <div class="auth-card">
-        <div class="auth-logo">
+    <div class="login-page">
+      <div class="login-left">
+        <div class="login-left-top">
           <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
-          <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span></span>
+          <span>| Dashboard</span>
         </div>
-        <h1 class="auth-title">Create account</h1>
-        <p class="auth-subtitle">Start hosting for free</p>
-        <form id="register-form">
-          <div class="auth-error"></div>
-          <div class="form-group">
-            <label for="reg-email">Email</label>
-            <input type="email" id="reg-email" placeholder="your@email.com" required autocomplete="email" />
-          </div>
-          <div class="form-group">
-            <label for="reg-username">Username</label>
-            <input type="text" id="reg-username" placeholder="myusername" required autocomplete="username" />
-          </div>
-          <div class="form-group">
-            <label for="reg-password">Password</label>
-            <input type="password" id="reg-password" placeholder="At least 8 characters" required autocomplete="new-password" />
-          </div>
-          <div class="consent-group">
-            <label class="custom-checkbox">
-              <input type="checkbox" id="reg-rgpd-consent" required />
-              <span class="checkmark"></span>
-            </label>
-            <label for="reg-rgpd-consent">
-              I agree to the privacy policy and consent to the processing of my personal data (email, username, IP address) for account management purposes. <span style="color:var(--accent-red)">*</span>
-            </label>
-          </div>
-          <button type="submit" class="btn btn-primary btn-full" id="register-btn">
-            Create Account
-          </button>
+      </div>
+      <div class="login-right">
+        <div class="login-card">
+          <h1 class="auth-title">Create account</h1>
+          <p class="auth-subtitle">Start hosting for free</p>
+          <form id="register-form">
+            <div class="auth-error"></div>
+            <div class="form-group">
+              <label for="reg-email">Email</label>
+              <div class="input-wrap">
+                <input type="email" id="reg-email" placeholder="your@email.com" required autocomplete="email" />
+                <span class="input-status" id="reg-email-status"></span>
+              </div>
+              <div class="field-hint" id="reg-email-hint"></div>
+            </div>
+            <div class="form-group">
+              <label for="reg-username">Username</label>
+              <div class="input-wrap">
+                <input type="text" id="reg-username" placeholder="myusername" required autocomplete="username" />
+                <span class="input-status" id="reg-username-status"></span>
+              </div>
+              <div class="field-hint" id="reg-username-hint"></div>
+            </div>
+            <div class="form-group">
+              <label for="reg-password">Password</label>
+              <input type="password" id="reg-password" placeholder="At least 8 characters" required autocomplete="new-password" />
+            </div>
+            <div class="consent-group">
+              <label class="custom-checkbox">
+                <input type="checkbox" id="reg-rgpd-consent" required />
+                <span class="checkmark"></span>
+              </label>
+              <label for="reg-rgpd-consent">
+                I agree to the privacy policy and consent to the processing of my personal data (email, username, IP address) for account management purposes. <span style="color:var(--accent-red)">*</span>
+              </label>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full" id="register-btn">
+              Create Account
+            </button>
 
-        </form>
-        <div class="auth-footer">
-          Already have an account? <a href="/login" id="go-login">Sign in</a>
+          </form>
+          <div class="auth-footer">
+            Already have an account? <a href="/login" id="go-login">Sign in</a>
+          </div>
         </div>
       </div>
     </div>
@@ -738,6 +750,124 @@ function renderRegisterPage() {
     e.preventDefault();
     navigateTo('login');
   });
+
+  setupRegisterAvailabilityChecks();
+}
+
+const registerAvailability = { email: null, username: null };
+const registerFocus = { email: false, username: false };
+let registerAvailabilityTimer = null;
+
+function setFieldStatus(field, state, message) {
+  const statusEl = $(`#reg-${field}-status`);
+  const hintEl = $(`#reg-${field}-hint`);
+  if (!statusEl) return;
+  statusEl.className = `input-status ${state || ''}`;
+  if (state === 'checking') {
+    statusEl.innerHTML = '<span class="spinner" style="width:16px;height:16px;"></span>';
+  } else if (state === 'ok') {
+    statusEl.innerHTML = '<i data-lucide="check" style="width:18px;height:18px"></i>';
+  } else if (state === 'taken') {
+    statusEl.innerHTML = '<i data-lucide="x" style="width:18px;height:18px"></i>';
+  } else {
+    statusEl.innerHTML = '';
+  }
+  const showText = registerFocus[field] && (state === 'ok' || state === 'taken');
+  if (hintEl) {
+    hintEl.textContent = showText ? message : '';
+    hintEl.className = `field-hint ${showText ? state : ''}`;
+  }
+  if (state === 'taken' || state === 'ok') initIcons();
+}
+
+function renderStoredStatus(field) {
+  const availability = registerAvailability[field];
+  if (availability === true) {
+    setFieldStatus(field, 'ok', 'Available');
+  } else if (availability === false) {
+    setFieldStatus(field, 'taken', field === 'email' ? 'This email is already taken' : 'This username is already taken');
+  } else {
+    setFieldStatus(field, '');
+  }
+}
+
+function setupRegisterAvailabilityChecks() {
+  const emailInput = $('#reg-email');
+  const usernameInput = $('#reg-username');
+  if (!emailInput || !usernameInput) return;
+
+  const runCheck = async () => {
+    const email = emailInput.value.trim();
+    const username = usernameInput.value.trim();
+
+    if (!email && !username) {
+      registerAvailability.email = null;
+      registerAvailability.username = null;
+      setFieldStatus('email', '');
+      setFieldStatus('username', '');
+      return;
+    }
+
+    if (email && !validateRegEmail(email)) {
+      setFieldStatus('email', '');
+      registerAvailability.email = null;
+    }
+    if (username && !validateRegUsername(username)) {
+      setFieldStatus('username', '');
+      registerAvailability.username = null;
+    }
+
+    setFieldStatus('email', email && validateRegEmail(email) ? 'checking' : '');
+    setFieldStatus('username', username && validateRegUsername(username) ? 'checking' : '');
+
+    try {
+      const params = new URLSearchParams();
+      if (email && validateRegEmail(email)) params.set('email', email);
+      if (username && validateRegUsername(username)) params.set('username', username);
+      const data = await api(`/auth/check-availability?${params.toString()}`);
+      if (email && validateRegEmail(email)) {
+        registerAvailability.email = !!data.email?.available;
+        renderStoredStatus('email');
+      }
+      if (username && validateRegUsername(username)) {
+        registerAvailability.username = !!data.username?.available;
+        renderStoredStatus('username');
+      }
+    } catch {
+      setFieldStatus('email', '');
+      setFieldStatus('username', '');
+    }
+  };
+
+  const onInput = () => {
+    clearTimeout(registerAvailabilityTimer);
+    registerAvailabilityTimer = setTimeout(runCheck, 400);
+  };
+
+  const onFocus = (field) => {
+    registerFocus[field] = true;
+    renderStoredStatus(field);
+  };
+
+  const onBlur = (field) => {
+    registerFocus[field] = false;
+    renderStoredStatus(field);
+  };
+
+  emailInput.addEventListener('input', onInput);
+  usernameInput.addEventListener('input', onInput);
+  emailInput.addEventListener('focus', () => onFocus('email'));
+  emailInput.addEventListener('blur', () => onBlur('email'));
+  usernameInput.addEventListener('focus', () => onFocus('username'));
+  usernameInput.addEventListener('blur', () => onBlur('username'));
+}
+
+function validateRegEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function validateRegUsername(username) {
+  return /^[a-zA-Z0-9_-]{3,32}$/.test(username);
 }
 
 async function handleLogin(e) {
@@ -882,6 +1012,15 @@ async function handleRegister(e) {
     return;
   }
 
+  if (registerAvailability.email === false) {
+    showError(e.target, 'This email is already taken. Please choose another one.');
+    return;
+  }
+  if (registerAvailability.username === false) {
+    showError(e.target, 'This username is already taken. Please choose another one.');
+    return;
+  }
+
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Creating...';
 
@@ -918,16 +1057,20 @@ async function handleRegister(e) {
 async function renderVerifyEmail(token) {
   const app = $('#app');
   app.innerHTML = html`
-    <div class="auth-page">
-      <div class="auth-card" style="text-align:center;">
-        <div class="auth-logo">
+    <div class="login-page">
+      <div class="login-left">
+        <div class="login-left-top">
           <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
-          <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span></span>
+          <span>| Dashboard</span>
         </div>
-        <div style="margin:24px 0 16px;">
-          <span class="spinner" style="width:48px;height:48px;"></span>
+      </div>
+      <div class="login-right">
+        <div class="login-card" style="text-align:center;">
+          <div style="margin:0 auto 24px;width:fit-content;">
+            <span class="spinner" style="width:48px;height:48px;"></span>
+          </div>
+          <h1 class="auth-title">Verifying your email...</h1>
         </div>
-        <h1 class="auth-title">Verifying your email...</h1>
       </div>
     </div>
   `;
@@ -935,19 +1078,23 @@ async function renderVerifyEmail(token) {
 
   if (!token) {
     app.innerHTML = html`
-      <div class="auth-page">
-        <div class="auth-card" style="text-align:center;">
-          <div class="auth-logo">
+      <div class="login-page">
+        <div class="login-left">
+          <div class="login-left-top">
             <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
-            <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span></span>
+            <span>| Dashboard</span>
           </div>
-          <div style="margin:24px 0 16px;">
-            <i data-lucide="x-circle" style="width:48px;height:48px;color:var(--accent-red);"></i>
-          </div>
-          <h1 class="auth-title">Invalid Link</h1>
-          <p class="auth-subtitle">This verification link is invalid. Please try registering again.</p>
-          <div style="margin-top:24px;">
-            <a href="/signup" class="btn btn-primary">Create Account</a>
+        </div>
+        <div class="login-right">
+          <div class="login-card" style="text-align:center;">
+            <div style="margin:0 auto 24px;width:fit-content;">
+              <i data-lucide="x-circle" style="width:48px;height:48px;color:var(--accent-red);"></i>
+            </div>
+            <h1 class="auth-title">Invalid Link</h1>
+            <p class="auth-subtitle">This verification link is invalid. Please try registering again.</p>
+            <div style="margin-top:24px;">
+              <a href="/signup" class="btn btn-primary">Create Account</a>
+            </div>
           </div>
         </div>
       </div>
@@ -961,19 +1108,23 @@ async function renderVerifyEmail(token) {
 
     if (data.alreadyVerified) {
       app.innerHTML = html`
-        <div class="auth-page">
-          <div class="auth-card" style="text-align:center;">
-            <div class="auth-logo">
+        <div class="login-page">
+          <div class="login-left">
+            <div class="login-left-top">
               <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
-              <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span></span>
+              <span>| Dashboard</span>
             </div>
-            <div style="margin:24px 0 16px;">
-              <i data-lucide="check-circle" style="width:48px;height:48px;color:var(--accent-green);"></i>
-            </div>
-            <h1 class="auth-title">Already Verified</h1>
-            <p class="auth-subtitle">Your email was already verified. You can sign in below.</p>
-            <div style="margin-top:24px;">
-              <a href="/login" class="btn btn-primary">Sign In</a>
+          </div>
+          <div class="login-right">
+            <div class="login-card" style="text-align:center;">
+              <div style="margin:0 auto 24px;width:fit-content;">
+                <i data-lucide="check-circle" style="width:48px;height:48px;color:var(--accent-green);"></i>
+              </div>
+              <h1 class="auth-title">Already Verified</h1>
+              <p class="auth-subtitle">Your email was already verified. You can sign in below.</p>
+              <div style="margin-top:24px;">
+                <a href="/login" class="btn btn-primary">Sign In</a>
+              </div>
             </div>
           </div>
         </div>
@@ -988,22 +1139,27 @@ async function renderVerifyEmail(token) {
     localStorage.setItem('zh_user', JSON.stringify(data.user));
     history.replaceState({ page: 'overview' }, '', '/');
     renderDashboard();
+    checkAndStartOnboarding();
     showToast('Email verified successfully!', 'success');
   } catch (err) {
     app.innerHTML = html`
-      <div class="auth-page">
-        <div class="auth-card" style="text-align:center;">
-          <div class="auth-logo">
+      <div class="login-page">
+        <div class="login-left">
+          <div class="login-left-top">
             <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
-            <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span></span>
+            <span>| Dashboard</span>
           </div>
-          <div style="margin:24px 0 16px;">
-            <i data-lucide="x-circle" style="width:48px;height:48px;color:var(--accent-red);"></i>
-          </div>
-          <h1 class="auth-title">Verification Failed</h1>
-          <p class="auth-subtitle">${escapeHtml(err.message)}</p>
-          <div style="margin-top:24px;">
-            <a href="/signup" class="btn btn-primary">Create Account</a>
+        </div>
+        <div class="login-right">
+          <div class="login-card" style="text-align:center;">
+            <div style="margin:0 auto 24px;width:fit-content;">
+              <i data-lucide="x-circle" style="width:48px;height:48px;color:var(--accent-red);"></i>
+            </div>
+            <h1 class="auth-title">Verification Failed</h1>
+            <p class="auth-subtitle">${escapeHtml(err.message)}</p>
+            <div style="margin-top:24px;">
+              <a href="/signup" class="btn btn-primary">Create Account</a>
+            </div>
           </div>
         </div>
       </div>
@@ -1185,25 +1341,27 @@ async function renderChangeEmailVerify(token) {
 function renderVerificationSent(email) {
   const app = $('#app');
   app.innerHTML = html`
-    <div class="auth-page">
-      <div class="auth-card" style="text-align:center;">
-        <div class="auth-logo">
+    <div class="login-page">
+      <div class="login-left">
+        <div class="login-left-top">
           <img src="https://img.zero-host.org/assets/picto.png" alt="ZeroHost" />
-          <span class="auth-logo-text">Zero<span class="auth-logo-accent">Host</span></span>
+          <span>| Dashboard</span>
         </div>
-        <div style="margin:24px 0 16px;">
-          <i data-lucide="mail-check" style="width:48px;height:48px;color:var(--accent-orange);"></i>
-        </div>
-        <h1 class="auth-title">Check your inbox</h1>
-        <p class="auth-subtitle" style="max-width:360px;margin:0 auto;">
-          We sent a verification email to <strong>${escapeHtml(email)}</strong>.
-          Click the link in the email to activate your account.
-        </p>
-        <div style="margin-top:8px;">
+      </div>
+      <div class="login-right">
+        <div class="login-card" style="text-align:center;">
+          <div style="margin:0 auto 24px;width:fit-content;">
+            <i data-lucide="mail-check" style="width:48px;height:48px;color:var(--accent-orange);"></i>
+          </div>
+          <h1 class="auth-title">Check your inbox</h1>
+          <p class="auth-subtitle" style="max-width:360px;margin:0 auto 8px;">
+            We sent a verification email to <strong>${escapeHtml(email)}</strong>.
+            Click the link in the email to activate your account.
+          </p>
           <p style="font-size:0.8rem;color:var(--text-muted);">Can't find it? Check your spam folder.</p>
-        </div>
-        <div style="margin-top:24px;">
-          <a href="/login" class="btn btn-primary" id="go-to-login-after-register">Go to Sign In</a>
+          <div style="margin-top:24px;">
+            <a href="/login" class="btn btn-primary" id="go-to-login-after-register">Go to Sign In</a>
+          </div>
         </div>
       </div>
     </div>
@@ -1324,6 +1482,10 @@ async function renderDashboard() {
                 <i data-lucide="settings" style="width:16px;height:16px"></i>
                 Settings
               </a>
+              <a class="sidebar-user-dropdown-item" id="user-dropdown-tour">
+                <i data-lucide="map" style="width:16px;height:16px"></i>
+                Take a Tour
+              </a>
               <a class="sidebar-user-dropdown-item" id="user-dropdown-logout">
                 <i data-lucide="log-out" style="width:16px;height:16px"></i>
                 Logout
@@ -1334,7 +1496,7 @@ async function renderDashboard() {
           <div style="padding:8px 12px 0;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
 
           </div>
-          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v1.0.7</div>
+          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v1.0.8</div>
         </div>
         <div class="sidebar-resizer" id="sidebar-resizer"></div>
       </aside>
@@ -1393,6 +1555,12 @@ async function renderDashboard() {
     e.preventDefault();
     closeUserDropdown();
     navigateTo('account/info');
+  });
+
+  $('#user-dropdown-tour').addEventListener('click', (e) => {
+    e.preventDefault();
+    closeUserDropdown();
+    startOnboarding();
   });
 
   $('#user-dropdown-logout').addEventListener('click', async (e) => {
@@ -3840,6 +4008,268 @@ async function handleExportData() {
   }
 }
 
+// ===== ONBOARDING TOUR =====
+const ONBOARDING_STEPS = [
+  {
+    title: 'Welcome to ZeroHost!',
+    description: 'Would you like a quick tour of your dashboard? It only takes a minute.',
+    highlight: null,
+    buttons: ['Skip', 'Start'],
+  },
+  {
+    title: 'Dashboard Overview',
+    description: `This is your Dashboard — the central hub. Here you get an overview of all your servers, their status, and resource usage at a glance.`,
+    highlight: '#sidebar-nav a.nav-item[data-page="overview"]',
+    buttons: ['Skip', 'Next'],
+  },
+  {
+    title: 'Create a Server',
+    description: 'Use this button to deploy a new server. You can choose from different game types and configurations.',
+    highlight: '#sidebar-nav a.nav-item[data-page="create"]',
+    buttons: ['Skip', 'Next'],
+  },
+  {
+    title: 'My Servers',
+    description: 'All your servers live here. Manage them, check their status, rename them, and more.',
+    highlight: '#nav-servers-toggle',
+    buttons: ['Skip', 'Next'],
+  },
+  {
+    title: 'Two things to remember',
+    description: `<strong>Dashboard</strong> — Where you create servers, change names, view status, and manage your account.<br><br><strong>Hydrodactyl Panel</strong> — Where you start/stop your server, manage files, use the console, and control everything.`,
+    highlight: null,
+    buttons: ['Skip', 'Got it!'],
+  },
+];
+
+let onboardingActive = false;
+let onboardingStep = 0;
+let onboardingHighlightEl = null;
+
+function clearOnboardingHighlight() {
+  const spotlight = $('#onboarding-spotlight');
+  if (spotlight) spotlight.style.display = 'none';
+  const el = $('#onboarding-highlight-el');
+  if (el) el.removeAttribute('id');
+  onboardingHighlightEl = null;
+}
+
+function applyOnboardingHighlight(selector) {
+  clearOnboardingHighlight();
+  if (!selector) return;
+
+  const el = document.querySelector(selector);
+  if (!el) return;
+
+  const rect = el.getBoundingClientRect();
+
+  let spotlight = $('#onboarding-spotlight');
+  if (!spotlight) {
+    spotlight = document.createElement('div');
+    spotlight.id = 'onboarding-spotlight';
+    spotlight.className = 'onboarding-spotlight';
+    const overlay = $('#onboarding-overlay');
+    if (overlay) overlay.appendChild(spotlight);
+  }
+
+  spotlight.style.left = rect.left + 'px';
+  spotlight.style.top = rect.top + 'px';
+  spotlight.style.width = rect.width + 'px';
+  spotlight.style.height = rect.height + 'px';
+  spotlight.style.display = 'block';
+
+  onboardingHighlightEl = spotlight;
+}
+
+function positionOnboardingCard(selector) {
+  const card = $('#onboarding-card');
+  if (!card) return;
+
+  // Remove old arrow
+  const oldArrow = card.querySelector('.card-arrow');
+  if (oldArrow) oldArrow.remove();
+
+  if (!selector) {
+    card.classList.add('centered');
+    card.style.top = '';
+    card.style.left = '';
+    card.style.transform = '';
+    return;
+  }
+
+  card.classList.remove('centered');
+
+  const el = document.querySelector(selector);
+  if (!el) return;
+
+  const elRect = el.getBoundingClientRect();
+  const cardW = 440;
+  const cardMaxH = window.innerHeight - 80;
+  const gap = 14;
+
+  let top, left, arrowDir;
+  const approxCardH = Math.min(360, cardMaxH);
+
+  // Try right first (sidebar items are on the left)
+  const spaceRight = window.innerWidth - elRect.right;
+  if (spaceRight >= cardW + gap + 30) {
+    left = elRect.right + gap;
+    top = elRect.top + elRect.height / 2 - approxCardH / 2;
+    arrowDir = 'left';
+  } else {
+    // Try below
+    const spaceBelow = window.innerHeight - elRect.bottom;
+    const spaceAbove = elRect.top;
+    if (spaceBelow >= approxCardH + gap + 20) {
+      top = elRect.bottom + gap;
+      left = elRect.left + elRect.width / 2 - cardW / 2;
+      arrowDir = 'up';
+    } else if (spaceAbove >= approxCardH + gap + 20) {
+      top = elRect.top - gap - approxCardH;
+      left = elRect.left + elRect.width / 2 - cardW / 2;
+      arrowDir = 'down';
+    } else {
+      // Center as fallback
+      top = Math.max(20, (window.innerHeight - approxCardH) / 2);
+      left = Math.max(16, (window.innerWidth - cardW) / 2);
+      arrowDir = null;
+    }
+  }
+
+  // Clamp to viewport
+  left = Math.max(16, Math.min(left, window.innerWidth - cardW - 16));
+  top = Math.max(16, Math.min(top, window.innerHeight - approxCardH - 16));
+
+  card.style.top = top + 'px';
+  card.style.left = left + 'px';
+  card.style.transform = 'none';
+
+  if (arrowDir) {
+    const arrow = document.createElement('div');
+    arrow.className = 'card-arrow';
+    arrow.dataset.dir = arrowDir;
+    card.appendChild(arrow);
+
+    if (arrowDir === 'left') {
+      arrow.style.left = (left - 10) + 'px';
+      arrow.style.top = (elRect.top + elRect.height / 2) + 'px';
+    } else if (arrowDir === 'up') {
+      arrow.style.left = (elRect.left + elRect.width / 2) + 'px';
+      arrow.style.top = (top - 10) + 'px';
+    } else if (arrowDir === 'down') {
+      arrow.style.left = (elRect.left + elRect.width / 2) + 'px';
+      arrow.style.top = (top + approxCardH) + 'px';
+    }
+  }
+}
+
+function renderOnboardingStep(stepIndex) {
+  const card = $('#onboarding-card');
+  if (!card) return;
+
+  const step = ONBOARDING_STEPS[stepIndex];
+
+  let dotsHtml = '<div class="onboarding-dots">';
+  ONBOARDING_STEPS.forEach((_, i) => {
+    dotsHtml += `<span class="onboarding-dot ${i === stepIndex ? 'active' : ''}"></span>`;
+  });
+  dotsHtml += '</div>';
+
+  const leftBtn = step.buttons[0];
+  const rightBtn = step.buttons[1];
+
+  card.innerHTML = html`
+    ${dotsHtml}
+    <h2>${escapeHtml(step.title)}</h2>
+    <p>${step.description}</p>
+    <div class="onboarding-actions">
+      <button class="btn btn-ghost" id="onboarding-skip">${leftBtn}</button>
+      <button class="btn btn-primary" id="onboarding-next">${rightBtn}</button>
+    </div>
+  `;
+
+  const backdrop = $('#onboarding-backdrop');
+  if (step.highlight) {
+    if (backdrop) backdrop.style.display = 'none';
+    applyOnboardingHighlight(step.highlight);
+  } else {
+    if (backdrop) backdrop.style.display = 'block';
+    clearOnboardingHighlight();
+  }
+
+  positionOnboardingCard(step.highlight);
+  initIcons();
+}
+
+async function startOnboarding() {
+  if (onboardingActive) return;
+  onboardingActive = true;
+  onboardingStep = 0;
+
+  const existing = $('#onboarding-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'onboarding-overlay';
+  overlay.className = 'onboarding-overlay';
+  overlay.innerHTML = html`
+    <div class="onboarding-backdrop" id="onboarding-backdrop" style="display:none"></div>
+    <div class="onboarding-card centered" id="onboarding-card"></div>
+  `;
+  document.body.appendChild(overlay);
+
+  renderOnboardingStep(0);
+
+  const attachListeners = () => {
+    $('#onboarding-skip').addEventListener('click', stopOnboarding);
+    $('#onboarding-next').addEventListener('click', () => {
+      if (onboardingStep === 0) {
+        onboardingStep = 1;
+        renderOnboardingStep(onboardingStep);
+        attachListeners();
+      } else {
+        handleOnboardingNext();
+      }
+    });
+  };
+  attachListeners();
+}
+
+function handleOnboardingNext() {
+  if (onboardingStep < ONBOARDING_STEPS.length - 1) {
+    onboardingStep++;
+    renderOnboardingStep(onboardingStep);
+    $('#onboarding-skip').addEventListener('click', stopOnboarding);
+    $('#onboarding-next').addEventListener('click', handleOnboardingNext);
+  } else if (onboardingStep === ONBOARDING_STEPS.length - 1) {
+    stopOnboarding(true);
+  }
+}
+
+async function stopOnboarding(done) {
+  if (!onboardingActive) return;
+  onboardingActive = false;
+  clearOnboardingHighlight();
+  const overlay = $('#onboarding-overlay');
+  if (overlay) overlay.remove();
+
+  if (done && state.token) {
+    try {
+      await api('/auth/complete-onboarding', { method: 'POST' });
+    } catch {}
+  }
+}
+
+async function checkAndStartOnboarding() {
+  if (!state.token) return;
+  try {
+    const data = await api('/auth/onboarding-status');
+    if (!data.done) {
+      startOnboarding();
+    }
+  } catch {}
+}
+
 // ===== INIT =====
 function init() {
   const path = window.location.pathname;
@@ -3876,6 +4306,7 @@ function init() {
     if (state.token) {
       history.replaceState({ page: 'overview' }, '', '/');
       renderDashboard();
+      if (basePage !== 'signup') checkAndStartOnboarding();
     } else if (basePage === 'login') {
       renderLoginPage();
     } else {
@@ -3884,6 +4315,7 @@ function init() {
   } else if (state.token) {
     api('/servers/overview').then(() => {
       renderDashboard();
+      checkAndStartOnboarding();
       fetchUnreadCount();
       setInterval(fetchUnreadCount, 30000);
     }).catch(() => {
