@@ -1871,7 +1871,7 @@ async function renderAdminEggSettings(nestId, eggId) {
     if (val) {
       if (preview) preview.style.display = 'block';
       if (img) {
-        try { img.src = new URL(val).href; } catch { img.src = ''; }
+        try { const u = new URL(val); if (u.protocol === 'http:' || u.protocol === 'https:' || u.protocol === 'data:' || u.protocol === 'blob:') img.src = u.href; else img.src = ''; } catch { img.src = ''; }
       }
     } else {
       if (preview) preview.style.display = 'none';
@@ -2231,7 +2231,7 @@ function showRenameNestModal(nestId, currentName, currentLogo, currentDescriptio
     if (logoInput.value) {
       if (preview) preview.style.display = 'block';
       if (img) {
-        try { img.src = new URL(logoInput.value).href; } catch { img.src = ''; }
+        try { const u = new URL(logoInput.value); if (u.protocol === 'http:' || u.protocol === 'https:' || u.protocol === 'data:' || u.protocol === 'blob:') img.src = u.href; else img.src = ''; } catch { img.src = ''; }
       }
     } else {
       if (preview) preview.style.display = 'none';
