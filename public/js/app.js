@@ -4087,6 +4087,9 @@ function positionOnboardingCard(selector) {
 
   if (!selector) {
     card.classList.add('centered');
+    card.style.top = '';
+    card.style.left = '';
+    card.style.transform = '';
     const arrow = card.querySelector('.card-arrow');
     if (arrow) arrow.remove();
     return;
