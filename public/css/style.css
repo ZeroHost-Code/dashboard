@@ -4468,47 +4468,66 @@ tbody tr:hover {
   transform: translate(-50%, -50%);
 }
 
-.onboarding-card .card-arrow {
+.onboarding-card[data-arrow]::before,
+.onboarding-card[data-arrow]::after {
+  content: '';
   position: absolute;
-  width: 14px;
-  height: 14px;
-  background: var(--bg-card);
-  border-left: 1px solid var(--border);
-  border-top: 1px solid var(--border);
-  z-index: 1;
+  width: 0;
+  height: 0;
 }
 
-.onboarding-card .card-arrow.up {
-  top: -8px;
+.onboarding-card[data-arrow="up"]::before {
+  top: -10px;
   left: 50%;
-  margin-left: -7px;
-  transform: rotate(45deg);
-  border-left-color: var(--border);
-  border-top-color: var(--border);
-  border-right: none;
-  border-bottom: none;
+  margin-left: -10px;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-bottom: 10px solid var(--border);
 }
 
-.onboarding-card .card-arrow.down {
-  bottom: -8px;
+.onboarding-card[data-arrow="up"]::after {
+  top: -9px;
   left: 50%;
-  margin-left: -7px;
-  transform: rotate(225deg);
-  border-left-color: var(--border);
-  border-top-color: var(--border);
-  border-right: none;
-  border-bottom: none;
+  margin-left: -9px;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-bottom: 9px solid var(--bg-card);
 }
 
-.onboarding-card .card-arrow.left {
-  left: -8px;
+.onboarding-card[data-arrow="down"]::before {
+  bottom: -10px;
+  left: 50%;
+  margin-left: -10px;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 10px solid var(--border);
+}
+
+.onboarding-card[data-arrow="down"]::after {
+  bottom: -9px;
+  left: 50%;
+  margin-left: -9px;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-top: 9px solid var(--bg-card);
+}
+
+.onboarding-card[data-arrow="left"]::before {
+  left: -10px;
   top: 50%;
-  margin-top: -7px;
-  transform: rotate(-45deg);
-  border-left-color: var(--border);
-  border-top-color: var(--border);
-  border-right: none;
-  border-bottom: none;
+  margin-top: -10px;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-right: 10px solid var(--border);
+}
+
+.onboarding-card[data-arrow="left"]::after {
+  left: -9px;
+  top: 50%;
+  margin-top: -9px;
+  border-top: 9px solid transparent;
+  border-bottom: 9px solid transparent;
+  border-right: 9px solid var(--bg-card);
 }
 
 .onboarding-card h2 {

@@ -4090,8 +4090,7 @@ function positionOnboardingCard(selector) {
     card.style.top = '';
     card.style.left = '';
     card.style.transform = '';
-    const arrow = card.querySelector('.card-arrow');
-    if (arrow) arrow.remove();
+    delete card.dataset.arrow;
     return;
   }
 
@@ -4104,13 +4103,6 @@ function positionOnboardingCard(selector) {
   const cardW = 440;
   const cardMaxH = window.innerHeight - 80;
   const gap = 14;
-
-  // Remove old arrow and create a new one
-  const oldArrow = card.querySelector('.card-arrow');
-  if (oldArrow) oldArrow.remove();
-  const arrow = document.createElement('div');
-  arrow.className = 'card-arrow';
-  card.appendChild(arrow);
 
   let top, left, arrowDir;
   const approxCardH = Math.min(360, cardMaxH);
@@ -4145,16 +4137,14 @@ function positionOnboardingCard(selector) {
   left = Math.max(16, Math.min(left, window.innerWidth - cardW - 16));
   top = Math.max(16, Math.min(top, window.innerHeight - approxCardH - 16));
 
-  top = Math.max(16, Math.min(top, window.innerHeight - approxCardH - 16));
-
   card.style.top = top + 'px';
   card.style.left = left + 'px';
   card.style.transform = 'none';
 
   if (arrowDir) {
-    arrow.className = `card-arrow ${arrowDir}`;
+    card.dataset.arrow = arrowDir;
   } else {
-    arrow.remove();
+    delete card.dataset.arrow;
   }
 }
 
