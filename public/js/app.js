@@ -4047,20 +4047,38 @@ let onboardingStep = 0;
 let onboardingHighlightEl = null;
 
 function clearOnboardingHighlight() {
-  if (onboardingHighlightEl) {
-    onboardingHighlightEl.classList.remove('onboarding-highlight');
-    onboardingHighlightEl = null;
-  }
+  const spotlight = $('#onboarding-spotlight');
+  if (spotlight) spotlight.style.display = 'none';
+  const el = $('#onboarding-highlight-el');
+  if (el) el.removeAttribute('id');
+  onboardingHighlightEl = null;
 }
 
 function applyOnboardingHighlight(selector) {
   clearOnboardingHighlight();
   if (!selector) return;
+
   const el = document.querySelector(selector);
-  if (el) {
-    el.classList.add('onboarding-highlight');
-    onboardingHighlightEl = el;
+  if (!el) return;
+
+  const rect = el.getBoundingClientRect();
+
+  let spotlight = $('#onboarding-spotlight');
+  if (!spotlight) {
+    spotlight = document.createElement('div');
+    spotlight.id = 'onboarding-spotlight';
+    spotlight.className = 'onboarding-spotlight';
+    const overlay = $('#onboarding-overlay');
+    if (overlay) overlay.appendChild(spotlight);
   }
+
+  spotlight.style.left = rect.left + 'px';
+  spotlight.style.top = rect.top + 'px';
+  spotlight.style.width = rect.width + 'px';
+  spotlight.style.height = rect.height + 'px';
+  spotlight.style.display = 'block';
+
+  onboardingHighlightEl = spotlight;
 }
 
 function positionOnboardingCard(selector) {
