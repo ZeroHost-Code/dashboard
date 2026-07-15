@@ -4438,42 +4438,79 @@ tbody tr:hover {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  pointer-events: none;
 }
 
 .onboarding-backdrop {
   position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.7);
-  transition: opacity 0.25s ease;
+  pointer-events: none;
 }
 
 .onboarding-card {
-  position: relative;
-  z-index: 10001;
+  pointer-events: auto;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
-  padding: 40px 36px;
-  max-width: 480px;
+  padding: 32px 28px;
+  max-width: 440px;
   width: 90%;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
   text-align: center;
+  position: fixed;
+  z-index: 10001;
+}
+
+.onboarding-card.centered {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.onboarding-card .card-arrow {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: var(--bg-card);
+  border-left: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  z-index: 1;
+}
+
+.onboarding-card .card-arrow.up {
+  top: -8px;
+  left: 50%;
+  margin-left: -7px;
+  transform: rotate(45deg);
+  border-left-color: var(--border);
+  border-top-color: var(--border);
+  border-right: none;
+  border-bottom: none;
+}
+
+.onboarding-card .card-arrow.down {
+  bottom: -8px;
+  left: 50%;
+  margin-left: -7px;
+  transform: rotate(225deg);
+  border-left-color: var(--border);
+  border-top-color: var(--border);
+  border-right: none;
+  border-bottom: none;
 }
 
 .onboarding-card h2 {
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   font-weight: 700;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .onboarding-card p {
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   color: var(--text-secondary);
-  line-height: 1.65;
-  margin-bottom: 28px;
+  line-height: 1.6;
+  margin-bottom: 24px;
 }
 
 .onboarding-card .onboarding-actions {
@@ -4483,7 +4520,7 @@ tbody tr:hover {
 }
 
 .onboarding-card .onboarding-actions .btn {
-  min-width: 110px;
+  min-width: 100px;
 }
 
 .onboarding-highlight {
@@ -4497,7 +4534,7 @@ tbody tr:hover {
   display: flex;
   gap: 6px;
   justify-content: center;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .onboarding-dot {

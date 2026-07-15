@@ -4063,13 +4063,75 @@ function applyOnboardingHighlight(selector) {
   }
 }
 
+function positionOnboardingCard(selector) {
+  const card = $('#onboarding-card');
+  if (!card) return;
+
+  if (!selector) {
+    card.classList.add('centered');
+    const arrow = card.querySelector('.card-arrow');
+    if (arrow) arrow.remove();
+    return;
+  }
+
+  card.classList.remove('centered');
+
+  const el = document.querySelector(selector);
+  if (!el) return;
+
+  const elRect = el.getBoundingClientRect();
+  const cardW = 440;
+  const cardMaxH = window.innerHeight - 80;
+  const gap = 14;
+
+  // Remove old arrow and create a new one
+  const oldArrow = card.querySelector('.card-arrow');
+  if (oldArrow) oldArrow.remove();
+  const arrow = document.createElement('div');
+  arrow.className = 'card-arrow';
+  card.appendChild(arrow);
+
+  let top, arrowDir;
+
+  // Try below first
+  const spaceBelow = window.innerHeight - elRect.bottom;
+  const spaceAbove = elRect.top;
+  const approxCardH = Math.min(360, cardMaxH);
+
+  if (spaceBelow >= approxCardH + gap + 20) {
+    top = elRect.bottom + gap;
+    arrowDir = 'up';
+  } else if (spaceAbove >= approxCardH + gap + 20) {
+    top = elRect.top - gap - approxCardH;
+    arrowDir = 'down';
+  } else {
+    // Center as fallback
+    top = Math.max(20, (window.innerHeight - approxCardH) / 2);
+    arrowDir = null;
+  }
+
+  // Center card horizontally under the element, but clamp to viewport
+  let left = elRect.left + elRect.width / 2 - cardW / 2;
+  left = Math.max(16, Math.min(left, window.innerWidth - cardW - 16));
+
+  top = Math.max(16, Math.min(top, window.innerHeight - approxCardH - 16));
+
+  card.style.top = top + 'px';
+  card.style.left = left + 'px';
+  card.style.transform = 'none';
+
+  if (arrowDir) {
+    arrow.className = `card-arrow ${arrowDir}`;
+  } else {
+    arrow.remove();
+  }
+}
+
 function renderOnboardingStep(stepIndex) {
   const card = $('#onboarding-card');
   if (!card) return;
 
   const step = ONBOARDING_STEPS[stepIndex];
-  const isLast = stepIndex === ONBOARDING_STEPS.length - 1;
-  const isFirst = stepIndex === 0;
 
   let dotsHtml = '<div class="onboarding-dots">';
   ONBOARDING_STEPS.forEach((_, i) => {
@@ -4077,8 +4139,8 @@ function renderOnboardingStep(stepIndex) {
   });
   dotsHtml += '</div>';
 
-  const leftBtn = step.buttons[0]; // Skip
-  const rightBtn = step.buttons[1]; // Start / Next / Got it!
+  const leftBtn = step.buttons[0];
+  const rightBtn = step.buttons[1];
 
   card.innerHTML = html`
     ${dotsHtml}
@@ -4090,7 +4152,16 @@ function renderOnboardingStep(stepIndex) {
     </div>
   `;
 
-  applyOnboardingHighlight(step.highlight);
+  const backdrop = $('#onboarding-backdrop');
+  if (step.highlight) {
+    if (backdrop) backdrop.style.display = 'none';
+    applyOnboardingHighlight(step.highlight);
+  } else {
+    if (backdrop) backdrop.style.display = 'block';
+    clearOnboardingHighlight();
+  }
+
+  positionOnboardingCard(step.highlight);
   initIcons();
 }
 
@@ -4106,24 +4177,26 @@ async function startOnboarding() {
   overlay.id = 'onboarding-overlay';
   overlay.className = 'onboarding-overlay';
   overlay.innerHTML = html`
-    <div class="onboarding-backdrop" id="onboarding-backdrop"></div>
-    <div class="onboarding-card" id="onboarding-card"></div>
+    <div class="onboarding-backdrop" id="onboarding-backdrop" style="display:none"></div>
+    <div class="onboarding-card centered" id="onboarding-card"></div>
   `;
   document.body.appendChild(overlay);
 
   renderOnboardingStep(0);
 
-  $('#onboarding-skip').addEventListener('click', stopOnboarding);
-  $('#onboarding-next').addEventListener('click', () => {
-    if (onboardingStep === 0) {
-      onboardingStep = 1;
-      renderOnboardingStep(onboardingStep);
-      $('#onboarding-skip').addEventListener('click', stopOnboarding);
-      $('#onboarding-next').addEventListener('click', handleOnboardingNext);
-    } else {
-      handleOnboardingNext();
-    }
-  });
+  const attachListeners = () => {
+    $('#onboarding-skip').addEventListener('click', stopOnboarding);
+    $('#onboarding-next').addEventListener('click', () => {
+      if (onboardingStep === 0) {
+        onboardingStep = 1;
+        renderOnboardingStep(onboardingStep);
+        attachListeners();
+      } else {
+        handleOnboardingNext();
+      }
+    });
+  };
+  attachListeners();
 }
 
 function handleOnboardingNext() {
