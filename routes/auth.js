@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 import { createHash, randomBytes } from 'crypto';
+import { isIP } from 'net';
 
 import { query } from '../config/db.js';
 import { generateToken, authenticateToken } from '../middleware/auth.js';
@@ -99,16 +100,28 @@ function isPrivateIp(ip) {
   return false;
 }
 
-async function isVpnOrProxy(ip) {
-  if (isPrivateIp(ip)) {
-    console.log('[VPN] Skipping private IP:', ip);
+function normalizeClientIp(ip) {
+  if (typeof ip !== 'string') return null;
+  const trimmed = ip.trim();
+  if (!trimmed) return null;
+  const withoutV4Mapped = trimmed.replace(/^::ffff:/, '');
+  return isIP(withoutV4Mapped) ? withoutV4Mapped : null;
+}
+
+export async function isVpnOrProxy(ip) {
+  const cleanIp = normalizeClientIp(ip);
+  if (!cleanIp) {
+    console.log('[VPN] Skipping invalid IP:', ip);
     return false;
   }
 
-  const cleanIp = ip.replace(/^::ffff:/, '');
+  if (isPrivateIp(cleanIp)) {
+    console.log('[VPN] Skipping private IP:', cleanIp);
+    return false;
+  }
 
   try {
-    const res = await fetchWithTimeout(`http://ip-api.com/json/${cleanIp}?fields=proxy,hosting,isp,org,query`);
+    const res = await fetchWithTimeout(`http://ip-api.com/json/${encodeURIComponent(cleanIp)}?fields=proxy,hosting,isp,org,query`);
     const data = await res.json();
     console.log('[VPN] ip-api response for', cleanIp, ':', JSON.stringify(data));
     return data.proxy === true || data.hosting === true;
@@ -117,7 +130,7 @@ async function isVpnOrProxy(ip) {
   }
 
   try {
-    const res = await fetchWithTimeout(`https://ipinfo.io/${cleanIp}/json`);
+    const res = await fetchWithTimeout(`https://ipinfo.io/${encodeURIComponent(cleanIp)}/json`);
     const data = await res.json();
     console.log('[VPN] ipinfo response for', cleanIp, ':', JSON.stringify({ org: data.org }));
     const orgLower = (data.org || '').toLowerCase();
