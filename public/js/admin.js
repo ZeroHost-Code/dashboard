@@ -1870,7 +1870,9 @@ async function renderAdminEggSettings(nestId, eggId) {
     const val = $a('#egg-logo').value;
     if (val) {
       if (preview) preview.style.display = 'block';
-      if (img && /^https?:\/\/|^data:|^blob:/.test(val)) img.src = val;
+      if (img) {
+        try { img.src = new URL(val).href; } catch { img.src = ''; }
+      }
     } else {
       if (preview) preview.style.display = 'none';
     }
@@ -2228,7 +2230,9 @@ function showRenameNestModal(nestId, currentName, currentLogo, currentDescriptio
     const img = preview?.querySelector('img');
     if (logoInput.value) {
       if (preview) preview.style.display = 'block';
-      if (img && /^https?:\/\/|^data:|^blob:/.test(logoInput.value)) img.src = logoInput.value;
+      if (img) {
+        try { img.src = new URL(logoInput.value).href; } catch { img.src = ''; }
+      }
     } else {
       if (preview) preview.style.display = 'none';
     }
