@@ -546,6 +546,10 @@ router.post('/power/:identifier', authenticateToken, powerLimiter, async (req, r
     const { signal } = req.body;
     const pteroId = req.user.pteroId;
 
+    if (typeof identifier !== 'string' || !/^[A-Za-z0-9]+$/.test(identifier)) {
+      return res.status(400).json({ error: 'Invalid server identifier' });
+    }
+
     if (!await verifyServerOwnership(pteroId, identifier)) {
       return res.status(403).json({ error: 'You do not own this server' });
     }
@@ -561,7 +565,8 @@ router.post('/power/:identifier', authenticateToken, powerLimiter, async (req, r
     }
 
     const apiKey = users[0].ptero_client_api_key;
-    const pteroRes = await fetch(`${PTERO_URL}/api/client/servers/${identifier}/power`, {
+    const safeIdentifier = encodeURIComponent(identifier);
+    const pteroRes = await fetch(`${PTERO_URL}/api/client/servers/${safeIdentifier}/power`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
