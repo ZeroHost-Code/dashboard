@@ -24,6 +24,46 @@ router.get('/check-vpn', async (req, res) => {
   }
 });
 
+const availabilityLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  message: { error: 'Too many requests' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+router.get('/check-availability', availabilityLimiter, async (req, res) => {
+  try {
+    const email = typeof req.query.email === 'string' && req.query.email ? req.query.email : null;
+    const username = typeof req.query.username === 'string' && req.query.username ? req.query.username : null;
+
+    if (!email && !username) {
+      return res.json({});
+    }
+
+    const clauses = [];
+    const params = [];
+    if (email) { clauses.push('email = ?'); params.push(email); }
+    if (username) { clauses.push('username = ?'); params.push(username); }
+
+    const rows = await query(
+      `SELECT email, username FROM users WHERE ${clauses.join(' OR ')}`,
+      params
+    );
+
+    const takenEmails = new Set(rows.map(r => r.email));
+    const takenUsernames = new Set(rows.map(r => r.username));
+
+    const result = {};
+    if (email) result.email = { available: !takenEmails.has(email) };
+    if (username) result.username = { available: !takenUsernames.has(username) };
+
+    res.json(result);
+  } catch {
+    res.status(500).json({ error: 'Availability check failed' });
+  }
+});
+
 function gravatarHash(email) {
   return createHash('md5').update(email.trim().toLowerCase()).digest('hex');
 }

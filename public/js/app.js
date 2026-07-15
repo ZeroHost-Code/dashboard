@@ -705,11 +705,19 @@ function renderRegisterPage() {
             <div class="auth-error"></div>
             <div class="form-group">
               <label for="reg-email">Email</label>
-              <input type="email" id="reg-email" placeholder="your@email.com" required autocomplete="email" />
+              <div class="input-wrap">
+                <input type="email" id="reg-email" placeholder="your@email.com" required autocomplete="email" />
+                <span class="input-status" id="reg-email-status"></span>
+              </div>
+              <div class="field-hint" id="reg-email-hint"></div>
             </div>
             <div class="form-group">
               <label for="reg-username">Username</label>
-              <input type="text" id="reg-username" placeholder="myusername" required autocomplete="username" />
+              <div class="input-wrap">
+                <input type="text" id="reg-username" placeholder="myusername" required autocomplete="username" />
+                <span class="input-status" id="reg-username-status"></span>
+              </div>
+              <div class="field-hint" id="reg-username-hint"></div>
             </div>
             <div class="form-group">
               <label for="reg-password">Password</label>
@@ -742,6 +750,101 @@ function renderRegisterPage() {
     e.preventDefault();
     navigateTo('login');
   });
+
+  setupRegisterAvailabilityChecks();
+}
+
+const registerAvailability = { email: null, username: null };
+let registerAvailabilityTimer = null;
+
+function setFieldStatus(field, state, message) {
+  const statusEl = $(`#reg-${field}-status`);
+  const hintEl = $(`#reg-${field}-hint`);
+  if (!statusEl) return;
+  statusEl.className = `input-status ${state || ''}`;
+  if (state === 'checking') {
+    statusEl.innerHTML = '<span class="spinner" style="width:16px;height:16px;"></span>';
+  } else if (state === 'ok') {
+    statusEl.innerHTML = '<i data-lucide="check" style="width:18px;height:18px"></i>';
+  } else if (state === 'taken') {
+    statusEl.innerHTML = '<i data-lucide="x" style="width:18px;height:18px"></i>';
+  } else {
+    statusEl.innerHTML = '';
+  }
+  if (hintEl) {
+    hintEl.textContent = message || '';
+    hintEl.className = `field-hint ${state === 'ok' || state === 'taken' ? state : ''}`;
+  }
+  if (state === 'taken' || state === 'ok') initIcons();
+}
+
+function setupRegisterAvailabilityChecks() {
+  const emailInput = $('#reg-email');
+  const usernameInput = $('#reg-username');
+  if (!emailInput || !usernameInput) return;
+
+  const runCheck = async () => {
+    const email = emailInput.value.trim();
+    const username = usernameInput.value.trim();
+
+    if (!email && !username) {
+      registerAvailability.email = null;
+      registerAvailability.username = null;
+      setFieldStatus('email', '');
+      setFieldStatus('username', '');
+      return;
+    }
+
+    if (email && !validateRegEmail(email)) {
+      setFieldStatus('email', '');
+      registerAvailability.email = null;
+    }
+    if (username && !validateRegUsername(username)) {
+      setFieldStatus('username', '');
+      registerAvailability.username = null;
+    }
+
+    setFieldStatus('email', email && validateRegEmail(email) ? 'checking' : '');
+    setFieldStatus('username', username && validateRegUsername(username) ? 'checking' : '');
+
+    try {
+      const params = new URLSearchParams();
+      if (email && validateRegEmail(email)) params.set('email', email);
+      if (username && validateRegUsername(username)) params.set('username', username);
+      const data = await api(`/auth/check-availability?${params.toString()}`);
+      if (email && validateRegEmail(email)) {
+        const available = data.email?.available;
+        registerAvailability.email = available;
+        setFieldStatus('email', available ? 'ok' : 'taken', available ? 'Available' : 'This email is already taken');
+      }
+      if (username && validateRegUsername(username)) {
+        const available = data.username?.available;
+        registerAvailability.username = available;
+        setFieldStatus('username', available ? 'ok' : 'taken', available ? 'Available' : 'This username is already taken');
+      }
+    } catch {
+      setFieldStatus('email', '');
+      setFieldStatus('username', '');
+    }
+  };
+
+  const onInput = () => {
+    clearTimeout(registerAvailabilityTimer);
+    registerAvailabilityTimer = setTimeout(runCheck, 400);
+  };
+
+  emailInput.addEventListener('input', onInput);
+  usernameInput.addEventListener('input', onInput);
+  emailInput.addEventListener('blur', runCheck);
+  usernameInput.addEventListener('blur', runCheck);
+}
+
+function validateRegEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function validateRegUsername(username) {
+  return /^[a-zA-Z0-9_-]{3,32}$/.test(username);
 }
 
 async function handleLogin(e) {
@@ -883,6 +986,15 @@ async function handleRegister(e) {
   const rgpdConsent = document.getElementById('reg-rgpd-consent')?.checked;
   if (!rgpdConsent) {
     showError(e.target, 'You must accept the privacy policy to create an account.');
+    return;
+  }
+
+  if (registerAvailability.email === false) {
+    showError(e.target, 'This email is already taken. Please choose another one.');
+    return;
+  }
+  if (registerAvailability.username === false) {
+    showError(e.target, 'This username is already taken. Please choose another one.');
     return;
   }
 
