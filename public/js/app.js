@@ -258,6 +258,11 @@ async function api(path, options = {}) {
   if (state.token) {
     headers['Authorization'] = `Bearer ${state.token}`;
   }
+  const method = (options.method || 'GET').toUpperCase();
+  if (method !== 'GET' && method !== 'HEAD') {
+    const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
+    if (match) headers['x-csrf-token'] = match[1];
+  }
   let res;
   try {
     res = await fetch(`${API_BASE}/api${path}`, { ...options, headers });

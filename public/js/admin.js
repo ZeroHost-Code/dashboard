@@ -158,6 +158,11 @@ async function adminApi(path, options = {}) {
   if (adminState.token) {
     headers['Authorization'] = `Bearer ${adminState.token}`;
   }
+  const method = (options.method || 'GET').toUpperCase();
+  if (method !== 'GET' && method !== 'HEAD') {
+    const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
+    if (match) headers['x-csrf-token'] = match[1];
+  }
   let res;
   try {
     res = await fetch(`/api/admin${path}`, { ...options, headers });
