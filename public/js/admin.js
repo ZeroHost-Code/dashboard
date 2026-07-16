@@ -501,16 +501,22 @@ function updateAdminNav() {
 }
 
 let adminServersPage = 1;
+let adminServersSearch = '';
 
 async function renderAdminServers() {
   document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
   const el = $a('#admin-page-servers');
   if (!el) return;
   el.classList.add('active');
+  adminServersSearch = '';
   el.innerHTML = ahtml`
     <div class="page-header">
       <h1 class="page-title">All Servers</h1>
       <p class="page-subtitle">All servers across all users</p>
+    </div>
+    <div class="search-wrapper" style="margin-bottom:16px;max-width:400px" id="admin-servers-search-wrapper">
+      <span data-lucide="search"></span>
+      <input type="text" id="admin-servers-search" placeholder="Search by server name or owner...">
     </div>
     <div class="table-container">
       <table>
@@ -531,6 +537,19 @@ async function renderAdminServers() {
     </div>
   `;
 
+  const searchInput = $a('#admin-servers-search');
+  if (searchInput) {
+    let searchTimer;
+    searchInput.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        adminServersSearch = searchInput.value.trim();
+        adminServersPage = 1;
+        fetchAdminServers(1);
+      }, 400);
+    });
+  }
+
   await fetchAdminServers(adminServersPage);
 }
 
@@ -539,9 +558,11 @@ async function fetchAdminServers(pageNum) {
   const limit = 10;
   const offset = (pageNum - 1) * limit;
   const paginationEl = $a('#admin-servers-pagination');
+  const params = new URLSearchParams({ limit, offset });
+  if (adminServersSearch) params.set('search', adminServersSearch);
 
   try {
-    const data = await adminApi(`/servers?limit=${limit}&offset=${offset}`);
+    const data = await adminApi(`/servers?${params.toString()}`);
     const tbody = $a('#admin-servers-tbody');
     if (!tbody) return;
 
