@@ -501,16 +501,22 @@ function updateAdminNav() {
 }
 
 let adminServersPage = 1;
+let adminServersSearch = '';
 
 async function renderAdminServers() {
   document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
   const el = $a('#admin-page-servers');
   if (!el) return;
   el.classList.add('active');
+  adminServersSearch = '';
   el.innerHTML = ahtml`
     <div class="page-header">
       <h1 class="page-title">All Servers</h1>
       <p class="page-subtitle">All servers across all users</p>
+    </div>
+    <div class="search-wrapper" style="margin-bottom:16px;max-width:400px" id="admin-servers-search-wrapper">
+      <span data-lucide="search"></span>
+      <input type="text" id="admin-servers-search" placeholder="Search by server name or owner...">
     </div>
     <div class="table-container">
       <table>
@@ -531,6 +537,19 @@ async function renderAdminServers() {
     </div>
   `;
 
+  const searchInput = $a('#admin-servers-search');
+  if (searchInput) {
+    let searchTimer;
+    searchInput.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        adminServersSearch = searchInput.value.trim();
+        adminServersPage = 1;
+        fetchAdminServers(1);
+      }, 400);
+    });
+  }
+
   await fetchAdminServers(adminServersPage);
 }
 
@@ -539,9 +558,11 @@ async function fetchAdminServers(pageNum) {
   const limit = 10;
   const offset = (pageNum - 1) * limit;
   const paginationEl = $a('#admin-servers-pagination');
+  const params = new URLSearchParams({ limit, offset });
+  if (adminServersSearch) params.set('search', adminServersSearch);
 
   try {
-    const data = await adminApi(`/servers?limit=${limit}&offset=${offset}`);
+    const data = await adminApi(`/servers?${params.toString()}`);
     const tbody = $a('#admin-servers-tbody');
     if (!tbody) return;
 
@@ -589,7 +610,7 @@ async function fetchAdminServers(pageNum) {
     }
   } catch (err) {
     const tbody = $a('#admin-servers-tbody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${escapeHtml(err.message)}</td></tr>`;
   }
   initIcons();
 }
@@ -1151,7 +1172,7 @@ async function renderAdminDashboard() {
       });
     }
   } catch (err) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-state-title">Error</div><div class="empty-state-desc">${err.message}</div></div>`;
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-title">Error</div><div class="empty-state-desc">${escapeHtml(err.message)}</div></div>`;
   }
 }
 
@@ -1212,7 +1233,7 @@ async function renderAdminUsers() {
     `).join('');
   } catch (err) {
     const tbody = $a('#admin-users-tbody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${escapeHtml(err.message)}</td></tr>`;
   }
   initIcons();
 }
@@ -1639,7 +1660,7 @@ async function renderAdminEggsSettings() {
     });
   } catch (err) {
     const tbody = $a('#admin-nests-tbody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${escapeHtml(err.message)}</td></tr>`;
   }
 }
 
@@ -1737,7 +1758,7 @@ async function renderAdminNestEggs(nestId) {
     });
   } catch (err) {
     const tbody = $a('#admin-eggs-tbody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${escapeHtml(err.message)}</td></tr>`;
   }
   initIcons();
 }
@@ -1870,7 +1891,9 @@ async function renderAdminEggSettings(nestId, eggId) {
     const val = $a('#egg-logo').value;
     if (val) {
       if (preview) preview.style.display = 'block';
-      if (img) img.src = val;
+      if (img) {
+        try { const u = new URL(val); if (u.protocol === 'http:' || u.protocol === 'https:' || u.protocol === 'data:' || u.protocol === 'blob:') img.src = u.href; else img.src = ''; } catch { img.src = ''; }
+      }
     } else {
       if (preview) preview.style.display = 'none';
     }
@@ -2228,7 +2251,9 @@ function showRenameNestModal(nestId, currentName, currentLogo, currentDescriptio
     const img = preview?.querySelector('img');
     if (logoInput.value) {
       if (preview) preview.style.display = 'block';
-      if (img) img.src = logoInput.value;
+      if (img) {
+        try { const u = new URL(logoInput.value); if (u.protocol === 'http:' || u.protocol === 'https:' || u.protocol === 'data:' || u.protocol === 'blob:') img.src = u.href; else img.src = ''; } catch { img.src = ''; }
+      }
     } else {
       if (preview) preview.style.display = 'none';
     }
@@ -2381,7 +2406,7 @@ async function renderAdminNodes() {
     }).join('');
   } catch (err) {
     const tbody = $a('#admin-nodes-tbody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${err.message}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--accent-red)">Error: ${escapeHtml(err.message)}</td></tr>`;
   }
 }
 

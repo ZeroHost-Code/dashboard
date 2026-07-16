@@ -138,11 +138,16 @@ router.get('/servers', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit, 10) || 10, 50);
     const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+    const search = (req.query.search || '').trim().toLowerCase();
 
-    const result = await getAllServers(limit, offset);
-    const { servers: paginatedServers, total } = result;
-    const page = Math.floor(offset / limit) + 1;
-    const totalPages = Math.ceil(total / limit) || 1;
+    let allServers;
+    if (search) {
+      const result = await getAllServers();
+      allServers = Array.isArray(result) ? result : result.servers || [];
+    } else {
+      const result = await getAllServers(limit, offset);
+      allServers = result.servers || [];
+    }
 
     const users = await query('SELECT id, email, username, ptero_user_id FROM users');
     const userMap = {};
@@ -150,7 +155,7 @@ router.get('/servers', authenticateToken, requireAdmin, async (req, res) => {
       userMap[u.ptero_user_id] = { id: u.id, email: u.email, username: u.username };
     }
 
-    for (const s of paginatedServers) {
+    for (const s of allServers) {
       s.owner = userMap[s.user] || { id: null, email: 'Unknown', username: 'Unknown' };
       try {
         const meta = await query('SELECT * FROM server_meta WHERE ptero_server_id = ?', [s.id]);
@@ -160,7 +165,22 @@ router.get('/servers', authenticateToken, requireAdmin, async (req, res) => {
       }
     }
 
-    res.json({ servers: paginatedServers, total, page, totalPages, limit });
+    let filtered = allServers;
+    if (search) {
+      filtered = allServers.filter(s => {
+        const name = (s.name || '').toLowerCase();
+        const ownerName = (s.owner?.username || '').toLowerCase();
+        const ownerEmail = (s.owner?.email || '').toLowerCase();
+        return name.includes(search) || ownerName.includes(search) || ownerEmail.includes(search);
+      });
+    }
+
+    const filteredTotal = filtered.length;
+    const page = Math.floor(offset / limit) + 1;
+    const totalPages = Math.ceil(filteredTotal / limit) || 1;
+    const sliced = filtered.slice(offset, offset + limit);
+
+    res.json({ servers: sliced, total: filteredTotal, page, totalPages, limit });
   } catch (err) {
     console.error('Admin servers list error:', err.message);
     res.status(500).json({ error: 'Failed to fetch servers' });
