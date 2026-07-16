@@ -162,7 +162,7 @@ app.use((err, req, res, next) => {
 });
 app.use(cookieParser(process.env.COOKIE_SECRET));
 
-const csrfExemptPaths = ['/api/auth/login', '/api/auth/register', '/api/auth/passkey/options', '/api/auth/passkey/verify'];
+const csrfExemptPaths = ['/api/auth/login', '/api/auth/register', '/api/auth/passkey/options', '/api/auth/passkey/verify', '/api/auth/passkeys/login/begin', '/api/auth/passkeys/login/complete', '/api/auth/passkeys/register/begin', '/api/auth/passkeys/register/complete'];
 app.use((req, res, next) => {
   if (!req.path.startsWith('/api/')) return next();
   if (csrfExemptPaths.includes(req.path)) return next();
