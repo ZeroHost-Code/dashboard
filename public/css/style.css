@@ -649,11 +649,11 @@ cap-widget {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 52px;
-  height: 52px;
-  background: var(--bg-primary);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
   text-decoration: none;
   transition: all var(--transition);
   cursor: pointer;
@@ -661,8 +661,8 @@ cap-widget {
 
 .discord-login-card:hover {
   border-color: #5865F2;
-  background: rgba(88, 101, 242, 0.1);
-  transform: translateX(-50%) scale(1.05);
+  background: rgba(88, 101, 242, 0.08);
+  transform: translateX(-50%) scale(1.1);
 }
 
 .auth-error {
