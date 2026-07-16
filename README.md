@@ -4,7 +4,8 @@ Game server management dashboard for the ZeroHost platform. Provides user-facing
 
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/403b7c93-1121-4f4c-b407-ed1235b73218" />
 
-[![ZHSL](https://img.zero-host.org/assets/github.png)](https://github.com/ZeroHost-Code/legal/blob/main/zhsl.md)
+> [!NOTE]
+> The dashboard is now in "cruise mode", instead of dozens of commits a day, expect around 2-3 commits per day going forward, as I'm juggling other projects on the side. That said, there will still be days with bigger pushes when needed.
 
 ---
 
