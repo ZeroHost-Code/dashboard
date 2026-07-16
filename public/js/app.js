@@ -663,6 +663,11 @@ function renderLoginPage() {
           <div class="auth-footer">
             Don't have an account? <a href="/signup" id="go-register">Create one</a>
           </div>
+
+          <a href="https://discord.zero-host.org" target="_blank" class="discord-login-card">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5z"/><path d="M13 11.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5z"/><path d="M18 3a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h12z"/><path d="M7 18v-1a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v1"/><path d="M6 16v1a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3v-1"/><path d="M9 13h6"/><circle cx="12" cy="10" r="1"/></svg>
+            <span>Sign in with Discord</span>
+          </a>
         </div>
       </div>
     </div>
