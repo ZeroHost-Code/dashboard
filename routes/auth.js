@@ -204,7 +204,12 @@ router.post('/register', async (req, res) => {
     const { email, username, password, capToken, rgpdConsent } = req.body;
 
     const ip = getClientIp(req);
-    const userAgent = (req.headers['user-agent'] || 'unknown').toString().slice(0, 512);
+    const userAgent = (req.headers['user-agent'] || '').toString().slice(0, 512);
+
+    if (!userAgent || /curl|wget|node-fetch|python-requests|python-httpx|urllib|aiohttp|go-http-client|java\/|libcurl|okhttp|httpie|postmanruntime|insomnia|axios|fetch\//i.test(userAgent)) {
+      recordLoginAttempt(ip, false);
+      return res.status(403).json({ error: 'Automated registration is not allowed. Please use a real browser.' });
+    }
 
     if (!email || !username || !password) {
       return res.status(400).json({ error: 'Email, username and password are required' });
