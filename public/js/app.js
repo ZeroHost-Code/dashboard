@@ -1673,10 +1673,10 @@ function initSidebarTooltip() {
 }
 
 function renderNestLogoSmall(logo) {
-  if (!logo) return html`<i data-lucide="box" style="width:14px;height:14px;opacity:0.4"></i>`;
-  if (logo.startsWith('si:')) return html`<img src="${siUrl(logo.slice(3))}" alt="" style="width:14px;height:14px;opacity:0.5" />`;
-  if (logo.startsWith('lucide:')) return html`<i data-lucide="${logo.slice(7)}" style="width:14px;height:14px;opacity:0.5"></i>`;
-  return html`<img src="${logo}" alt="" style="width:14px;height:14px;opacity:0.5;border-radius:2px" />`;
+  if (!logo) return html`<i data-lucide="box" style="width:16px;height:16px;color:var(--text-secondary)"></i>`;
+  if (logo.startsWith('si:')) return html`<img src="${siUrl(logo.slice(3))}" alt="" style="width:16px;height:16px" />`;
+  if (logo.startsWith('lucide:')) return html`<i data-lucide="${logo.slice(7)}" style="width:16px;height:16px"></i>`;
+  return html`<img src="${logo}" alt="" style="width:16px;height:16px;border-radius:3px" />`;
 }
 
 function buildServerSubList() {
