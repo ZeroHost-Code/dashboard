@@ -96,6 +96,13 @@ router.get('/list', authenticateToken, async (req, res) => {
       }
     }
 
+    const nestRows = await query('SELECT ptero_nest_id, logo FROM nests').catch(() => []);
+    const nestLogoMap = {};
+    for (const nr of nestRows) nestLogoMap[nr.ptero_nest_id] = nr.logo || null;
+    for (const s of servers) {
+      s.nestLogo = nestLogoMap[s.nest] || null;
+    }
+
     // Fetch live power state from Pyrodactyl Client API
     const userRows = await query('SELECT ptero_client_api_key FROM users WHERE id = ?', [req.user.userId]);
     const clientApiKey = userRows[0]?.ptero_client_api_key;

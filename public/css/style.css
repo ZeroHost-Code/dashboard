@@ -1070,8 +1070,6 @@ cap-widget {
   position: relative;
   z-index: 2;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .nav-sub-item:hover {
@@ -1081,6 +1079,19 @@ cap-widget {
 
 .nav-sub-item.active {
   color: var(--accent-1);
+}
+
+.nav-sub-server-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-sub-nest-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  margin-left: auto;
 }
 
 .nav-sub-item .nav-sub-dot {

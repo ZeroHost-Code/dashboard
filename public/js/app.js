@@ -1672,6 +1672,13 @@ function initSidebarTooltip() {
   });
 }
 
+function renderNestLogoSmall(logo) {
+  if (!logo) return html`<i data-lucide="box" style="width:14px;height:14px;opacity:0.4"></i>`;
+  if (logo.startsWith('si:')) return html`<img src="${siUrl(logo.slice(3))}" alt="" style="width:14px;height:14px;opacity:0.5" />`;
+  if (logo.startsWith('lucide:')) return html`<i data-lucide="${logo.slice(7)}" style="width:14px;height:14px;opacity:0.5"></i>`;
+  return html`<img src="${logo}" alt="" style="width:14px;height:14px;opacity:0.5;border-radius:2px" />`;
+}
+
 function buildServerSubList() {
   if (state.sidebarServersLoading) return html`<div class="nav-sub-empty"><span class="spinner"></span> Loading...</div>`;
   if (state.servers.length === 0) return html`<div class="nav-sub-empty">No servers</div>`;
@@ -1683,7 +1690,8 @@ function buildServerSubList() {
     return html`
       <a class="nav-sub-item ${isActive ? 'active' : ''}" data-server-nav="${s.id}" href="/server/${s.id}">
         <span class="nav-sub-dot ${dotClass}"></span>
-        ${escapeHtml(s.name)}
+        <span class="nav-sub-server-name">${escapeHtml(s.name)}</span>
+        <span class="nav-sub-nest-icon">${renderNestLogoSmall(s.nestLogo)}</span>
       </a>
     `;
   }).join('');
