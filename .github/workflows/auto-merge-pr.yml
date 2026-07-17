@@ -27,6 +27,6 @@ jobs:
       - name: Auto-merge
         if: steps.check_title.outputs.match == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
         run: |
           gh pr merge "${{ github.event.pull_request.html_url }}" --merge --auto
