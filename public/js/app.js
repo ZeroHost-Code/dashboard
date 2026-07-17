@@ -1689,9 +1689,9 @@ function buildServerSubList() {
     const isActive = state.currentPage === 'server' && state.serverId === s.id;
     return html`
       <a class="nav-sub-item ${isActive ? 'active' : ''}" data-server-nav="${s.id}" href="/server/${s.id}">
-        <span class="nav-sub-dot ${dotClass}"></span>
-        <span class="nav-sub-server-name">${escapeHtml(s.name)}</span>
         <span class="nav-sub-nest-icon">${renderNestLogoSmall(s.nestLogo)}</span>
+        <span class="nav-sub-server-name">${escapeHtml(s.name)}</span>
+        <span class="nav-sub-dot ${dotClass}"></span>
       </a>
     `;
   }).join('');
