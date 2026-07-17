@@ -1511,7 +1511,7 @@ async function renderDashboard() {
           <div style="padding:8px 12px 0;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
 
           </div>
-          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v1.1.0</div>
+          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v1.1.1</div>
         </div>
         <div class="sidebar-resizer" id="sidebar-resizer"></div>
       </aside>
@@ -1672,6 +1672,13 @@ function initSidebarTooltip() {
   });
 }
 
+function renderNestLogoSmall(logo) {
+  if (!logo) return html`<i data-lucide="box" style="width:16px;height:16px;color:var(--text-secondary)"></i>`;
+  if (logo.startsWith('si:')) return html`<img src="${siUrl(logo.slice(3))}" alt="" style="width:16px;height:16px" />`;
+  if (logo.startsWith('lucide:')) return html`<i data-lucide="${logo.slice(7)}" style="width:16px;height:16px"></i>`;
+  return html`<img src="${logo}" alt="" style="width:16px;height:16px;border-radius:3px" />`;
+}
+
 function buildServerSubList() {
   if (state.sidebarServersLoading) return html`<div class="nav-sub-empty"><span class="spinner"></span> Loading...</div>`;
   if (state.servers.length === 0) return html`<div class="nav-sub-empty">No servers</div>`;
@@ -1680,10 +1687,14 @@ function buildServerSubList() {
     const isSuspended = s.status === 'suspended';
     const dotClass = isSuspended ? 'dot-suspended' : (isInstalling ? 'dot-installing' : 'dot-active');
     const isActive = state.currentPage === 'server' && state.serverId === s.id;
+    const eggName = s.eggDetails?.name || '';
     return html`
       <a class="nav-sub-item ${isActive ? 'active' : ''}" data-server-nav="${s.id}" href="/server/${s.id}">
-        <span class="nav-sub-dot ${dotClass}"></span>
-        ${escapeHtml(s.name)}
+        <span class="nav-sub-nest-icon">${renderNestLogoSmall(s.nestLogo)}</span>
+        <span class="nav-sub-server-info">
+          <span class="nav-sub-server-name">${escapeHtml(s.name)}<span class="nav-sub-dot ${dotClass}"></span></span>
+          ${eggName ? html`<span class="nav-sub-egg-name">${escapeHtml(eggName)}</span>` : ''}
+        </span>
       </a>
     `;
   }).join('');
@@ -2917,6 +2928,122 @@ function isValidServerName(name) {
   return name && name.length >= 1 && name.length <= 255 && /^[a-zA-Z0-9 _.-]+$/.test(name);
 }
 
+function showVerificationPage(name) {
+  const overlay = document.createElement('div');
+  overlay.id = 'verification-overlay';
+  overlay.className = 'verification-overlay';
+  overlay.innerHTML = html`
+    <div class="verification-card">
+      <div class="verification-spinner"></div>
+      <h2 class="verification-title">Creating "${escapeHtml(name)}"</h2>
+      <p class="verification-subtitle">Performing security checks...</p>
+      <div class="verification-steps" id="verification-steps">
+        <div class="verification-step active" id="vstep-vpn">
+          <div class="verification-step-icon"><span class="vstep-spinner"></span></div>
+          <span>Checking connection security</span>
+        </div>
+        <div class="verification-step" id="vstep-ua">
+          <div class="verification-step-icon"><span class="vstep-pending"></span></div>
+          <span>Verifying browser</span>
+        </div>
+        <div class="verification-step" id="vstep-email">
+          <div class="verification-step-icon"><span class="vstep-pending"></span></div>
+          <span>Checking email verification</span>
+        </div>
+        <div class="verification-step" id="vstep-country">
+          <div class="verification-step-icon"><span class="vstep-pending"></span></div>
+          <span>Verifying region</span>
+        </div>
+        <div class="verification-step" id="vstep-create">
+          <div class="verification-step-icon"><span class="vstep-pending"></span></div>
+          <span>Creating server</span>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('open'));
+
+  let stepIndex = 0;
+  const steps = ['vstep-vpn', 'vstep-ua', 'vstep-email', 'vstep-country', 'vstep-create'];
+  const interval = setInterval(() => {
+    if (stepIndex < steps.length) {
+      const el = document.getElementById(steps[stepIndex]);
+      if (el) {
+        el.classList.remove('active');
+        el.classList.add('done');
+        el.querySelector('.vstep-spinner, .vstep-pending').outerHTML = '<svg class="vstep-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+      }
+      stepIndex++;
+      if (stepIndex < steps.length) {
+        const next = document.getElementById(steps[stepIndex]);
+        if (next) {
+          next.classList.add('active');
+          next.querySelector('.vstep-pending').outerHTML = '<span class="vstep-spinner"></span>';
+        }
+      }
+    } else {
+      clearInterval(interval);
+    }
+  }, 600);
+
+  overlay._interval = interval;
+}
+
+function showVerificationSuccess(name) {
+  const overlay = document.getElementById('verification-overlay');
+  if (!overlay) return;
+  clearInterval(overlay._interval);
+
+  const steps = overlay.querySelectorAll('.verification-step');
+  steps.forEach(s => {
+    s.classList.remove('active');
+    s.classList.add('done');
+    const icon = s.querySelector('.vstep-spinner, .vstep-pending');
+    if (icon) icon.outerHTML = '<svg class="vstep-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  });
+
+  overlay.querySelector('.verification-card').innerHTML = html`
+    <svg class="verification-success-icon" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    <h2 class="verification-title">Server Created!</h2>
+    <p class="verification-subtitle">"${escapeHtml(name)}" is now being set up.</p>
+  `;
+}
+
+function showVerificationError(message) {
+  const overlay = document.getElementById('verification-overlay');
+  if (!overlay) return;
+  clearInterval(overlay._interval);
+
+  const steps = overlay.querySelectorAll('.verification-step.active');
+  steps.forEach(s => {
+    s.classList.remove('active');
+    s.classList.add('failed');
+    const icon = s.querySelector('.vstep-spinner');
+    if (icon) icon.outerHTML = '<svg class="vstep-cross" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-red)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+  });
+
+  const card = overlay.querySelector('.verification-card');
+  card.innerHTML = html`
+    <svg class="verification-error-icon" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--accent-red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+    <h2 class="verification-title" style="color:var(--accent-red)">Verification Failed</h2>
+    <p class="verification-subtitle">${escapeHtml(message)}</p>
+    <button class="btn btn-primary" id="verification-retry-btn" style="margin-top:16px">Go Back</button>
+  `;
+
+  document.getElementById('verification-retry-btn').addEventListener('click', () => {
+    overlay.remove();
+  });
+}
+
+function removeVerificationOverlay() {
+  const overlay = document.getElementById('verification-overlay');
+  if (overlay) {
+    clearInterval(overlay._interval);
+    overlay.remove();
+  }
+}
+
 async function handleWizardCreate() {
   const btn = $('#wizard-create-btn');
   btn.disabled = true;
@@ -2935,16 +3062,21 @@ async function handleWizardCreate() {
   const environment = {};
   const dockerImage = createState.selectedDockerImage || '';
 
+  showVerificationPage(name);
+
   try {
     const capToken = document.querySelector('[name="cap-token"]')?.value || '';
     await api('/servers/create', {
       method: 'POST',
       body: JSON.stringify({ name, nestId: nest.pteroNestId, eggId: egg.eggId, environment, capToken, dockerImage }),
     });
-    showToast(`Server "${name}" created successfully!`, 'success');
-    navigateTo('servers');
+    showVerificationSuccess(name);
+    setTimeout(() => {
+      removeVerificationOverlay();
+      navigateTo('servers');
+    }, 2000);
   } catch (err) {
-    showToast(err.message, 'error');
+    showVerificationError(err.message);
     btn.disabled = false;
     btn.innerHTML = '<i data-lucide="plus" style="width:16px;height:16px"></i> Create Server';
     initIcons();

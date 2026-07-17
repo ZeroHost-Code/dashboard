@@ -911,6 +911,6 @@ router.get('/export-data', authenticateToken, sensitiveLimiter, async (req, res)
   }
 });
 
-export { getClientIp };
+export { getClientIp, fetchWithTimeout, normalizeClientIp, isPrivateIp };
 
 export default router;
