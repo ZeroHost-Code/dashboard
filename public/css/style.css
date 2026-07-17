@@ -1069,7 +1069,6 @@ cap-widget {
   margin-bottom: 1px;
   position: relative;
   z-index: 2;
-  white-space: nowrap;
 }
 
 .nav-sub-item:hover {
@@ -1081,9 +1080,24 @@ cap-widget {
   color: var(--accent-1);
 }
 
+.nav-sub-server-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .nav-sub-server-name {
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-sub-egg-name {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nav-sub-nest-icon {

@@ -1687,10 +1687,14 @@ function buildServerSubList() {
     const isSuspended = s.status === 'suspended';
     const dotClass = isSuspended ? 'dot-suspended' : (isInstalling ? 'dot-installing' : 'dot-active');
     const isActive = state.currentPage === 'server' && state.serverId === s.id;
+    const eggName = s.eggDetails?.name || '';
     return html`
       <a class="nav-sub-item ${isActive ? 'active' : ''}" data-server-nav="${s.id}" href="/server/${s.id}">
         <span class="nav-sub-nest-icon">${renderNestLogoSmall(s.nestLogo)}</span>
-        <span class="nav-sub-server-name">${escapeHtml(s.name)}</span>
+        <span class="nav-sub-server-info">
+          <span class="nav-sub-server-name">${escapeHtml(s.name)}</span>
+          ${eggName ? html`<span class="nav-sub-egg-name">${escapeHtml(eggName)}</span>` : ''}
+        </span>
         <span class="nav-sub-dot ${dotClass}"></span>
       </a>
     `;
