@@ -3703,7 +3703,6 @@ function renderTotpDisabled(section) {
       <i data-lucide="shield-plus" style="width:16px;height:16px"></i>
       Enable Two-Factor Authentication
     </button>
-    <div id="totp-setup-area"></div>
   `;
   $('#enable-totp-btn').addEventListener('click', handleTotpSetup);
   initIcons();
@@ -3748,53 +3747,54 @@ async function renderTotpEnabled(section) {
 
 async function handleTotpSetup() {
   const btn = $('#enable-totp-btn');
-  const area = $('#totp-setup-area');
-  if (!btn || !area) return;
+  if (!btn) return;
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>';
 
   try {
     const data = await api('/auth/totp/setup', { method: 'POST' });
-    area.innerHTML = html`
-      <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border)">
-        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px;line-height:1.5">
-          Scan this QR code with your authenticator app (e.g. Google Authenticator, Authy, 2FAS).
-        </p>
-        <div style="text-align:center;margin-bottom:16px">
-          <img src="${data.qrCode}" alt="TOTP QR Code" style="width:180px;height:180px;border-radius:var(--radius-sm);background:#fff;padding:8px" />
+
+    const overlay = $('#modal-overlay');
+    const content = $('#modal-content');
+    content.innerHTML = html`
+      <div class="modal-title">
+        <i data-lucide="shield-plus" style="width:22px;height:22px;color:var(--accent-1);vertical-align:middle;margin-right:6px"></i>
+        Enable Two-Factor Authentication
+      </div>
+      <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px;line-height:1.5">
+        Scan this QR code with your authenticator app (e.g. Google Authenticator, Authy, 2FAS).
+      </p>
+      <div style="text-align:center;margin-bottom:16px">
+        <img src="${data.qrCode}" alt="TOTP QR Code" style="width:180px;height:180px;border-radius:var(--radius-sm);background:#fff;padding:8px" />
+      </div>
+      <p style="font-size:0.78rem;color:var(--text-muted);text-align:center;margin-bottom:16px">
+        Or manually enter this key: <code style="background:var(--bg-secondary);padding:4px 8px;border-radius:4px;font-size:0.82rem;user-select:all">${data.secret}</code>
+      </p>
+      <form id="totp-enable-form">
+        <div class="form-group">
+          <label for="totp-verify-code">Enter the 6-digit code from your app</label>
+          <input type="text" id="totp-verify-code" placeholder="000000" required inputmode="numeric" maxlength="6" />
         </div>
-        <p style="font-size:0.78rem;color:var(--text-muted);text-align:center;margin-bottom:16px">
-          Or manually enter this key: <code style="background:var(--bg-secondary);padding:4px 8px;border-radius:4px;font-size:0.82rem;user-select:all">${data.secret}</code>
-        </p>
-        <form id="totp-enable-form">
-          <div class="form-group">
-            <label for="totp-verify-code">Enter the 6-digit code from your app</label>
-            <input type="text" id="totp-verify-code" placeholder="000000" required inputmode="numeric" maxlength="6" />
-          </div>
+        <div id="totp-enable-status" style="font-size:0.82rem;color:var(--text-muted);margin-bottom:8px"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost btn-full modal-cancel-btn">Cancel</button>
           <button type="submit" class="btn btn-primary btn-full" id="totp-enable-btn">
             Verify and Enable
           </button>
-          <button type="button" class="btn btn-ghost btn-full" id="totp-setup-cancel-btn" style="margin-top:8px">
-            Cancel
-          </button>
-        </form>
-        <div id="totp-enable-status" style="margin-top:8px;font-size:0.82rem;color:var(--text-muted)"></div>
-      </div>
+        </div>
+      </form>
     `;
-    btn.style.display = 'none';
-    $('#totp-enable-form').addEventListener('submit', handleTotpEnable);
-    $('#totp-setup-cancel-btn').addEventListener('click', () => {
-      area.innerHTML = '';
-      btn.disabled = false;
-      btn.innerHTML = '<i data-lucide="shield-plus" style="width:16px;height:16px"></i> Enable Two-Factor Authentication';
-      btn.style.display = '';
-      initIcons();
-    });
+    overlay.classList.add('open');
+
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="shield-plus" style="width:16px;height:16px"></i> Enable Two-Factor Authentication';
     initIcons();
+
+    $('#totp-enable-form').addEventListener('submit', handleTotpEnable);
   } catch (err) {
     btn.disabled = false;
     btn.innerHTML = '<i data-lucide="shield-plus" style="width:16px;height:16px"></i> Enable Two-Factor Authentication';
-    area.innerHTML = `<p style="color:var(--accent-red);font-size:0.82rem;margin-top:8px">${escapeHtml(err.message)}</p>`;
+    showToast(err.message, 'error');
   }
 }
 
