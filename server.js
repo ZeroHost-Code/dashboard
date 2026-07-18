@@ -28,6 +28,7 @@ import crypto from 'crypto';
 
 import authRoutes from './routes/auth.js';
 import passkeyRoutes from './routes/passkeys.js';
+import totpRoutes from './routes/totp.js';
 import serverRoutes from './routes/servers.js';
 import adminRoutes from './routes/admin.js';
 import notificationRoutes from './routes/notifications.js';
@@ -162,7 +163,7 @@ app.use((err, req, res, next) => {
 });
 app.use(cookieParser(process.env.COOKIE_SECRET));
 
-const csrfExemptPaths = ['/api/auth/login', '/api/auth/register', '/api/auth/passkey/options', '/api/auth/passkey/verify', '/api/auth/passkeys/login/begin', '/api/auth/passkeys/login/complete', '/api/auth/passkeys/register/begin', '/api/auth/passkeys/register/complete'];
+const csrfExemptPaths = ['/api/auth/login', '/api/auth/register', '/api/auth/passkey/options', '/api/auth/passkey/verify', '/api/auth/passkeys/login/begin', '/api/auth/passkeys/login/complete', '/api/auth/passkeys/register/begin', '/api/auth/passkeys/register/complete', '/api/auth/totp/verify', '/api/auth/totp/recovery'];
 app.use((req, res, next) => {
   if (!req.path.startsWith('/api/')) return next();
   if (csrfExemptPaths.includes(req.path)) return next();
@@ -271,6 +272,7 @@ app.get('/api/config', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/auth', passkeyRoutes);
+app.use('/api/auth', totpRoutes);
 app.use('/api/servers', serverRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);

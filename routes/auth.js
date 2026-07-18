@@ -492,6 +492,21 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ error: 'Please verify your email before signing in. Check your inbox for the verification link.' });
     }
 
+    if (user.totp_enabled) {
+      const tempToken = jwt.sign(
+        { userId: user.id, totpTemp: true },
+        process.env.JWT_SECRET,
+        { expiresIn: '5m', algorithm: 'HS256' }
+      );
+
+      recordLoginAttempt(ip, true);
+
+      return res.json({
+        needsTotp: true,
+        tempToken,
+      });
+    }
+
     const token = generateToken({
       userId: user.id,
       email: user.email,
