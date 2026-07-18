@@ -3709,25 +3709,10 @@ function renderTotpDisabled(section) {
 }
 
 async function renderTotpEnabled(section) {
-  let remaining = 0;
-  try {
-    const rcData = await api('/auth/totp/recovery-codes');
-    remaining = rcData.remaining;
-  } catch {}
-
   section.innerHTML = html`
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
       <i data-lucide="shield-check" style="width:20px;height:20px;color:var(--accent-green)"></i>
       <span style="color:var(--accent-green);font-weight:600;font-size:0.9rem">Two-factor authentication is enabled</span>
-    </div>
-    <div style="background:var(--bg-secondary);border-radius:var(--radius-sm);padding:12px;margin-bottom:16px">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:0.85rem;color:var(--text-secondary)">Recovery codes remaining:</span>
-        <span style="font-size:0.9rem;font-weight:600">${remaining}</span>
-      </div>
-      <p style="font-size:0.78rem;color:var(--text-muted);margin-top:8px">
-        Use a recovery code if you lose access to your authenticator app.
-      </p>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-primary" id="regenerate-codes-btn">
