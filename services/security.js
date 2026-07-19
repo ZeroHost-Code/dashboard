@@ -1,5 +1,5 @@
 import { isIP } from 'net';
-import { createHash, randomBytes } from 'crypto';
+import { randomBytes } from 'crypto';
 import { resolve } from 'path';
 import { readFile } from 'fs/promises';
 
@@ -41,10 +41,12 @@ export async function isDisposableEmail(email) {
 export async function checkPasswordBreach(password) {
   if (!password || password.length < 6) return { breached: false };
   try {
-    const input = String.fromCharCode(...Buffer.from(password, 'utf-8'));
-    const hash = createHash('sha256').update(input, 'binary').digest('hex').toUpperCase();
-    const prefix = hash.slice(0, 5);
-    const suffix = hash.slice(5);
+    const encoded = new TextEncoder().encode(password);
+    const buf = await globalThis.crypto.subtle.digest('SHA-256', encoded);
+    const view = new Uint8Array(buf);
+    const hex = Array.from(view).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+    const prefix = hex.slice(0, 5);
+    const suffix = hex.slice(5);
     const res = await fetchWithTimeout(`https://api.pwnedpasswords.com/range/${prefix}`, {}, 5000);
     const text = await res.text();
     const found = text.split('\n').some(line => {
