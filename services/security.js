@@ -41,7 +41,8 @@ export async function isDisposableEmail(email) {
 export async function checkPasswordBreach(password) {
   if (!password || password.length < 6) return { breached: false };
   try {
-    const hash = createHash('sha256').update(password).digest('hex').toUpperCase();
+    const input = String.fromCharCode(...Buffer.from(password, 'utf-8'));
+    const hash = createHash('sha256').update(input, 'binary').digest('hex').toUpperCase();
     const prefix = hash.slice(0, 5);
     const suffix = hash.slice(5);
     const res = await fetchWithTimeout(`https://api.pwnedpasswords.com/range/${prefix}`, {}, 5000);
