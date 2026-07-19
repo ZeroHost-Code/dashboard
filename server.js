@@ -38,7 +38,7 @@ import { query, closePool, getPoolStatus } from './config/db.js';
 import { getRecentActivity } from './services/activity.js';
 import { authenticateToken } from './middleware/auth.js';
 import { ensureLogFile, writeLog, startLogCleaner } from './services/fileLogger.js';
-import { advancedBotProtection, vpnProxyProtection, countryBlock, browserIntegrityCheck } from './middleware/security.js';
+import { advancedBotProtection, vpnProxyProtection, countryBlock, browserIntegrityCheck, disposableEmailCheck, passwordBreachCheck } from './middleware/security.js';
 
 const app = express();
 
@@ -285,6 +285,9 @@ app.get('/api/config', (req, res) => {
   });
 });
 
+app.use('/api/auth/register', disposableEmailCheck());
+app.use('/api/auth/register', passwordBreachCheck());
+app.use('/api/auth/change-password', passwordBreachCheck());
 app.use('/api/auth', authRoutes);
 app.use('/api/auth', passkeyRoutes);
 app.use('/api/auth', totpRoutes);
