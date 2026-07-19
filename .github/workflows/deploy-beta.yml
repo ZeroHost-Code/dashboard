@@ -12,13 +12,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: SSH and deploy
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@v2
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
-          host_key_checking: false
+          script_stop: true
           script: |
             cd ${{ secrets.BETA_PATH }}
             cp .env /tmp/beta.env 2>/dev/null; cp port.txt /tmp/beta.port.txt 2>/dev/null
