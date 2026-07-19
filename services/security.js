@@ -41,9 +41,9 @@ export async function isDisposableEmail(email) {
 export async function checkPasswordBreach(password) {
   if (!password || password.length < 6) return { breached: false };
   try {
-    const sha1 = createHash('sha1').update(password).digest('hex').toUpperCase();
-    const prefix = sha1.slice(0, 5);
-    const suffix = sha1.slice(5);
+    const hash = createHash('sha256').update(password).digest('hex').toUpperCase();
+    const prefix = hash.slice(0, 5);
+    const suffix = hash.slice(5);
     const res = await fetchWithTimeout(`https://api.pwnedpasswords.com/range/${prefix}`, {}, 5000);
     const text = await res.text();
     const found = text.split('\n').some(line => {
@@ -108,11 +108,21 @@ async function checkDnsbl(ip, dnsbl) {
   try {
     const parts = ip.split('.');
     if (parts.length !== 4) return false;
-    const reverseHost = `${parts[3]}.${parts[2]}.${parts[1]}.${parts[0]}.${dnsbl}`;
+    const octets = parts.map(Number);
+    if (octets.some(o => isNaN(o) || o < 0 || o > 255)) return false;
+    if (octets[0] === 10) return false;
+    if (octets[0] === 127) return false;
+    if (octets[0] === 169 && octets[1] === 254) return false;
+    if (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) return false;
+    if (octets[0] === 192 && octets[1] === 168) return false;
+    const reverseHost = `${octets[3]}.${octets[2]}.${octets[1]}.${octets[0]}.${dnsbl}`;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 3000);
     try {
-      const res = await fetch(`http://${reverseHost}`, { signal: controller.signal });
+      const res = await fetch(`http://${reverseHost}`, {
+        signal: controller.signal,
+        headers: { 'Accept': 'text/plain' },
+      });
       return res.status >= 127;
     } catch {
       return false;
@@ -731,11 +741,21 @@ async function resolveTorDnsbl(ip) {
   try {
     const parts = ip.split('.');
     if (parts.length !== 4) return false;
-    const reverseHost = `${parts[3]}.${parts[2]}.${parts[1]}.${parts[0]}.tor.dan.me.uk`;
+    const octets = parts.map(Number);
+    if (octets.some(o => isNaN(o) || o < 0 || o > 255)) return false;
+    if (octets[0] === 10) return false;
+    if (octets[0] === 127) return false;
+    if (octets[0] === 169 && octets[1] === 254) return false;
+    if (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) return false;
+    if (octets[0] === 192 && octets[1] === 168) return false;
+    const reverseHost = `${octets[3]}.${octets[2]}.${octets[1]}.${octets[0]}.tor.dan.me.uk`;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 3000);
     try {
-      const res = await fetch(`http://${reverseHost}`, { signal: controller.signal });
+      const res = await fetch(`http://${reverseHost}`, {
+        signal: controller.signal,
+        headers: { 'Accept': 'text/plain' },
+      });
       return res.status === 127;
     } catch {
       return false;
