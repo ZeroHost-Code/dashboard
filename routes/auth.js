@@ -11,6 +11,7 @@ import { createPteroUser, updatePteroPassword, updatePteroEmail, deletePteroUser
 import { verifyCap } from '../config/cap.js';
 import { logActivity } from '../services/activity.js';
 import { sendVerificationEmail, sendEmailChangeLink, sendEmailChangeCode } from '../services/email.js';
+import { isBotUserAgent, detectVpnProxy } from '../services/security.js';
 
 const router = Router();
 
@@ -18,8 +19,8 @@ router.get('/check-vpn', async (req, res) => {
   try {
     const ip = getClientIp(req);
     const forwarded = req.headers['x-forwarded-for'] || 'none';
-    const isVpn = await isVpnOrProxy(ip);
-    res.json({ vpn: isVpn, ip, forwarded });
+    const result = await detectVpnProxy(ip);
+    res.json({ vpn: result.isVpn || result.isProxy || result.isTor, tor: !!result.isTor, proxy: !!result.isProxy, ip, forwarded, source: result.source });
   } catch {
     res.json({ vpn: false });
   }
@@ -116,6 +117,14 @@ const sensitiveLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const ultraStrictLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  message: { error: 'Too many attempts. Try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 function getClientIp(req) {
   const forwarded = req.headers['x-forwarded-for'];
   if (forwarded) return forwarded.split(',')[0].trim();
@@ -206,7 +215,7 @@ router.post('/register', async (req, res) => {
     const ip = getClientIp(req);
     const userAgent = (req.headers['user-agent'] || '').toString().slice(0, 512);
 
-    if (!userAgent || /curl|wget|node-fetch|python-requests|python-httpx|urllib|aiohttp|go-http-client|java\/|libcurl|okhttp|httpie|postmanruntime|insomnia|axios|fetch\//i.test(userAgent)) {
+    if (isBotUserAgent(userAgent)) {
       recordLoginAttempt(ip, false);
       return res.status(403).json({ error: 'Automated registration is not allowed. Please use a real browser.' });
     }
@@ -231,12 +240,18 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Username must be 3-32 chars (letters, numbers, underscore, hyphen)' });
     }
 
-    if (password.length < 8 || password.length > MAX_PASSWORD_LENGTH) {
-      return res.status(400).json({ error: 'Password must be between 8 and 128 characters' });
+    if (password.length < 12 || password.length > MAX_PASSWORD_LENGTH) {
+      return res.status(400).json({ error: 'Password must be between 12 and 128 characters' });
     }
 
-    if (await isVpnOrProxy(ip)) {
-      return res.status(403).json({ error: 'VPN or proxy detected. Please disable your VPN for security reasons.' });
+    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+      return res.status(400).json({ error: 'Password must contain uppercase, lowercase, and a number' });
+    }
+
+    const vpnResult = await detectVpnProxy(ip);
+    if (vpnResult.isVpn || vpnResult.isProxy || vpnResult.isTor) {
+      recordLoginAttempt(ip, false);
+      return res.status(403).json({ error: 'VPN, proxy, or Tor detected. Please disable them for security reasons.' });
     }
 
     const delay = getLoginDelay(ip);
@@ -448,18 +463,17 @@ router.post('/login', async (req, res) => {
     const ip = getClientIp(req);
     const userAgent = (req.headers['user-agent'] || 'unknown').toString().slice(0, 512);
 
-    // VPN / Proxy detection — checked first for security
-    if (await isVpnOrProxy(ip)) {
-      return res.status(403).json({ error: 'VPN or proxy detected. Please disable your VPN for security reasons.' });
+    const vpnResult = await detectVpnProxy(ip);
+    if (vpnResult.isVpn || vpnResult.isProxy || vpnResult.isTor) {
+      recordLoginAttempt(ip, false);
+      return res.status(403).json({ error: 'VPN, proxy, or Tor detected. Please disable them for security reasons.' });
     }
 
-    // Cap verification
     if (!await verifyCap(capToken)) {
       recordLoginAttempt(ip, false);
       return res.status(400).json({ error: 'Please complete the security check' });
     }
 
-    // Progressive delay applied only after validation to prevent resource exhaustion
     const delay = getLoginDelay(ip);
     if (delay > 0) {
       await new Promise(r => setTimeout(r, delay));
@@ -567,8 +581,11 @@ router.post('/change-password', authenticateToken, sensitiveLimiter, async (req,
       return res.status(400).json({ error: 'Invalid input types' });
     }
 
-    if (newPassword.length < 8 || newPassword.length > MAX_PASSWORD_LENGTH) {
-      return res.status(400).json({ error: 'New password must be between 8 and 128 characters' });
+    if (newPassword.length < 12 || newPassword.length > MAX_PASSWORD_LENGTH) {
+      return res.status(400).json({ error: 'New password must be between 12 and 128 characters' });
+    }
+    if (!/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+      return res.status(400).json({ error: 'New password must contain uppercase, lowercase, and a number' });
     }
 
     const users = await query('SELECT * FROM users WHERE ptero_user_id = ?', [pteroId]);

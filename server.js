@@ -38,6 +38,7 @@ import { query, closePool, getPoolStatus } from './config/db.js';
 import { getRecentActivity } from './services/activity.js';
 import { authenticateToken } from './middleware/auth.js';
 import { ensureLogFile, writeLog, startLogCleaner } from './services/fileLogger.js';
+import { advancedBotProtection, vpnProxyProtection, countryBlock, browserIntegrityCheck } from './middleware/security.js';
 
 const app = express();
 
@@ -71,6 +72,11 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+app.use('/api', advancedBotProtection());
+app.use('/api', browserIntegrityCheck());
+app.use('/api', vpnProxyProtection());
+app.use('/api', countryBlock());
 
 const activeRequests = new Map();
 
