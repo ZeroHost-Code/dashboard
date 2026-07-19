@@ -4,6 +4,7 @@ import {
   normalizeIp,
   isBotUserAgent,
   isKnownBotIp,
+  isIpSuspicious,
   checkHeaders,
   checkHoneypot,
   validateBrowserSignature,
@@ -11,65 +12,84 @@ import {
   checkSuspiciousQueryParams,
   checkBlockedCountry,
   checkConcurrentRequests,
-  validateRequestTiming,
+  checkReferrer,
+  checkBodySuspicious,
+  checkIpBlacklists,
+  calculateOverallRisk,
+  recordFailedAction,
+  isDisposableEmail,
+  checkPasswordBreach,
+  verifySubmitToken,
 } from '../services/security.js';
-
-const BLOCKED_COUNTRIES = new Set(['CN', 'RU', 'KP', 'IR', 'SY', 'CU', 'VE']);
-
-const TIMING_EXEMPT_PATHS = [
-  '/api/config', '/api/health', '/api/auth/passkeys/login/begin',
-  '/api/auth/passkeys/login/complete', '/api/auth/passkeys/register/begin',
-  '/api/auth/passkeys/register/complete', '/api/auth/totp/verify',
-  '/api/auth/totp/recovery', '/api/auth/check-availability',
-  '/api/auth/check-vpn',
-];
 
 const VPN_EXEMPT_PATHS = [
   '/api/config', '/api/health', '/api/activity',
 ];
 
-const SUSPICIOUS_IPS = new Set();
+const SENSITIVE_PATHS = [
+  '/api/auth/register', '/api/auth/login', '/api/auth/change-password',
+  '/api/auth/change-email', '/api/auth/delete-account',
+  '/api/servers/create', '/api/admin/login',
+];
 
-export function advancedBotProtection(required = false) {
+export function advancedBotProtection() {
   return async (req, res, next) => {
     try {
       if (!req.path.startsWith('/api/')) return next();
       const ip = getClientIp(req);
       const ua = (req.headers['user-agent'] || '').toString().slice(0, 512);
-      const method = req.method;
-      const isPost = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+      const isPost = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
 
-      if (SUSPICIOUS_IPS.has(ip)) {
-        const attempts = SUSPICIOUS_IPS.get(ip);
-        if (attempts >= 3) {
-          return res.status(403).json({ error: 'Access denied', requestId: req.requestId });
-        }
+      if (isIpSuspicious(ip) && isPost) {
+        return res.status(403).json({ error: 'Access denied due to suspicious activity.', requestId: req.requestId });
       }
 
-      const { allowed: concurrentOk, count: concurrentCount } = checkConcurrentRequests(ip, 8);
+      const { allowed: concurrentOk } = checkConcurrentRequests(ip, 6);
       if (!concurrentOk && isPost) {
-        return res.status(429).json({ error: 'Too many simultaneous requests. Slow down.', requestId: req.requestId });
+        return res.status(429).json({ error: 'Too many simultaneous requests.', requestId: req.requestId });
       }
 
       if (isBotUserAgent(ua) && isPost) {
-        SUSPICIOUS_IPS.set(ip, (SUSPICIOUS_IPS.get(ip) || 0) + 1);
-        return res.status(403).json({ error: 'Automated requests are not allowed. Please use a real browser.', requestId: req.requestId });
+        recordFailedAction(ip);
+        return res.status(403).json({ error: 'Automated requests are not allowed.', requestId: req.requestId });
       }
 
       if (isKnownBotIp(ip) && isPost) {
         return res.status(403).json({ error: 'Access denied', requestId: req.requestId });
       }
 
-      const { flagged: queryFlagged, param, pattern } = checkSuspiciousQueryParams(req);
+      const { flagged: queryFlagged } = checkSuspiciousQueryParams(req);
       if (queryFlagged && isPost) {
-        console.warn(`[SECURITY] Suspicious query param "${param}" containing "${pattern}" from IP ${ip}`);
+        recordFailedAction(ip);
         return res.status(400).json({ error: 'Invalid request parameters', requestId: req.requestId });
       }
 
-      const { triggered: honeypotTriggered, field: honeypotField } = checkHoneypot(req.body);
+      const { triggered: honeypotTriggered } = checkHoneypot(req.body);
       if (honeypotTriggered && isPost) {
-        console.warn(`[SECURITY] Honeypot triggered on field "${honeypotField}" from IP ${ip}`);
+        recordFailedAction(ip);
         return res.status(400).json({ error: 'Invalid form submission', requestId: req.requestId });
+      }
+
+      const bodyCheck = checkBodySuspicious(req.body);
+      if (bodyCheck.flagged && isPost) {
+        recordFailedAction(ip);
+        return res.status(400).json({ error: 'Request contains invalid content', requestId: req.requestId });
+      }
+
+      if (isPost && SENSITIVE_PATHS.includes(req.path)) {
+        const referrerCheck = checkReferrer(req);
+        if (!referrerCheck.passed) {
+          recordFailedAction(ip);
+          return res.status(403).json({ error: 'Invalid request origin', requestId: req.requestId });
+        }
+      }
+
+      if (isPost) {
+        const risk = calculateOverallRisk(req);
+        if (risk.level === 'high') {
+          recordFailedAction(ip);
+          return res.status(403).json({ error: 'Request blocked for security reasons', requestId: req.requestId });
+        }
       }
 
       next();
@@ -90,14 +110,23 @@ export function vpnProxyProtection() {
       if (!cleanIp || isPrivateIp(cleanIp)) return next();
       const isPost = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
       if (!isPost) return next();
-      const result = await detectVpnProxy(cleanIp);
-      if (result.isVpn || result.isProxy || result.isTor) {
-        const source = result.source || 'unknown';
-        console.warn(`[SECURITY] VPN/Proxy/Tor detected for IP ${cleanIp} (source: ${source})`);
+      const [vpnResult, blacklistResult] = await Promise.all([
+        detectVpnProxy(cleanIp),
+        req.path.startsWith('/api/auth/') || req.path.startsWith('/api/servers/') ? checkIpBlacklists(cleanIp) : { listed: false },
+      ]);
+      if (vpnResult.isVpn || vpnResult.isProxy || vpnResult.isTor) {
+        recordFailedAction(ip);
         return res.status(403).json({
-          error: result.isTor
+          error: vpnResult.isTor
             ? 'Tor network access is not allowed.'
             : 'VPN or proxy detected. Please disable your VPN for security reasons.',
+          requestId: req.requestId,
+        });
+      }
+      if (blacklistResult.listed) {
+        recordFailedAction(ip);
+        return res.status(403).json({
+          error: 'Access denied. Your IP has been flagged.',
           requestId: req.requestId,
         });
       }
@@ -119,7 +148,7 @@ export function countryBlock() {
       const ip = getClientIp(req);
       const { blocked, countryCode } = await checkBlockedCountry(ip);
       if (blocked) {
-        console.warn(`[SECURITY] Blocked request from ${countryCode} IP ${ip}`);
+        recordFailedAction(ip);
         return res.status(403).json({ error: 'Service not available in your region.', requestId: req.requestId });
       }
       next();
@@ -138,18 +167,56 @@ export function browserIntegrityCheck() {
       if (!isPost) return next();
       const issues = checkHeaders(req);
       if (issues.length >= 3) {
-        const ip = getClientIp(req);
-        console.warn(`[SECURITY] Browser integrity check failed for IP ${ip}: ${issues.join(', ')}`);
+        recordFailedAction(getClientIp(req));
         return res.status(403).json({ error: 'Invalid request headers. Please use a real browser.', requestId: req.requestId });
       }
       const signature = validateBrowserSignature(req);
-      if (!signature.passed && issues.length > 0) {
-        const ip = getClientIp(req);
-        console.warn(`[SECURITY] Low browser signature score ${signature.total}/100 for IP ${ip}`);
+      if (signature.total < 30 && issues.length > 0) {
+        recordFailedAction(getClientIp(req));
+        return res.status(403).json({ error: 'Browser verification failed. Please use a modern browser.', requestId: req.requestId });
       }
       next();
     } catch (err) {
       console.error('[SECURITY] Browser integrity error:', err.message);
+      next();
+    }
+  };
+}
+
+export function disposableEmailCheck() {
+  return async (req, res, next) => {
+    try {
+      if (!req.path.startsWith('/api/')) return next();
+      const email = req.body?.email;
+      if (!email || typeof email !== 'string') return next();
+      if (await isDisposableEmail(email)) {
+        return res.status(403).json({ error: 'Temporary email addresses are not allowed.', requestId: req.requestId });
+      }
+      next();
+    } catch (err) {
+      console.error('[SECURITY] Disposable email check error:', err.message);
+      next();
+    }
+  };
+}
+
+export function passwordBreachCheck() {
+  return async (req, res, next) => {
+    try {
+      if (!req.path.startsWith('/api/')) return next();
+      const password = req.body?.password || req.body?.newPassword;
+      if (!password || typeof password !== 'string') return next();
+      if (password.length < 6) return next();
+      const { breached } = await checkPasswordBreach(password);
+      if (breached) {
+        return res.status(400).json({
+          error: 'This password has been exposed in a data breach. Please choose a different password.',
+          requestId: req.requestId,
+        });
+      }
+      next();
+    } catch (err) {
+      console.error('[SECURITY] Password breach check error:', err.message);
       next();
     }
   };
@@ -161,7 +228,7 @@ export function securityAudit(action) {
     const origJson = res.json.bind(res);
     res.json = function (body) {
       if (res.statusCode >= 400) {
-        console.warn(`[AUDIT] ${action} failed for IP ${ip}: ${JSON.stringify(body)}`);
+        recordFailedAction(ip, action.includes('login') ? 'login' : 'action');
       }
       return origJson(body);
     };

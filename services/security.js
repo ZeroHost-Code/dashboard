@@ -1,6 +1,192 @@
 import { isIP } from 'net';
+import { createHash, randomBytes } from 'crypto';
 import { resolve } from 'path';
 import { readFile } from 'fs/promises';
+
+const DISPOSABLE_DOMAINS_URL = 'https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/master/disposable_email_blocklist.conf';
+const LOCAL_DISPOSABLE_DOMAINS = new Set([
+  'ztzt.net',
+]);
+let disposableDomainsCache = null;
+let disposableDomainsTimestamp = 0;
+const DOMAINS_CACHE_TTL = 3600000;
+
+async function loadDisposableDomains() {
+  if (disposableDomainsCache && (Date.now() - disposableDomainsTimestamp < DOMAINS_CACHE_TTL)) {
+    return disposableDomainsCache;
+  }
+  const merged = new Set(LOCAL_DISPOSABLE_DOMAINS);
+  try {
+    const res = await fetchWithTimeout(DISPOSABLE_DOMAINS_URL, {}, 10000);
+    const text = await res.text();
+    for (const line of text.split('\n')) {
+      const domain = line.trim().toLowerCase();
+      if (domain) merged.add(domain);
+    }
+  } catch {}
+  disposableDomainsCache = merged;
+  disposableDomainsTimestamp = Date.now();
+  return disposableDomainsCache;
+}
+
+export async function isDisposableEmail(email) {
+  if (!email || typeof email !== 'string') return false;
+  const parts = email.split('@');
+  if (parts.length !== 2) return false;
+  const domain = parts[1].toLowerCase().trim();
+  const domains = await loadDisposableDomains();
+  return domains.has(domain);
+}
+
+export async function checkPasswordBreach(password) {
+  if (!password || password.length < 6) return { breached: false };
+  try {
+    const sha1 = createHash('sha1').update(password).digest('hex').toUpperCase();
+    const prefix = sha1.slice(0, 5);
+    const suffix = sha1.slice(5);
+    const res = await fetchWithTimeout(`https://api.pwnedpasswords.com/range/${prefix}`, {}, 5000);
+    const text = await res.text();
+    const found = text.split('\n').some(line => {
+      const [hashSuffix] = line.split(':');
+      return hashSuffix === suffix;
+    });
+    return { breached: found };
+  } catch {
+    return { breached: false };
+  }
+}
+
+export function generateSubmitToken() {
+  const token = randomBytes(32).toString('hex');
+  return token;
+}
+
+const submitTokens = new Map();
+const SUBMIT_TOKEN_TTL = 300000;
+
+setInterval(() => {
+  const cutoff = Date.now() - SUBMIT_TOKEN_TTL;
+  for (const [token, entry] of submitTokens) {
+    if (entry.timestamp < cutoff) submitTokens.delete(token);
+  }
+}, 60000);
+
+export function createSubmitToken() {
+  const token = generateSubmitToken();
+  submitTokens.set(token, { timestamp: Date.now(), used: false });
+  return token;
+}
+
+export function verifySubmitToken(token) {
+  if (!token || typeof token !== 'string') return false;
+  const entry = submitTokens.get(token);
+  if (!entry) return false;
+  if (entry.used) return false;
+  if (Date.now() - entry.timestamp > SUBMIT_TOKEN_TTL) {
+    submitTokens.delete(token);
+    return false;
+  }
+  entry.used = true;
+  submitTokens.delete(token);
+  return true;
+}
+
+const DNSBL_LIST = [
+  'zen.spamhaus.org',
+  'dnsbl.dronebl.org',
+  'bl.spamcop.net',
+  'bogons.cymru.com',
+  'cbl.abuseat.org',
+  'dnsbl.sorbs.net',
+  'tor.dan.me.uk',
+  'rbl.efnetrbl.org',
+  'rbl.schulte.org',
+  'dnsbl-1.uceprotect.net',
+];
+
+async function checkDnsbl(ip, dnsbl) {
+  try {
+    const parts = ip.split('.');
+    if (parts.length !== 4) return false;
+    const reverseHost = `${parts[3]}.${parts[2]}.${parts[1]}.${parts[0]}.${dnsbl}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3000);
+    try {
+      const res = await fetch(`http://${reverseHost}`, { signal: controller.signal });
+      return res.status >= 127;
+    } catch {
+      return false;
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch {
+    return false;
+  }
+}
+
+const DNSBL_CACHE = new Map();
+const DNSBL_CACHE_TTL = 600000;
+
+export async function checkIpBlacklists(ip) {
+  const cleanIp = normalizeIp(ip);
+  if (!cleanIp || isPrivateIp(cleanIp)) return { listed: false, blacklists: [] };
+  const cached = DNSBL_CACHE.get(cleanIp);
+  if (cached && (Date.now() - cached.timestamp < DNSBL_CACHE_TTL)) return cached.result;
+  const listedBlacklists = [];
+  for (const dnsbl of DNSBL_LIST) {
+    try {
+      if (await checkDnsbl(cleanIp, dnsbl)) {
+        listedBlacklists.push(dnsbl);
+      }
+    } catch {}
+  }
+  const result = { listed: listedBlacklists.length > 0, blacklists: listedBlacklists };
+  DNSBL_CACHE.set(cleanIp, { result, timestamp: Date.now() });
+  return result;
+}
+
+setInterval(() => {
+  const cutoff = Date.now() - DNSBL_CACHE_TTL;
+  for (const [ip, entry] of DNSBL_CACHE) {
+    if (entry.timestamp < cutoff) DNSBL_CACHE.delete(ip);
+  }
+}, 300000);
+
+export function checkReferrer(req) {
+  const referer = req.headers['referer'] || req.headers['referrer'] || '';
+  if (!referer) return { passed: false, reason: 'missing_referrer' };
+  try {
+    const url = new URL(referer);
+    const validHosts = process.env.NODE_ENV === 'production'
+      ? ['dashboard.zero-host.org', 'zero-host.org']
+      : ['localhost:3000', '127.0.0.1:3000'];
+    if (validHosts.some(h => url.host === h || url.host.endsWith('.' + h))) {
+      return { passed: true, host: url.host };
+    }
+    return { passed: false, reason: 'invalid_referrer', host: url.host };
+  } catch {
+    return { passed: false, reason: 'invalid_url' };
+  }
+}
+
+export function checkBodySuspicious(body) {
+  if (!body || typeof body !== 'object') return { flagged: false };
+  const suspiciousPatterns = [
+    /<script[\s>]/i, /javascript:/i, /onerror\s*=/i,
+    /onload\s*=/i, /onclick\s*=/i, /onmouseover\s*=/i,
+    /vbscript:/i, /data:\s*text\/html/i,
+    /&#x?\d+;/i, /\\u00[0-9a-f]{2}/i,
+    /<\s*iframe/i, /<\s*embed/i, /<\s*object/i,
+    /alert\s*\(/i, /prompt\s*\(/i, /confirm\s*\(/i,
+    /document\.cookie/i, /window\.location/i,
+    /base64,/i, /fromCharCode/i,
+  ];
+  const strBody = JSON.stringify(body);
+  for (const pattern of suspiciousPatterns) {
+    if (pattern.test(strBody)) return { flagged: true, pattern: pattern.source };
+  }
+  return { flagged: false };
+}
 
 const CLOUD_PROVIDER_ASNS = new Set([
   'AS16509', 'AS39111', 'AS45102', 'AS16276', 'AS36351', 'AS13335',
@@ -40,6 +226,89 @@ const REQUIRED_BROWSER_HEADERS = {
 };
 
 const FOUR_SECONDS = 4000;
+
+const behaviorScores = new Map();
+const BEHAVIOR_TTL = 3600000;
+const SUSPICIOUS_IPS = new Map();
+const SUSPICIOUS_TTL = 86400000;
+
+function getIpBehavior(ip) {
+  const cleanIp = normalizeIp(ip);
+  if (!cleanIp) return null;
+  let entry = behaviorScores.get(cleanIp);
+  if (!entry) {
+    entry = { score: 0, failedLogins: 0, failedRegistrations: 0, failedActions: 0, firstSeen: Date.now(), lastSeen: Date.now() };
+    behaviorScores.set(cleanIp, entry);
+  }
+  entry.lastSeen = Date.now();
+  return entry;
+}
+
+export function recordFailedAction(ip, type = 'action') {
+  const entry = getIpBehavior(ip);
+  if (!entry) return;
+  entry.score = Math.min(100, entry.score + 15);
+  entry.failedActions++;
+  if (type === 'login') entry.failedLogins++;
+  if (type === 'register') entry.failedRegistrations++;
+  if (entry.score >= 80) {
+    SUSPICIOUS_IPS.set(normalizeIp(ip), { timestamp: Date.now(), reason: 'high_failure_rate' });
+  }
+}
+
+export function recordSuccessfulAction(ip) {
+  const entry = getIpBehavior(ip);
+  if (!entry) return;
+  entry.score = Math.max(0, entry.score - 5);
+}
+
+export function isIpSuspicious(ip) {
+  const cleanIp = normalizeIp(ip);
+  if (!cleanIp) return false;
+  if (SUSPICIOUS_IPS.has(cleanIp)) return true;
+  const entry = behaviorScores.get(cleanIp);
+  if (entry && entry.score >= 80) return true;
+  return false;
+}
+
+export function getBehaviorScore(ip) {
+  const cleanIp = normalizeIp(ip);
+  if (!cleanIp) return null;
+  const entry = behaviorScores.get(cleanIp);
+  return entry ? { score: entry.score, failedLogins: entry.failedLogins, failedActions: entry.failedActions, firstSeen: entry.firstSeen } : null;
+}
+
+export function calculateOverallRisk(req) {
+  let risk = 0;
+  const reasons = [];
+  const ip = getClientIp(req);
+  const ua = (req.headers['user-agent'] || '').toString().slice(0, 512);
+  if (isBotUserAgent(ua)) { risk += 30; reasons.push('bot_ua'); }
+  const issues = checkHeaders(req);
+  if (issues.length >= 2) { risk += 15; reasons.push('bad_headers'); }
+  if (issues.length >= 4) { risk += 10; reasons.push('very_bad_headers'); }
+  const cleanIp = normalizeIp(ip);
+  if (cleanIp && isPrivateIp(cleanIp)) { risk += 5; reasons.push('private_ip'); }
+  if (cleanIp && isKnownBotIp(cleanIp)) { risk += 25; reasons.push('known_bot_ip'); }
+  if (cleanIp && isIpSuspicious(cleanIp)) { risk += 20; reasons.push('suspicious_ip'); }
+  if (cleanIp) {
+    const behavior = behaviorScores.get(cleanIp);
+    if (behavior) risk += Math.min(20, behavior.score / 5);
+  }
+  const accept = req.headers['accept'] || '';
+  if (!accept || accept === '*/*') { risk += 10; reasons.push('generic_accept'); }
+  const encoding = req.headers['accept-encoding'] || '';
+  if (!encoding) { risk += 5; reasons.push('no_encoding'); }
+  const referer = req.headers['referer'] || '';
+  if (!referer && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    if (req.path.startsWith('/api/') && !req.path.includes('/auth/login') && !req.path.includes('/auth/register')) {
+      risk += 10; reasons.push('no_referrer');
+    }
+  }
+  const bodyFlag = checkBodySuspicious(req.body);
+  if (bodyFlag.flagged) { risk += 30; reasons.push('suspicious_body'); }
+  return { risk: Math.min(100, risk), reasons, level: risk >= 60 ? 'high' : risk >= 30 ? 'medium' : 'low' };
+}
 
 export function getClientIp(req) {
   const forwarded = req.headers['x-forwarded-for'];
@@ -528,3 +797,13 @@ setInterval(() => {
     else requestTimestamps.set(ip, filtered);
   }
 }, 5000);
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of behaviorScores) {
+    if (now - entry.lastSeen > BEHAVIOR_TTL) behaviorScores.delete(ip);
+  }
+  for (const [ip, entry] of SUSPICIOUS_IPS) {
+    if (now - entry.timestamp > SUSPICIOUS_TTL) SUSPICIOUS_IPS.delete(ip);
+  }
+}, 600000);
