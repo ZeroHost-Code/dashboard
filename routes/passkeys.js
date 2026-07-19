@@ -11,7 +11,7 @@ import { authenticateToken, generateToken } from '../middleware/auth.js';
 import { createHash, randomBytes } from 'crypto';
 import { query } from '../config/db.js';
 import { logActivity } from '../services/activity.js';
-import { isVpnOrProxy } from './auth.js';
+import { detectVpnProxy } from '../services/security.js';
 
 const router = Router();
 
@@ -223,8 +223,9 @@ router.post('/passkeys/login/complete', passkeyLoginLimiter, async (req, res) =>
   try {
     const ip = getClientIp(req);
 
-    if (await isVpnOrProxy(ip)) {
-      return res.status(403).json({ error: 'VPN or proxy detected. Please disable your VPN for security reasons.' });
+    const vpnResult = await detectVpnProxy(ip);
+    if (vpnResult.isVpn || vpnResult.isProxy || vpnResult.isTor) {
+      return res.status(403).json({ error: 'VPN, proxy, or Tor detected. Please disable them for security reasons.' });
     }
 
     const { response, sessionToken } = req.body;

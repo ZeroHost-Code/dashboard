@@ -20,6 +20,7 @@ const state = {
   accountTab: 'info',
   sidebarServersOpen: false,
   sidebarServersLoading: false,
+  totpTempToken: null,
 };
 
 function setRgpdConsent(preferences) {
@@ -660,6 +661,51 @@ function renderLoginPage() {
             </button>
           </div>
 
+          <div id="login-totp-form" style="display:none">
+            <div id="login-totp-initial">
+              <div style="margin-bottom:12px">
+                <i data-lucide="shield" style="width:36px;height:36px;color:var(--accent-1)"></i>
+              </div>
+              <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px;line-height:1.5">
+                Enter the verification code from your authenticator app.
+              </p>
+              <form id="login-totp-form-inner">
+                <div class="auth-error"></div>
+                <div class="form-group">
+                  <label for="login-totp-code">Authentication Code</label>
+                  <input type="text" id="login-totp-code" placeholder="000000" required autocomplete="one-time-code" inputmode="numeric" maxlength="6" />
+                </div>
+                <button type="submit" class="btn btn-primary btn-full" id="login-totp-btn">
+                  Verify
+                </button>
+                <button type="button" class="btn btn-ghost btn-full" id="login-totp-recovery-btn" style="margin-top:8px;font-size:0.82rem">
+                  Use a recovery code instead
+                </button>
+              </form>
+            </div>
+            <div id="login-totp-recovery-form" style="display:none">
+              <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;line-height:1.5">
+                Enter one of your recovery codes. Each code can only be used once.
+              </p>
+              <form id="login-totp-recovery-inner">
+                <div class="auth-error"></div>
+                <div class="form-group">
+                  <label for="login-recovery-code">Recovery Code</label>
+                  <input type="text" id="login-recovery-code" placeholder="XXXX-XXXX" required autocomplete="off" />
+                </div>
+                <button type="submit" class="btn btn-primary btn-full" id="login-recovery-btn">
+                  Verify Recovery Code
+                </button>
+              </form>
+              <button type="button" class="btn btn-ghost btn-full" id="login-totp-back-btn" style="margin-top:8px;font-size:0.82rem">
+                Back to verification code
+              </button>
+            </div>
+            <button type="button" class="btn btn-ghost btn-full" id="login-totp-cancel-btn" style="margin-top:12px">
+              Cancel
+            </button>
+          </div>
+
           <div class="auth-footer">
             Don't have an account? <a href="/signup" id="go-register">Create one</a>
           </div>
@@ -696,6 +742,25 @@ function renderLoginPage() {
   $('#go-register').addEventListener('click', (e) => {
     e.preventDefault();
     navigateTo('signup');
+  });
+
+  $('#login-totp-form-inner').addEventListener('submit', handleTotpVerify);
+  $('#login-totp-recovery-btn').addEventListener('click', () => {
+    $('#login-totp-initial').style.display = 'none';
+    $('#login-totp-recovery-form').style.display = 'block';
+  });
+  $('#login-totp-back-btn').addEventListener('click', () => {
+    $('#login-totp-recovery-form').style.display = 'none';
+    $('#login-totp-initial').style.display = 'block';
+  });
+  $('#login-totp-recovery-inner').addEventListener('submit', handleTotpRecovery);
+  $('#login-totp-cancel-btn').addEventListener('click', () => {
+    state.totpTempToken = null;
+    $('#login-totp-form').style.display = 'none';
+    $('#login-choices').style.display = 'block';
+    const dc = $('#discord-login-card');
+    if (dc) dc.style.display = '';
+    initIcons();
   });
 
   initIcons();
@@ -907,6 +972,19 @@ async function handleLogin(e) {
         capToken,
       }),
     });
+
+    if (data.needsTotp) {
+      state.totpTempToken = data.tempToken;
+      $('#login-email-form').style.display = 'none';
+      $('#login-totp-form').style.display = 'block';
+      $('#login-totp-code').value = '';
+      $('#login-totp-code').focus();
+      btn.disabled = false;
+      btn.innerHTML = 'Sign In';
+      initIcons();
+      return;
+    }
+
     state.token = data.token;
     state.user = data.user;
     localStorage.setItem('zh_token', data.token);
@@ -922,6 +1000,71 @@ async function handleLogin(e) {
   } finally {
     btn.disabled = false;
     btn.innerHTML = 'Sign In';
+  }
+}
+
+async function handleTotpVerify(e) {
+  e.preventDefault();
+  const form = $('#login-totp-form-inner');
+  hideError(form);
+  const btn = $('#login-totp-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Verifying...';
+
+  try {
+    const data = await api('/auth/totp/verify', {
+      method: 'POST',
+      body: JSON.stringify({
+        code: $('#login-totp-code').value.trim(),
+        tempToken: state.totpTempToken,
+      }),
+    });
+    state.totpTempToken = null;
+    state.token = data.token;
+    state.user = data.user;
+    localStorage.setItem('zh_token', data.token);
+    localStorage.setItem('zh_user', JSON.stringify(data.user));
+    history.replaceState({ page: 'overview' }, '', '/');
+    renderDashboard();
+  } catch (err) {
+    showError(form, err.message);
+    $('#login-totp-code').value = '';
+    $('#login-totp-code').focus();
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Verify';
+  }
+}
+
+async function handleTotpRecovery(e) {
+  e.preventDefault();
+  const form = $('#login-totp-recovery-inner');
+  hideError(form);
+  const btn = $('#login-recovery-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Verifying...';
+
+  try {
+    const data = await api('/auth/totp/recovery', {
+      method: 'POST',
+      body: JSON.stringify({
+        code: $('#login-recovery-code').value.trim(),
+        tempToken: state.totpTempToken,
+      }),
+    });
+    state.totpTempToken = null;
+    state.token = data.token;
+    state.user = data.user;
+    localStorage.setItem('zh_token', data.token);
+    localStorage.setItem('zh_user', JSON.stringify(data.user));
+    history.replaceState({ page: 'overview' }, '', '/');
+    renderDashboard();
+  } catch (err) {
+    showError(form, err.message);
+    $('#login-recovery-code').value = '';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Verify Recovery Code';
   }
 }
 
@@ -1511,7 +1654,7 @@ async function renderDashboard() {
           <div style="padding:8px 12px 0;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
 
           </div>
-          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v1.1.1</div>
+          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v1.2.0</div>
         </div>
         <div class="sidebar-resizer" id="sidebar-resizer"></div>
       </aside>
@@ -2275,6 +2418,11 @@ let activityIcons = {
   passkey_registered: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/><path d="M12 17v3"/><path d="M15 7l-3 3-2-2"/><path d="M18.5 8.5a2.121 2.121 0 0 1-3 3"/></svg>',
   email_verified: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><path d="M9 12l2 2 4-4"/></svg>',
   passkey_deleted: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/><path d="M12 17v3"/><path d="M9.5 7.5L14.5 12.5"/><path d="M14.5 7.5L9.5 12.5"/></svg>',
+  totp_enabled: '<i data-lucide="shield-check" style="width:14px;height:14px;color:#059669"></i>',
+  totp_disabled: '<i data-lucide="shield-off" style="width:14px;height:14px;color:#ef4444"></i>',
+  login_totp: '<i data-lucide="shield" style="width:14px;height:14px;color:#0ea5e9"></i>',
+  recovery_code_used: '<i data-lucide="key" style="width:14px;height:14px;color:#f59e0b"></i>',
+  recovery_codes_regenerated: '<i data-lucide="refresh-cw" style="width:14px;height:14px;color:#0ea5e9"></i>',
 };
 
 function formatRelativeTime(dateStr) {
@@ -2309,6 +2457,11 @@ function getActionLabel(action) {
     passkey_registered: 'Passkey registered',
     email_verified: 'Email verified',
     passkey_deleted: 'Passkey deleted',
+    totp_enabled: 'Two-factor authentication enabled',
+    totp_disabled: 'Two-factor authentication disabled',
+    login_totp: 'Signed in with 2FA code',
+    recovery_code_used: 'Used recovery code to sign in',
+    recovery_codes_regenerated: 'Recovery codes regenerated',
   };
   return labels[action] || action;
 }
@@ -3247,11 +3400,22 @@ function renderAccountSecurityTab() {
         <div id="passkey-status" style="margin-top:8px;font-size:0.82rem;color:var(--text-muted)"></div>
       </div>
     </div>
+
+    <div class="card" id="totp-card">
+      <h2 class="card-title" style="margin-bottom:20px">
+        <i data-lucide="shield" style="width:18px;height:18px;vertical-align:middle;margin-right:6px"></i>
+        Two-Factor Authentication
+      </h2>
+      <div id="totp-section-content">
+        <p style="color:var(--text-muted);font-size:0.85rem">Loading...</p>
+      </div>
+    </div>
   `;
 
   $('#change-password-form').addEventListener('submit', handleChangePassword);
   $('#register-passkey-btn').addEventListener('click', handleRegisterPasskey);
   loadPasskeys();
+  loadTotpStatus();
 }
 
 function renderAccountLogsTab() {
@@ -3510,6 +3674,261 @@ async function handleDeletePasskey(id) {
         status.textContent = err.message;
         status.style.color = 'var(--accent-red)';
       }
+    }
+  });
+}
+
+async function loadTotpStatus() {
+  const section = $('#totp-section-content');
+  if (!section) return;
+  try {
+    const data = await api('/auth/totp/status');
+    if (data.enabled) {
+      renderTotpEnabled(section);
+    } else {
+      renderTotpDisabled(section);
+    }
+  } catch (err) {
+    section.innerHTML = `<p style="color:var(--accent-red);font-size:0.85rem">Failed to load: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function renderTotpDisabled(section) {
+  section.innerHTML = html`
+    <p style="color:var(--text-secondary);font-size:0.85rem;line-height:1.6;margin-bottom:16px">
+      Add an extra layer of security to your account by enabling two-factor authentication.
+      You'll need to enter a verification code from your authenticator app when signing in.
+    </p>
+    <button class="btn btn-primary btn-full" id="enable-totp-btn">
+      <i data-lucide="shield-plus" style="width:16px;height:16px"></i>
+      Enable Two-Factor Authentication
+    </button>
+  `;
+  $('#enable-totp-btn').addEventListener('click', handleTotpSetup);
+  initIcons();
+}
+
+async function renderTotpEnabled(section) {
+  section.innerHTML = html`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+      <i data-lucide="shield-check" style="width:20px;height:20px;color:var(--accent-green)"></i>
+      <span style="color:var(--accent-green);font-weight:600;font-size:0.9rem">Two-factor authentication is enabled</span>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" id="regenerate-codes-btn">
+        <i data-lucide="refresh-cw" style="width:16px;height:16px"></i>
+        Regenerate Recovery Codes
+      </button>
+      <button class="btn btn-danger" id="disable-totp-btn">
+        <i data-lucide="shield-off" style="width:16px;height:16px"></i>
+        Disable 2FA
+      </button>
+    </div>
+  `;
+  $('#regenerate-codes-btn').addEventListener('click', handleRegenerateRecoveryCodes);
+  $('#disable-totp-btn').addEventListener('click', handleDisableTotp);
+  initIcons();
+}
+
+async function handleTotpSetup() {
+  const btn = $('#enable-totp-btn');
+  if (!btn) return;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  try {
+    const data = await api('/auth/totp/setup', { method: 'POST' });
+
+    const overlay = $('#modal-overlay');
+    const content = $('#modal-content');
+    content.innerHTML = html`
+      <div class="modal-title">
+        <i data-lucide="shield-plus" style="width:22px;height:22px;color:var(--accent-1);vertical-align:middle;margin-right:6px"></i>
+        Enable Two-Factor Authentication
+      </div>
+      <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px;line-height:1.5">
+        Scan this QR code with your authenticator app (e.g. Google Authenticator, Authy, 2FAS).
+      </p>
+      <div style="text-align:center;margin-bottom:16px">
+        <img src="${data.qrCode}" alt="TOTP QR Code" style="width:180px;height:180px;border-radius:var(--radius-sm);background:#fff;padding:8px" />
+      </div>
+      <p style="font-size:0.78rem;color:var(--text-muted);text-align:center;margin-bottom:16px">
+        Or manually enter this key: <code style="background:var(--bg-secondary);padding:4px 8px;border-radius:4px;font-size:0.82rem;user-select:all">${data.secret}</code>
+      </p>
+      <form id="totp-enable-form">
+        <div class="form-group">
+          <label for="totp-verify-code">Enter the 6-digit code from your app</label>
+          <input type="text" id="totp-verify-code" placeholder="000000" required inputmode="numeric" maxlength="6" />
+        </div>
+        <div id="totp-enable-status" style="font-size:0.82rem;color:var(--text-muted);margin-bottom:8px"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost btn-full modal-cancel-btn">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-full" id="totp-enable-btn">
+            Verify and Enable
+          </button>
+        </div>
+      </form>
+    `;
+    overlay.classList.add('open');
+
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="shield-plus" style="width:16px;height:16px"></i> Enable Two-Factor Authentication';
+    initIcons();
+
+    $('#totp-enable-form').addEventListener('submit', handleTotpEnable);
+  } catch (err) {
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="shield-plus" style="width:16px;height:16px"></i> Enable Two-Factor Authentication';
+    showToast(err.message, 'error');
+  }
+}
+
+async function handleTotpEnable(e) {
+  e.preventDefault();
+  const btn = $('#totp-enable-btn');
+  const status = $('#totp-enable-status');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  status.textContent = '';
+
+  try {
+    const data = await api('/auth/totp/enable', {
+      method: 'POST',
+      body: JSON.stringify({ code: $('#totp-verify-code').value.trim() }),
+    });
+
+    showRecoveryCodesModal(data.recoveryCodes);
+    loadTotpStatus();
+  } catch (err) {
+    status.textContent = err.message;
+    status.style.color = 'var(--accent-red)';
+    $('#totp-verify-code').value = '';
+    $('#totp-verify-code').focus();
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Verify and Enable';
+  }
+}
+
+function showRecoveryCodesModal(codes) {
+  const overlay = $('#modal-overlay');
+  const content = $('#modal-content');
+  content.innerHTML = html`
+    <div class="modal-title">
+      <i data-lucide="shield-alert" style="width:22px;height:22px;color:var(--accent-1);vertical-align:middle;margin-right:6px"></i>
+      Recovery Codes
+    </div>
+    <div style="color:var(--accent-red);font-size:0.82rem;font-weight:600;margin-bottom:12px;line-height:1.5">
+      Save these codes in a secure place. You will not be able to view them again.
+    </div>
+    <p style="color:var(--text-secondary);font-size:0.82rem;margin-bottom:16px;line-height:1.5">
+      Each code can be used once to sign in if you lose access to your authenticator app.
+    </p>
+    <div style="background:var(--bg-secondary);border-radius:var(--radius-sm);padding:16px;margin-bottom:16px;font-family:'JetBrains Mono',monospace;font-size:0.9rem;line-height:2">
+      ${codes.map(c => `<div style="letter-spacing:1px">${c}</div>`).join('')}
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary btn-full" id="recovery-codes-ok-btn">
+        <i data-lucide="check" style="width:16px;height:16px"></i>
+        I've Saved These Codes
+      </button>
+    </div>
+  `;
+  overlay.classList.add('open');
+
+  $('#recovery-codes-ok-btn').addEventListener('click', () => {
+    overlay.classList.remove('open');
+  });
+}
+
+async function handleDisableTotp() {
+  const overlay = $('#modal-overlay');
+  const content = $('#modal-content');
+  content.innerHTML = html`
+    <div class="modal-title">Disable Two-Factor Authentication</div>
+    <p style="color:var(--text-secondary);line-height:1.6;margin-bottom:16px">
+      Enter your password to disable two-factor authentication.
+    </p>
+    <div class="form-group">
+      <label for="modal-disable-totp-pw">Password</label>
+      <input type="password" id="modal-disable-totp-pw" placeholder="Enter your password" autocomplete="current-password" />
+    </div>
+    <div id="modal-disable-totp-status" style="font-size:0.82rem;color:var(--accent-red);margin-bottom:8px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-full modal-cancel-btn">Cancel</button>
+      <button class="btn btn-danger btn-full" id="confirm-disable-totp-btn">Disable 2FA</button>
+    </div>
+  `;
+  overlay.classList.add('open');
+
+  const confirmBtn = $('#confirm-disable-totp-btn');
+  confirmBtn.addEventListener('click', async () => {
+    const password = $('#modal-disable-totp-pw').value;
+    if (!password) {
+      $('#modal-disable-totp-status').textContent = 'Password is required';
+      return;
+    }
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<span class="spinner"></span>';
+    try {
+      await api('/auth/totp/disable', {
+        method: 'POST',
+        body: JSON.stringify({ password }),
+      });
+      overlay.classList.remove('open');
+      showToast('Two-factor authentication disabled', 'info');
+      loadTotpStatus();
+    } catch (err) {
+      $('#modal-disable-totp-status').textContent = err.message;
+    } finally {
+      confirmBtn.disabled = false;
+      confirmBtn.innerHTML = 'Disable 2FA';
+    }
+  });
+}
+
+async function handleRegenerateRecoveryCodes() {
+  const overlay = $('#modal-overlay');
+  const content = $('#modal-content');
+  content.innerHTML = html`
+    <div class="modal-title">Regenerate Recovery Codes</div>
+    <p style="color:var(--text-secondary);line-height:1.6;margin-bottom:16px">
+      Your existing recovery codes will be invalidated and new ones will be generated.
+    </p>
+    <div id="regenerate-codes-result"></div>
+    <div class="modal-actions" id="regenerate-codes-actions">
+      <button class="btn btn-ghost btn-full modal-cancel-btn">Cancel</button>
+      <button class="btn btn-primary btn-full" id="confirm-regenerate-codes-btn">Generate New Codes</button>
+    </div>
+  `;
+  overlay.classList.add('open');
+
+  $('#confirm-regenerate-codes-btn').addEventListener('click', async () => {
+    const btn = $('#confirm-regenerate-codes-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>';
+    try {
+      const data = await api('/auth/totp/recovery-codes/regenerate', { method: 'POST' });
+      $('#regenerate-codes-actions').style.display = 'none';
+      $('#regenerate-codes-result').innerHTML = html`
+        <div style="color:var(--accent-red);font-size:0.82rem;font-weight:600;margin-bottom:12px;line-height:1.5">
+          Save these codes in a secure place. You will not be able to view them again.
+        </div>
+        <div style="background:var(--bg-secondary);border-radius:var(--radius-sm);padding:16px;margin-bottom:16px;font-family:'JetBrains Mono',monospace;font-size:0.9rem;line-height:2">
+          ${data.recoveryCodes.map(c => `<div style="letter-spacing:1px">${c}</div>`).join('')}
+        </div>
+        <button class="btn btn-primary btn-full" id="recovery-codes-done-btn">
+          <i data-lucide="check" style="width:16px;height:16px"></i>
+          I've Saved These Codes
+        </button>
+      `;
+      $('#recovery-codes-done-btn').addEventListener('click', () => {
+        overlay.classList.remove('open');
+        loadTotpStatus();
+      });
+      initIcons();
+    } catch (err) {
+      $('#regenerate-codes-result').innerHTML = `<p style="color:var(--accent-red);font-size:0.82rem">${escapeHtml(err.message)}</p>`;
     }
   });
 }

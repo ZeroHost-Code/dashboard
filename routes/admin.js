@@ -8,6 +8,7 @@ import { getAllServers, getServerById, getEgg, getPteroNests, getPteroNestEggs, 
 import { verifyCap } from '../config/cap.js';
 import { logActivity } from '../services/activity.js';
 import { createNotification } from '../services/notification.js';
+import { detectVpnProxy, isBotUserAgent } from '../services/security.js';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -79,6 +80,15 @@ router.post('/login', adminLoginLimiter, async (req, res) => {
 
     const ip = getClientIp(req);
     const userAgent = (req.headers['user-agent'] || 'unknown').toString().slice(0, 512);
+
+    if (isBotUserAgent(userAgent)) {
+      return res.status(403).json({ error: 'Automated requests are not allowed.' });
+    }
+
+    const vpnResult = await detectVpnProxy(ip);
+    if (vpnResult.isVpn || vpnResult.isProxy || vpnResult.isTor) {
+      return res.status(403).json({ error: 'VPN, proxy, or Tor detected. Access denied.' });
+    }
     const delay = getAdminLoginDelay(ip);
     if (delay > 0) {
       await new Promise(r => setTimeout(r, delay));

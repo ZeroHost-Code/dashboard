@@ -28,6 +28,7 @@ import crypto from 'crypto';
 
 import authRoutes from './routes/auth.js';
 import passkeyRoutes from './routes/passkeys.js';
+import totpRoutes from './routes/totp.js';
 import serverRoutes from './routes/servers.js';
 import adminRoutes from './routes/admin.js';
 import notificationRoutes from './routes/notifications.js';
@@ -36,6 +37,8 @@ import { migrate } from './config/migrate.js';
 import { query, closePool, getPoolStatus } from './config/db.js';
 import { getRecentActivity } from './services/activity.js';
 import { authenticateToken } from './middleware/auth.js';
+import { ensureLogFile, writeLog, startLogCleaner } from './services/fileLogger.js';
+import { advancedBotProtection, vpnProxyProtection, countryBlock, browserIntegrityCheck } from './middleware/security.js';
 
 const app = express();
 
@@ -61,6 +64,19 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   next();
 });
+
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    const ip = req.ip || req.socket.remoteAddress || '0.0.0.0';
+    writeLog(req.method, req.path, ip);
+  }
+  next();
+});
+
+app.use('/api', advancedBotProtection());
+app.use('/api', browserIntegrityCheck());
+app.use('/api', vpnProxyProtection());
+app.use('/api', countryBlock());
 
 const activeRequests = new Map();
 
@@ -162,7 +178,7 @@ app.use((err, req, res, next) => {
 });
 app.use(cookieParser(process.env.COOKIE_SECRET));
 
-const csrfExemptPaths = ['/api/auth/login', '/api/auth/register', '/api/auth/passkey/options', '/api/auth/passkey/verify', '/api/auth/passkeys/login/begin', '/api/auth/passkeys/login/complete', '/api/auth/passkeys/register/begin', '/api/auth/passkeys/register/complete'];
+const csrfExemptPaths = ['/api/auth/login', '/api/auth/register', '/api/auth/passkey/options', '/api/auth/passkey/verify', '/api/auth/passkeys/login/begin', '/api/auth/passkeys/login/complete', '/api/auth/passkeys/register/begin', '/api/auth/passkeys/register/complete', '/api/auth/totp/verify', '/api/auth/totp/recovery'];
 app.use((req, res, next) => {
   if (!req.path.startsWith('/api/')) return next();
   if (csrfExemptPaths.includes(req.path)) return next();
@@ -271,6 +287,7 @@ app.get('/api/config', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/auth', passkeyRoutes);
+app.use('/api/auth', totpRoutes);
 app.use('/api/servers', serverRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
@@ -343,10 +360,13 @@ app.use((err, req, res, _next) => {
   res.status(err.status || 500).json({ error: message, requestId: req.requestId });
 });
 
-migrate().then(() => {
+async function startServer() {
+  await ensureLogFile();
+  await migrate();
   const server = app.listen(PORT, () => {
     console.log(`ZeroHost Dashboard running on port ${PORT}`);
     startScheduler();
+    startLogCleaner();
   });
 
   function shutdown(signal) {
@@ -364,8 +384,10 @@ migrate().then(() => {
 
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
-}).catch(err => {
-  console.error('Migration failed:', err);
+}
+
+startServer().catch(err => {
+  console.error('Startup failed:', err);
   process.exit(1);
 });
 

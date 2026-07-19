@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { authenticateToken, requireNotRestricted, requireOwnership } from '../middleware/auth.js';
-import { getClientIp, isVpnOrProxy, fetchWithTimeout, normalizeClientIp, isPrivateIp } from './auth.js';
+import { getClientIp, fetchWithTimeout } from './auth.js';
 import {
   getServersByUser,
   getServerById,
@@ -19,22 +19,9 @@ import { query } from '../config/db.js';
 import { verifyCap } from '../config/cap.js';
 import { logActivity } from '../services/activity.js';
 import { createNotification } from '../services/notification.js';
+import { isBotUserAgent, detectVpnProxy, checkBlockedCountry } from '../services/security.js';
 
 const router = Router();
-
-const BLOCKED_COUNTRY_CODES = ['CN', 'RU'];
-
-async function checkBlockedCountry(ip) {
-  const cleanIp = normalizeClientIp(ip);
-  if (!cleanIp || isPrivateIp(cleanIp)) return false;
-  try {
-    const res = await fetchWithTimeout(`http://ip-api.com/json/${encodeURIComponent(cleanIp)}?fields=countryCode`, {}, 5000);
-    const data = await res.json();
-    return BLOCKED_COUNTRY_CODES.includes(data.countryCode);
-  } catch {
-    return false;
-  }
-}
 
 const createServerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -253,11 +240,12 @@ router.post('/create', authenticateToken, requireNotRestricted, createServerLimi
     const ip = getClientIp(req);
     const userAgent = (req.headers['user-agent'] || '').toString().slice(0, 512);
 
-    if (await isVpnOrProxy(ip)) {
-      return res.status(403).json({ error: 'VPN or proxy detected. Please disable your VPN.', check: 'vpn' });
+    const vpnResult = await detectVpnProxy(ip);
+    if (vpnResult.isVpn || vpnResult.isProxy || vpnResult.isTor) {
+      return res.status(403).json({ error: 'VPN, proxy, or Tor detected. Please disable them.', check: 'vpn' });
     }
 
-    if (!userAgent || /curl|wget|node-fetch|python-requests|python-httpx|urllib|aiohttp|go-http-client|java\/|libcurl|okhttp|httpie|postmanruntime|insomnia|axios|fetch\//i.test(userAgent)) {
+    if (isBotUserAgent(userAgent)) {
       return res.status(403).json({ error: 'Automated requests are not allowed. Please use a real browser.', check: 'useragent' });
     }
 
@@ -266,7 +254,8 @@ router.post('/create', authenticateToken, requireNotRestricted, createServerLimi
       return res.status(403).json({ error: 'Please verify your email before creating a server.', check: 'email' });
     }
 
-    if (await checkBlockedCountry(ip)) {
+    const countryCheck = await checkBlockedCountry(ip);
+    if (countryCheck.blocked) {
       return res.status(403).json({ error: 'Service not available in your region.', check: 'country' });
     }
 
