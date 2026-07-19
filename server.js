@@ -37,6 +37,7 @@ import { migrate } from './config/migrate.js';
 import { query, closePool, getPoolStatus } from './config/db.js';
 import { getRecentActivity } from './services/activity.js';
 import { authenticateToken } from './middleware/auth.js';
+import { ensureLogFile, writeLog } from './services/fileLogger.js';
 
 const app = express();
 
@@ -60,6 +61,14 @@ app.use((req, res, next) => {
   req.requestId = crypto.randomUUID();
   res.setHeader('X-Request-Id', req.requestId);
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  next();
+});
+
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    const ip = req.ip || req.socket.remoteAddress || '0.0.0.0';
+    writeLog(req.method, req.path, ip);
+  }
   next();
 });
 
@@ -345,7 +354,9 @@ app.use((err, req, res, _next) => {
   res.status(err.status || 500).json({ error: message, requestId: req.requestId });
 });
 
-migrate().then(() => {
+async function startServer() {
+  await ensureLogFile();
+  await migrate();
   const server = app.listen(PORT, () => {
     console.log(`ZeroHost Dashboard running on port ${PORT}`);
     startScheduler();
@@ -366,8 +377,10 @@ migrate().then(() => {
 
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
-}).catch(err => {
-  console.error('Migration failed:', err);
+}
+
+startServer().catch(err => {
+  console.error('Startup failed:', err);
   process.exit(1);
 });
 
