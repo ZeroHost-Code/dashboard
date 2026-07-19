@@ -37,7 +37,7 @@ import { migrate } from './config/migrate.js';
 import { query, closePool, getPoolStatus } from './config/db.js';
 import { getRecentActivity } from './services/activity.js';
 import { authenticateToken } from './middleware/auth.js';
-import { ensureLogFile, writeLog } from './services/fileLogger.js';
+import { ensureLogFile, writeLog, startLogCleaner } from './services/fileLogger.js';
 
 const app = express();
 
@@ -360,6 +360,7 @@ async function startServer() {
   const server = app.listen(PORT, () => {
     console.log(`ZeroHost Dashboard running on port ${PORT}`);
     startScheduler();
+    startLogCleaner();
   });
 
   function shutdown(signal) {

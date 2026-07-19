@@ -1,4 +1,4 @@
-import { appendFile, access, constants } from 'fs/promises';
+import { appendFile, access, constants, readFile, writeFile } from 'fs/promises';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -133,6 +133,34 @@ export async function ensureLogFile() {
     await appendFile(LOG_FILE, '', 'utf-8');
     console.log('Created log.txt');
   }
+}
+
+const ONE_YEAR = 365 * 24 * 60 * 60 * 1000;
+
+export async function cleanOldLogs() {
+  try {
+    const content = await readFile(LOG_FILE, 'utf-8');
+    if (!content) return;
+    const cutoff = Date.now() - ONE_YEAR;
+    const lines = content.split('\n').filter(line => {
+      if (!line.trim()) return false;
+      const match = line.match(/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]/);
+      if (!match) return true;
+      const ts = new Date(match[1].replace(' ', 'T') + 'Z').getTime();
+      return ts >= cutoff;
+    });
+    const cleaned = lines.join('\n') + (lines.length > 0 ? '\n' : '');
+    await writeFile(LOG_FILE, cleaned, 'utf-8');
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      console.error('Failed to clean old logs:', err.message);
+    }
+  }
+}
+
+export function startLogCleaner() {
+  cleanOldLogs();
+  setInterval(cleanOldLogs, 24 * 60 * 60 * 1000);
 }
 
 export async function writeLog(method, path, ip) {
