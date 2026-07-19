@@ -4,6 +4,9 @@ import { resolve } from 'path';
 import { readFile } from 'fs/promises';
 
 const DISPOSABLE_DOMAINS_URL = 'https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/master/disposable_email_blocklist.conf';
+const LOCAL_DISPOSABLE_DOMAINS = new Set([
+  'ztzt.net',
+]);
 let disposableDomainsCache = null;
 let disposableDomainsTimestamp = 0;
 const DOMAINS_CACHE_TTL = 3600000;
@@ -12,15 +15,18 @@ async function loadDisposableDomains() {
   if (disposableDomainsCache && (Date.now() - disposableDomainsTimestamp < DOMAINS_CACHE_TTL)) {
     return disposableDomainsCache;
   }
+  const merged = new Set(LOCAL_DISPOSABLE_DOMAINS);
   try {
     const res = await fetchWithTimeout(DISPOSABLE_DOMAINS_URL, {}, 10000);
     const text = await res.text();
-    disposableDomainsCache = new Set(text.split('\n').map(l => l.trim().toLowerCase()).filter(Boolean));
-    disposableDomainsTimestamp = Date.now();
-    return disposableDomainsCache;
-  } catch {
-    return disposableDomainsCache || new Set();
-  }
+    for (const line of text.split('\n')) {
+      const domain = line.trim().toLowerCase();
+      if (domain) merged.add(domain);
+    }
+  } catch {}
+  disposableDomainsCache = merged;
+  disposableDomainsTimestamp = Date.now();
+  return disposableDomainsCache;
 }
 
 export async function isDisposableEmail(email) {
