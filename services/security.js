@@ -35,7 +35,7 @@ export async function isDisposableEmail(email) {
   if (parts.length !== 2) return false;
   const domain = parts[1].toLowerCase().trim();
   const domains = await loadDisposableDomains();
-  return domains.has(domain);
+  return domains.has(domain) || [...domains].some(d => domain.endsWith('.' + d));
 }
 
 export async function checkPasswordBreach(password) {
