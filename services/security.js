@@ -588,6 +588,7 @@ export function isKnownBotIp(ip) {
 }
 
 export function checkHoneypot(body) {
+  if (!body || typeof body !== 'object') return { triggered: false };
   const honeypotFields = ['website', 'url', 'homepage', 'message2', 'confirm_email', 'fax', 'phone2'];
   for (const field of honeypotFields) {
     if (body[field] !== undefined && body[field] !== '' && body[field] !== null) {
