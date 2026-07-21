@@ -35,7 +35,6 @@ const SENSITIVE_PATHS = [
 export function advancedBotProtection() {
   return async (req, res, next) => {
     try {
-      if (!req.path.startsWith('/api/')) return next();
       const ip = getClientIp(req);
       const ua = (req.headers['user-agent'] || '').toString().slice(0, 512);
       const isPost = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
@@ -76,7 +75,9 @@ export function advancedBotProtection() {
         return res.status(400).json({ error: 'Request contains invalid content', requestId: req.requestId });
       }
 
-      if (isPost && SENSITIVE_PATHS.includes(req.path)) {
+      const fullPath = req.originalUrl || req.baseUrl + req.path;
+
+      if (isPost && SENSITIVE_PATHS.includes(fullPath)) {
         const referrerCheck = checkReferrer(req);
         if (!referrerCheck.passed) {
           recordFailedAction(ip);
@@ -103,8 +104,8 @@ export function advancedBotProtection() {
 export function vpnProxyProtection() {
   return async (req, res, next) => {
     try {
-      if (!req.path.startsWith('/api/')) return next();
-      if (VPN_EXEMPT_PATHS.includes(req.path)) return next();
+      const fullPath = req.originalUrl || req.baseUrl + req.path;
+      if (VPN_EXEMPT_PATHS.includes(fullPath)) return next();
       const ip = getClientIp(req);
       const cleanIp = normalizeIp(ip);
       if (!cleanIp || isPrivateIp(cleanIp)) return next();
@@ -112,7 +113,7 @@ export function vpnProxyProtection() {
       if (!isPost) return next();
       const [vpnResult, blacklistResult] = await Promise.all([
         detectVpnProxy(cleanIp),
-        req.path.startsWith('/api/auth/') || req.path.startsWith('/api/servers/') ? checkIpBlacklists(cleanIp) : { listed: false },
+        fullPath.startsWith('/api/auth/') || fullPath.startsWith('/api/servers/') ? checkIpBlacklists(cleanIp) : { listed: false },
       ]);
       if (vpnResult.isVpn || vpnResult.isProxy || vpnResult.isTor) {
         recordFailedAction(ip);
@@ -141,10 +142,10 @@ export function vpnProxyProtection() {
 export function countryBlock() {
   return async (req, res, next) => {
     try {
-      if (!req.path.startsWith('/api/')) return next();
+      const fullPath = req.originalUrl || req.baseUrl + req.path;
       const isPost = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
       if (!isPost) return next();
-      if (req.path === '/api/auth/login') return next();
+      if (fullPath === '/api/auth/login') return next();
       const ip = getClientIp(req);
       const { blocked, countryCode } = await checkBlockedCountry(ip);
       if (blocked) {
@@ -162,7 +163,6 @@ export function countryBlock() {
 export function browserIntegrityCheck() {
   return (req, res, next) => {
     try {
-      if (!req.path.startsWith('/api/')) return next();
       const isPost = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
       if (!isPost) return next();
       const issues = checkHeaders(req);
@@ -186,7 +186,6 @@ export function browserIntegrityCheck() {
 export function disposableEmailCheck() {
   return async (req, res, next) => {
     try {
-      if (!req.path.startsWith('/api/')) return next();
       const email = req.body?.email;
       if (!email || typeof email !== 'string') return next();
       if (await isDisposableEmail(email)) {
@@ -203,7 +202,7 @@ export function disposableEmailCheck() {
 export function passwordBreachCheck() {
   return async (req, res, next) => {
     try {
-      if (!req.path.startsWith('/api/')) return next();
+      if (!req.originalUrl.startsWith('/api/')) return next();
       const password = req.body?.password || req.body?.newPassword;
       if (!password || typeof password !== 'string') return next();
       if (password.length < 6) return next();

@@ -314,7 +314,8 @@ export function calculateOverallRisk(req) {
   if (!encoding) { risk += 5; reasons.push('no_encoding'); }
   const referer = req.headers['referer'] || '';
   if (!referer && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
-    if (req.path.startsWith('/api/') && !req.path.includes('/auth/login') && !req.path.includes('/auth/register')) {
+    const fullPath = req.originalUrl || req.baseUrl + req.path;
+    if (fullPath.startsWith('/api/') && !fullPath.includes('/auth/login') && !fullPath.includes('/auth/register')) {
       risk += 10; reasons.push('no_referrer');
     }
   }
