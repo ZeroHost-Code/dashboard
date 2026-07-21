@@ -306,29 +306,33 @@ async function handleAdminLogin(e) {
   btn.innerHTML = '<span class="spinner"></span> Signing in...';
 
   try {
-      const capWidget = $a('#admin-login-form cap-widget');
-      const capToken = capWidget?.token || '';
-      const data = await adminApi('/login', {
-        method: 'POST',
-        body: JSON.stringify({
-          email: $a('#admin-email').value,
-          password: $a('#admin-password').value,
-          capToken,
-        }),
-      });
+    const capWidget = $a('#admin-login-form cap-widget');
+    const capToken = capWidget?.token || '';
+    const data = await adminApi('/login', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: $a('#admin-email').value,
+        password: $a('#admin-password').value,
+        capToken,
+      }),
+    });
     adminState.token = data.token;
     adminState.user = data.user;
     localStorage.setItem(ADMIN_STORAGE_KEY, data.token);
     history.replaceState({ adminPage: 'dashboard' }, '', '/admin/dashboard');
     renderAdminLayout();
   } catch (err) {
-    if (errorEl) {
-      errorEl.textContent = err.message;
-      errorEl.classList.add('show');
+    const currentErrorEl = $a('#admin-login-form .auth-error');
+    if (currentErrorEl) {
+      currentErrorEl.textContent = err.message;
+      currentErrorEl.classList.add('show');
     }
   } finally {
-    btn.disabled = false;
-    btn.innerHTML = 'Sign In';
+    const currentBtn = $a('#admin-login-btn');
+    if (currentBtn) {
+      currentBtn.disabled = false;
+      currentBtn.innerHTML = 'Sign In';
+    }
   }
 }
 
