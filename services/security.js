@@ -4,9 +4,6 @@ import { randomBytes } from 'crypto';
 import { resolve } from 'path';
 import { readFile } from 'fs/promises';
 
-const dnsResolver = new dns.promises.Resolver({ timeout: 3000, tries: 1 });
-dnsResolver.setServers(['1.1.1.1', '8.8.8.8']);
-
 const DISPOSABLE_DOMAINS_URL = 'https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/master/disposable_email_blocklist.conf';
 const LOCAL_DISPOSABLE_DOMAINS = new Set([
   'ztzt.net',
@@ -124,8 +121,11 @@ async function checkDnsbl(ip, dnsbl) {
     if (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) return false;
     if (octets[0] === 192 && octets[1] === 168) return false;
     const reverseHost = `${octets[3]}.${octets[2]}.${octets[1]}.${octets[0]}.${dnsbl}`;
-    const addresses = await dnsResolver.resolve4(reverseHost);
-    return addresses.some(addr => addr.startsWith('127.'));
+    const addresses = await Promise.race([
+      dns.promises.resolve4(reverseHost),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+    ]);
+    return addresses.some(addr => addr.startsWith('127.0.0.'));
   } catch {
     return false;
   }
