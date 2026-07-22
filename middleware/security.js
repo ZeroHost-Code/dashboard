@@ -126,6 +126,7 @@ export function vpnProxyProtection() {
       }
       if (blacklistResult.listed) {
         recordFailedAction(ip);
+        console.warn(`[DNSBL] IP ${cleanIp} blacklisted on: ${blacklistResult.blacklists.join(', ')}`);
         return res.status(403).json({
           error: 'Access denied. Your IP has been flagged.',
           requestId: req.requestId,

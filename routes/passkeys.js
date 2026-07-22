@@ -344,6 +344,38 @@ router.get('/passkeys', authenticateToken, passkeyRegisterLimiter, async (req, r
   }
 });
 
+router.patch('/passkeys/:id', authenticateToken, passkeyRegisterLimiter, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid passkey ID' });
+    }
+
+    const { name } = req.body;
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+    const trimmed = name.trim().slice(0, 255);
+
+    const passkeys = await query(
+      'SELECT id FROM passkeys WHERE id = ? AND user_id = ?',
+      [id, req.user.userId]
+    );
+
+    if (!passkeys.length) {
+      return res.status(404).json({ error: 'Passkey not found' });
+    }
+
+    await query('UPDATE passkeys SET name = ? WHERE id = ?', [trimmed, id]);
+    await logActivity(req.user.userId, 'passkey_renamed', 'Renamed a passkey');
+
+    res.json({ success: true, name: trimmed });
+  } catch (err) {
+    console.error('Passkey rename error:', err.message);
+    res.status(500).json({ error: 'Failed to rename passkey' });
+  }
+});
+
 router.delete('/passkeys/:id', authenticateToken, passkeyRegisterLimiter, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);

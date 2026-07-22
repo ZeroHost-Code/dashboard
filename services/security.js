@@ -1,4 +1,5 @@
 import { isIP } from 'net';
+import dns from 'dns';
 import { randomBytes } from 'crypto';
 import { resolve } from 'path';
 import { readFile } from 'fs/promises';
@@ -120,19 +121,11 @@ async function checkDnsbl(ip, dnsbl) {
     if (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) return false;
     if (octets[0] === 192 && octets[1] === 168) return false;
     const reverseHost = `${octets[3]}.${octets[2]}.${octets[1]}.${octets[0]}.${dnsbl}`;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 3000);
-    try {
-      const res = await fetch(`http://${reverseHost}`, {
-        signal: controller.signal,
-        headers: { 'Accept': 'text/plain' },
-      });
-      return res.status >= 127;
-    } catch {
-      return false;
-    } finally {
-      clearTimeout(timer);
-    }
+    const addresses = await Promise.race([
+      dns.promises.resolve4(reverseHost),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+    ]);
+    return addresses.some(addr => addr.startsWith('127.0.0.'));
   } catch {
     return false;
   }

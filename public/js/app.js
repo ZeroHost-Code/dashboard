@@ -1662,7 +1662,7 @@ async function renderDashboard() {
           <div style="padding:8px 12px 0;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
 
           </div>
-          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v1.2.7</div>
+          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v1.2.8</div>
         </div>
         <div class="sidebar-resizer" id="sidebar-resizer"></div>
       </aside>
@@ -1932,6 +1932,10 @@ function renderSidebarNav() {
       <a class="nav-item" href="https://discord.zero-host.org" target="_blank">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
         Discord
+      </a>
+      <a class="nav-item" href="https://ko-fi.com/zerohost" target="_blank">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.424 2.586 2.672 2.586 2.672s8.267-.023 11.966-.049c2.438-.426 2.683-2.566 2.658-3.734 4.352.24 7.422-2.831 6.649-6.916zm-11.062 3.511c-.215 1.472-1.241 1.732-2.463 1.742-.152 0-.303-.001-.454-.003h-4.252c-.229-.023-.406-.222-.406-.449v-7.28c0-.238.189-.428.428-.428h1.923c.237 0 .429.19.429.428v2.079h1.979c2.011 0 3.218.911 3.218 2.743.001 1.155-.434 2.066-1.402 2.168z"/></svg>
+        Ko-fi
       </a>
       <a class="nav-item" href="https://www.trustpilot.com/review/zero-host.org" target="_blank">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.227 16.67l2.19 6.742-7.413-5.388 5.223-1.354zM24 9.31h-9.165L12.005.589l-2.84 8.723L0 9.3l7.422 5.397-2.84 8.714 7.422-5.388 4.583-3.326L24 9.311z"/></svg>
@@ -2426,6 +2430,7 @@ let activityIcons = {
   passkey_registered: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/><path d="M12 17v3"/><path d="M15 7l-3 3-2-2"/><path d="M18.5 8.5a2.121 2.121 0 0 1-3 3"/></svg>',
   email_verified: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><path d="M9 12l2 2 4-4"/></svg>',
   passkey_deleted: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/><path d="M12 17v3"/><path d="M9.5 7.5L14.5 12.5"/><path d="M14.5 7.5L9.5 12.5"/></svg>',
+  passkey_renamed: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/><path d="M12 17v3"/><path d="M13.5 7.5l1.5 1.5-4 4H9v-2l4.5-4.5z"/></svg>',
   totp_enabled: '<i data-lucide="shield-check" style="width:14px;height:14px;color:#059669"></i>',
   totp_disabled: '<i data-lucide="shield-off" style="width:14px;height:14px;color:#ef4444"></i>',
   login_totp: '<i data-lucide="shield" style="width:14px;height:14px;color:#0ea5e9"></i>',
@@ -2465,6 +2470,7 @@ function getActionLabel(action) {
     passkey_registered: 'Passkey registered',
     email_verified: 'Email verified',
     passkey_deleted: 'Passkey deleted',
+    passkey_renamed: 'Passkey renamed',
     totp_enabled: 'Two-factor authentication enabled',
     totp_disabled: 'Two-factor authentication disabled',
     login_totp: 'Signed in with 2FA code',
@@ -3599,24 +3605,81 @@ async function loadPasskeys() {
     }
     list.innerHTML = data.passkeys.map(p => html`
       <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg-secondary);border-radius:var(--radius-sm);margin-bottom:8px">
-        <div style="display:flex;align-items:center;gap:10px">
-          <i data-lucide="fingerprint" style="width:18px;height:18px;color:var(--accent-1)"></i>
-          <div>
-            <div style="font-size:0.9rem;font-weight:500">${p.name || 'Passkey'}</div>
+        <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+          <i data-lucide="fingerprint" style="width:18px;height:18px;color:var(--accent-1);flex-shrink:0"></i>
+          <div style="flex:1;min-width:0">
+            <div class="passkey-name-row" style="display:flex;align-items:center;gap:6px;cursor:pointer" data-passkey-id="${p.id}">
+              <span class="passkey-name-text" style="font-size:0.9rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(p.name || 'Passkey')}</span>
+              <i data-lucide="pencil" style="width:12px;height:12px;color:var(--text-muted);flex-shrink:0;opacity:0.5"></i>
+            </div>
             <div style="font-size:0.75rem;color:var(--text-muted)">${formatDate(p.created_at)}</div>
           </div>
         </div>
-        <button class="btn btn-danger btn-sm" data-passkey-id="${p.id}" style="width:auto;padding:6px 12px;font-size:0.8rem">Delete</button>
+        <button class="btn btn-danger btn-sm" data-passkey-id="${p.id}" style="width:auto;padding:6px 12px;font-size:0.8rem;flex-shrink:0;margin-left:8px">Delete</button>
       </div>
     `).join('');
     list.querySelectorAll('[data-passkey-id]').forEach(btn => {
-      btn.addEventListener('click', () => handleDeletePasskey(btn.dataset.passkeyId));
+      if (btn.tagName === 'BUTTON') {
+        btn.addEventListener('click', () => handleDeletePasskey(btn.dataset.passkeyId));
+      }
+    });
+    list.querySelectorAll('.passkey-name-row').forEach(row => {
+      row.addEventListener('click', (e) => {
+        e.stopPropagation();
+        startRenamePasskey(row);
+      });
     });
     initIcons();
   } catch (err) {
     const list = $('#passkey-list');
     if (list) list.innerHTML = `<p style="color:var(--accent-red);font-size:0.85rem">Failed to load passkeys: ${escapeHtml(err.message)}</p>`;
   }
+}
+
+async function startRenamePasskey(row) {
+  const id = row.dataset.passkeyId;
+  const textEl = row.querySelector('.passkey-name-text');
+  const currentName = textEl.textContent;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = currentName;
+  input.maxLength = 255;
+  input.style.cssText = 'font-size:0.9rem;font-weight:500;padding:2px 6px;border:1px solid var(--accent-1);border-radius:4px;background:var(--bg-primary);color:var(--text-primary);outline:none;width:100%;min-width:60px';
+
+  textEl.replaceWith(input);
+  input.focus();
+  input.select();
+
+  const finish = async (save) => {
+    if (save) {
+      const newName = input.value.trim();
+      if (newName && newName !== currentName) {
+        try {
+          await api(`/auth/passkeys/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ name: newName }),
+          });
+          showToast('Passkey renamed', 'success');
+          loadPasskeys();
+          return;
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
+      }
+    }
+    const span = document.createElement('span');
+    span.className = 'passkey-name-text';
+    span.style.cssText = 'font-size:0.9rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+    span.textContent = currentName;
+    input.replaceWith(span);
+  };
+
+  input.addEventListener('blur', () => finish(true));
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+  });
 }
 
 async function handleRegisterPasskey() {

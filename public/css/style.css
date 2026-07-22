@@ -3688,6 +3688,7 @@ tbody tr:hover {
 .activity-icon-passkey_registered { background: rgba(6,182,212,0.15); color: #06b6d4; }
 .activity-icon-email_verified { background: rgba(5,150,105,0.15); color: #059669; }
 .activity-icon-passkey_deleted { background: rgba(239,68,68,0.15); color: #ef4444; }
+.activity-icon-passkey_renamed { background: rgba(245,158,11,0.15); color: #f59e0b; }
 .activity-icon-totp_enabled { background: rgba(5,150,105,0.15); color: #059669; }
 .activity-icon-totp_disabled { background: rgba(239,68,68,0.15); color: #ef4444; }
 .activity-icon-login_totp { background: rgba(14,165,233,0.15); color: #0ea5e9; }
