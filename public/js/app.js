@@ -344,6 +344,14 @@ function hideError(form) {
   if (errorEl) errorEl.classList.remove('show');
 }
 
+function renderMarkdown(text) {
+  if (!text) return '';
+  let html = escapeHtml(text);
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  return html;
+}
+
 const NOTIF_ICONS = {
   success: '<i data-lucide="check-circle" class="notif-icon"></i>',
   error: '<i data-lucide="x-circle" class="notif-icon"></i>',
@@ -394,7 +402,7 @@ function showNotifDetailModal(notif) {
           <i data-lucide="x" style="width:20px;height:20px"></i>
         </button>
       </div>
-      <div class="notif-view-modal-body">${escapeHtml(notif.message)}</div>
+      <div class="notif-view-modal-body">${renderMarkdown(notif.message)}</div>
     </div>
   `;
   document.body.appendChild(overlay);
@@ -428,7 +436,7 @@ function renderNotifications() {
       <div class="notif-item-icon notif-${n.type}">${NOTIF_ICONS[n.type] || NOTIF_ICONS.info}</div>
       <div class="notif-item-body">
         <div class="notif-item-title">${escapeHtml(n.title)}</div>
-        <div class="notif-item-msg">${escapeHtml(n.message)}</div>
+        <div class="notif-item-msg">${renderMarkdown(n.message)}</div>
         <div class="notif-item-time">${timeAgo(n.created_at)}</div>
       </div>
       ${n.is_read ? '' : '<div class="notif-dot"></div>'}
@@ -1654,7 +1662,7 @@ async function renderDashboard() {
           <div style="padding:8px 12px 0;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
 
           </div>
-          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v1.2.6</div>
+          <div style="padding:4px 0 8px;text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em">v1.2.7</div>
         </div>
         <div class="sidebar-resizer" id="sidebar-resizer"></div>
       </aside>
