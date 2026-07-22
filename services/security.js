@@ -4,7 +4,7 @@ import { randomBytes } from 'crypto';
 import { resolve } from 'path';
 import { readFile } from 'fs/promises';
 
-const dnsResolver = new dns.promises.Resolver();
+const dnsResolver = new dns.promises.Resolver({ timeout: 3000, tries: 1 });
 dnsResolver.setServers(['1.1.1.1', '8.8.8.8']);
 
 const DISPOSABLE_DOMAINS_URL = 'https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/master/disposable_email_blocklist.conf';
