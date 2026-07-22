@@ -2430,6 +2430,7 @@ let activityIcons = {
   passkey_registered: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/><path d="M12 17v3"/><path d="M15 7l-3 3-2-2"/><path d="M18.5 8.5a2.121 2.121 0 0 1-3 3"/></svg>',
   email_verified: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><path d="M9 12l2 2 4-4"/></svg>',
   passkey_deleted: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/><path d="M12 17v3"/><path d="M9.5 7.5L14.5 12.5"/><path d="M14.5 7.5L9.5 12.5"/></svg>',
+  passkey_renamed: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/><path d="M12 17v3"/><path d="M13.5 7.5l1.5 1.5-4 4H9v-2l4.5-4.5z"/></svg>',
   totp_enabled: '<i data-lucide="shield-check" style="width:14px;height:14px;color:#059669"></i>',
   totp_disabled: '<i data-lucide="shield-off" style="width:14px;height:14px;color:#ef4444"></i>',
   login_totp: '<i data-lucide="shield" style="width:14px;height:14px;color:#0ea5e9"></i>',
@@ -2469,6 +2470,7 @@ function getActionLabel(action) {
     passkey_registered: 'Passkey registered',
     email_verified: 'Email verified',
     passkey_deleted: 'Passkey deleted',
+    passkey_renamed: 'Passkey renamed',
     totp_enabled: 'Two-factor authentication enabled',
     totp_disabled: 'Two-factor authentication disabled',
     login_totp: 'Signed in with 2FA code',
@@ -3603,24 +3605,81 @@ async function loadPasskeys() {
     }
     list.innerHTML = data.passkeys.map(p => html`
       <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg-secondary);border-radius:var(--radius-sm);margin-bottom:8px">
-        <div style="display:flex;align-items:center;gap:10px">
-          <i data-lucide="fingerprint" style="width:18px;height:18px;color:var(--accent-1)"></i>
-          <div>
-            <div style="font-size:0.9rem;font-weight:500">${p.name || 'Passkey'}</div>
+        <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+          <i data-lucide="fingerprint" style="width:18px;height:18px;color:var(--accent-1);flex-shrink:0"></i>
+          <div style="flex:1;min-width:0">
+            <div class="passkey-name-row" style="display:flex;align-items:center;gap:6px;cursor:pointer" data-passkey-id="${p.id}">
+              <span class="passkey-name-text" style="font-size:0.9rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(p.name || 'Passkey')}</span>
+              <i data-lucide="pencil" style="width:12px;height:12px;color:var(--text-muted);flex-shrink:0;opacity:0.5"></i>
+            </div>
             <div style="font-size:0.75rem;color:var(--text-muted)">${formatDate(p.created_at)}</div>
           </div>
         </div>
-        <button class="btn btn-danger btn-sm" data-passkey-id="${p.id}" style="width:auto;padding:6px 12px;font-size:0.8rem">Delete</button>
+        <button class="btn btn-danger btn-sm" data-passkey-id="${p.id}" style="width:auto;padding:6px 12px;font-size:0.8rem;flex-shrink:0;margin-left:8px">Delete</button>
       </div>
     `).join('');
     list.querySelectorAll('[data-passkey-id]').forEach(btn => {
-      btn.addEventListener('click', () => handleDeletePasskey(btn.dataset.passkeyId));
+      if (btn.tagName === 'BUTTON') {
+        btn.addEventListener('click', () => handleDeletePasskey(btn.dataset.passkeyId));
+      }
+    });
+    list.querySelectorAll('.passkey-name-row').forEach(row => {
+      row.addEventListener('click', (e) => {
+        e.stopPropagation();
+        startRenamePasskey(row);
+      });
     });
     initIcons();
   } catch (err) {
     const list = $('#passkey-list');
     if (list) list.innerHTML = `<p style="color:var(--accent-red);font-size:0.85rem">Failed to load passkeys: ${escapeHtml(err.message)}</p>`;
   }
+}
+
+async function startRenamePasskey(row) {
+  const id = row.dataset.passkeyId;
+  const textEl = row.querySelector('.passkey-name-text');
+  const currentName = textEl.textContent;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = currentName;
+  input.maxLength = 255;
+  input.style.cssText = 'font-size:0.9rem;font-weight:500;padding:2px 6px;border:1px solid var(--accent-1);border-radius:4px;background:var(--bg-primary);color:var(--text-primary);outline:none;width:100%;min-width:60px';
+
+  textEl.replaceWith(input);
+  input.focus();
+  input.select();
+
+  const finish = async (save) => {
+    if (save) {
+      const newName = input.value.trim();
+      if (newName && newName !== currentName) {
+        try {
+          await api(`/auth/passkeys/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ name: newName }),
+          });
+          showToast('Passkey renamed', 'success');
+          loadPasskeys();
+          return;
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
+      }
+    }
+    const span = document.createElement('span');
+    span.className = 'passkey-name-text';
+    span.style.cssText = 'font-size:0.9rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+    span.textContent = currentName;
+    input.replaceWith(span);
+  };
+
+  input.addEventListener('blur', () => finish(true));
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+  });
 }
 
 async function handleRegisterPasskey() {

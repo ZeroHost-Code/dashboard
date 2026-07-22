@@ -29,6 +29,7 @@ const actionLabels = [
   { pattern: /^POST \/api\/auth\/passkeys\/login\/begin$/, label: 'Début de connexion par passkey' },
   { pattern: /^POST \/api\/auth\/passkeys\/login\/complete$/, label: 'Connexion par passkey' },
   { pattern: /^GET \/api\/auth\/passkeys$/, label: 'Liste des passkeys' },
+  { pattern: /^PATCH \/api\/auth\/passkeys\/\d+$/, label: 'Renommage de passkey' },
   { pattern: /^DELETE \/api\/auth\/passkeys\/\d+$/, label: 'Suppression de passkey' },
 
   // TOTP
