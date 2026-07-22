@@ -6,6 +6,7 @@ import { readFile } from 'fs/promises';
 const DISPOSABLE_DOMAINS_URL = 'https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/master/disposable_email_blocklist.conf';
 const LOCAL_DISPOSABLE_DOMAINS = new Set([
   'ztzt.net',
+  'besteya.com',
 ]);
 let disposableDomainsCache = null;
 let disposableDomainsTimestamp = 0;
