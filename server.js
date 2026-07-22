@@ -73,6 +73,9 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: false, limit: '1mb' }));
+
 app.use('/api', advancedBotProtection());
 app.use('/api', browserIntegrityCheck());
 app.use('/api', vpnProxyProtection());
@@ -137,9 +140,6 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/') && !['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
