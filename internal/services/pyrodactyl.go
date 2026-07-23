@@ -239,14 +239,19 @@ func GetEgg(nestID, eggID int64) (map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	var resp pteroResponse
-	if err := json.Unmarshal(b, &resp); err != nil {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(b, &raw); err != nil {
 		return nil, err
 	}
-	var attrs map[string]interface{}
-	json.Unmarshal(resp.Attributes, &attrs)
 
-	if rels, ok := attrs["relationships"].(map[string]interface{}); ok {
+	var attrs map[string]interface{}
+	if a, ok := raw["attributes"].(map[string]interface{}); ok {
+		attrs = a
+	} else {
+		return nil, fmt.Errorf("unexpected egg response format")
+	}
+
+	if rels, ok := raw["relationships"].(map[string]interface{}); ok {
 		if vars, ok := rels["variables"].(map[string]interface{}); ok {
 			if data, ok := vars["data"].([]interface{}); ok {
 				envMap := make(map[string]interface{})
