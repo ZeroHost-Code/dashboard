@@ -2,6 +2,7 @@ package routes
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -286,9 +287,14 @@ func (h *ServerHandler) CreateServer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	env := make(map[string]interface{})
-	if eggVars, ok := egg["environment"].(map[string]interface{}); ok {
-		for k, v := range eggVars {
-			env[k] = v
+	panelDB := services.PanelDBName
+	rowVars, _ := database.DB.Query(fmt.Sprintf("SELECT env_variable, default_value FROM %s.egg_variables WHERE egg_id = ?", panelDB), body.EggID)
+	if rowVars != nil {
+		defer rowVars.Close()
+		for rowVars.Next() {
+			var envVar, defaultVal string
+			rowVars.Scan(&envVar, &defaultVal)
+			env[envVar] = defaultVal
 		}
 	}
 
