@@ -1,9 +1,12 @@
 package config
 
 import (
+	"log"
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -33,6 +36,10 @@ type Config struct {
 }
 
 func Load() *Config {
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using system environment variables")
+	}
+
 	requiredVars := []string{"JWT_SECRET", "DB_HOST", "DB_USER", "DB_PASSWORD", "DB_NAME", "CAP_SECRET", "CAP_ENDPOINT", "COOKIE_SECRET"}
 	var missing []string
 	for _, v := range requiredVars {
