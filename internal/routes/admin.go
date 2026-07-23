@@ -218,8 +218,6 @@ func (h *AdminHandler) AdminCheck(w http.ResponseWriter, r *http.Request) {
 func (h *AdminHandler) ListAdminServers(w http.ResponseWriter, r *http.Request) {
 	limitStr := r.URL.Query().Get("limit")
 	offsetStr := r.URL.Query().Get("offset")
-	search := r.URL.Query().Get("search")
-
 	var limit, offset int
 	if l, err := strconv.Atoi(limitStr); err == nil {
 		limit = l
