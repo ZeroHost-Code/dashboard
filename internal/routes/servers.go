@@ -287,14 +287,22 @@ func (h *ServerHandler) CreateServer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	env := make(map[string]interface{})
-	panelDB := services.PanelDBName
-	rowVars, _ := database.DB.Query(fmt.Sprintf("SELECT env_variable, default_value FROM %s.egg_variables WHERE egg_id = ?", panelDB), body.EggID)
-	if rowVars != nil {
-		defer rowVars.Close()
-		for rowVars.Next() {
-			var envVar, defaultVal string
-			rowVars.Scan(&envVar, &defaultVal)
-			env[envVar] = defaultVal
+	if eggVars, ok := egg["environment"].(map[string]interface{}); ok {
+		for k, v := range eggVars {
+			env[k] = v
+		}
+	} else {
+		panelDB := services.PanelDBName
+		rowVars, err := database.DB.Query(fmt.Sprintf("SELECT env_variable, default_value FROM %s.egg_variables WHERE egg_id = ?", panelDB), body.EggID)
+		if err != nil {
+			log.Printf("Failed to query egg variables from %s.egg_variables: %v", panelDB, err)
+		} else if rowVars != nil {
+			defer rowVars.Close()
+			for rowVars.Next() {
+				var envVar, defaultVal string
+				rowVars.Scan(&envVar, &defaultVal)
+				env[envVar] = defaultVal
+			}
 		}
 	}
 

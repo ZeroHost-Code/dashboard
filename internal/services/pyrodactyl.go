@@ -235,16 +235,40 @@ func getNode(nodeID int64) (map[string]interface{}, error) {
 }
 
 func GetEgg(nestID, eggID int64) (map[string]interface{}, error) {
-	b, err := pteroFetch("GET", fmt.Sprintf("/nests/%d/eggs/%d", nestID, eggID), nil)
+	b, err := pteroFetch("GET", fmt.Sprintf("/nests/%d/eggs/%d?include=variables", nestID, eggID), nil)
 	if err != nil {
 		return nil, err
 	}
-	var resp pteroResponse
-	if err := json.Unmarshal(b, &resp); err != nil {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(b, &raw); err != nil {
 		return nil, err
 	}
 	var attrs map[string]interface{}
-	json.Unmarshal(resp.Attributes, &attrs)
+	if a, ok := raw["attributes"].(map[string]interface{}); ok {
+		attrs = a
+	} else {
+		return nil, fmt.Errorf("unexpected egg response format")
+	}
+
+	if rels, ok := raw["relationships"].(map[string]interface{}); ok {
+		if vars, ok := rels["variables"].(map[string]interface{}); ok {
+			if data, ok := vars["data"].([]interface{}); ok {
+				envMap := make(map[string]interface{})
+				for _, item := range data {
+					if entry, ok := item.(map[string]interface{}); ok {
+						if varAttrs, ok := entry["attributes"].(map[string]interface{}); ok {
+							envVar, _ := varAttrs["env_variable"].(string)
+							defaultVal, _ := varAttrs["default_value"].(string)
+							if envVar != "" {
+								envMap[envVar] = defaultVal
+							}
+						}
+					}
+				}
+				attrs["environment"] = envMap
+			}
+		}
+	}
 	return attrs, nil
 }
 
