@@ -22,6 +22,7 @@ func SecurityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("X-DNS-Prefetch-Control", "off")
 		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com; style-src 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' https://img.zero-host.org data:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://cap.zero-host.org; frame-src blob:; worker-src blob:; base-uri 'self'; form-action 'self'")
 		next.ServeHTTP(w, r)
 	})
 }
