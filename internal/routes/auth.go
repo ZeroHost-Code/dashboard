@@ -3,6 +3,8 @@ package routes
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -24,6 +26,58 @@ var (
 	loginAttempts   = make(map[string]*loginEntry)
 	loginMu         sync.Mutex
 )
+
+func verifyPassword(password, storedHash string) bool {
+	if strings.HasPrefix(storedHash, "$argon2id$") {
+		return verifyArgon2id(password, storedHash)
+	}
+	parts := strings.SplitN(storedHash, ":", 2)
+	if len(parts) != 2 {
+		return false
+	}
+	salt, err := hex.DecodeString(parts[0])
+	if err != nil {
+		return false
+	}
+	expected, err := hex.DecodeString(parts[1])
+	if err != nil {
+		return false
+	}
+	computed := argon2.IDKey([]byte(password), salt, 3, 65536, 4, 32)
+	return subtle.ConstantTimeCompare(computed, expected) == 1
+}
+
+func verifyArgon2id(password, encoded string) bool {
+	parts := strings.Split(encoded, "$")
+	if len(parts) < 5 {
+		return false
+	}
+	params := parts[3]
+	saltB64 := parts[4]
+	hashB64 := parts[5]
+
+	var memory, timeCost, threads int
+	fmt.Sscanf(params, "v=19$m=%d,t=%d,p=%d", &memory, &timeCost, &threads)
+
+	salt, err := base64.RawStdEncoding.DecodeString(saltB64)
+	if err != nil {
+		salt, err = base64.StdEncoding.DecodeString(saltB64)
+		if err != nil {
+			return false
+		}
+	}
+
+	expected, err := base64.RawStdEncoding.DecodeString(hashB64)
+	if err != nil {
+		expected, err = base64.StdEncoding.DecodeString(hashB64)
+		if err != nil {
+			return false
+		}
+	}
+
+	computed := argon2.IDKey([]byte(password), salt, uint32(timeCost), uint32(memory), uint8(threads), uint32(len(expected)))
+	return subtle.ConstantTimeCompare(computed, expected) == 1
+}
 
 type loginEntry struct {
 	Count        int
@@ -329,15 +383,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parts := strings.SplitN(user.PasswordHash, ":", 2)
-	if len(parts) != 2 {
-		jsonError(w, "Invalid email or password", http.StatusUnauthorized)
-		return
-	}
-	salt, _ := hex.DecodeString(parts[0])
-	expectedHash, _ := hex.DecodeString(parts[1])
-	computedHash := argon2.IDKey([]byte(body.Password), salt, 3, 65536, 4, 32)
-	if !hmacEqual(computedHash, expectedHash) {
+	if !verifyPassword(body.Password, user.PasswordHash) {
 		recordLoginAttempt(ip, false)
 		jsonError(w, "Invalid email or password", http.StatusUnauthorized)
 		return
@@ -404,17 +450,6 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func hmacEqual(a, b []byte) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	result := 0
-	for i := range a {
-		result |= int(a[i]) ^ int(b[i])
-	}
-	return result == 0
-}
-
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	user := middleware.GetUser(r)
 	if user != nil {
@@ -450,15 +485,7 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parts := strings.SplitN(hash, ":", 2)
-	if len(parts) != 2 {
-		jsonError(w, "Authentication failed", http.StatusInternalServerError)
-		return
-	}
-	salt, _ := hex.DecodeString(parts[0])
-	expectedHash, _ := hex.DecodeString(parts[1])
-	computedHash := argon2.IDKey([]byte(body.CurrentPassword), salt, 3, 65536, 4, 32)
-	if !hmacEqual(computedHash, expectedHash) {
+	if !verifyPassword(body.CurrentPassword, hash) {
 		jsonError(w, "Current password is incorrect", http.StatusUnauthorized)
 		return
 	}
@@ -511,15 +538,7 @@ func (h *AuthHandler) ChangeEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parts := strings.SplitN(hash, ":", 2)
-	if len(parts) != 2 {
-		jsonError(w, "Authentication failed", http.StatusInternalServerError)
-		return
-	}
-	salt, _ := hex.DecodeString(parts[0])
-	expectedHash, _ := hex.DecodeString(parts[1])
-	computedHash := argon2.IDKey([]byte(body.Password), salt, 3, 65536, 4, 32)
-	if !hmacEqual(computedHash, expectedHash) {
+	if !verifyPassword(body.Password, hash) {
 		jsonError(w, "Password is incorrect", http.StatusUnauthorized)
 		return
 	}
@@ -692,15 +711,7 @@ func (h *AuthHandler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parts := strings.SplitN(hash, ":", 2)
-	if len(parts) != 2 {
-		jsonError(w, "Authentication failed", http.StatusInternalServerError)
-		return
-	}
-	salt, _ := hex.DecodeString(parts[0])
-	expectedHash, _ := hex.DecodeString(parts[1])
-	computedHash := argon2.IDKey([]byte(body.Password), salt, 3, 65536, 4, 32)
-	if !hmacEqual(computedHash, expectedHash) {
+	if !verifyPassword(body.Password, hash) {
 		jsonError(w, "Password is incorrect", http.StatusUnauthorized)
 		return
 	}

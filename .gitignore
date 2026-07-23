@@ -34,3 +34,6 @@ uploads/
 # Secrets (if any local dump)
 *.pem
 *.key
+
+# Go binary
+server
