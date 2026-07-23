@@ -107,7 +107,7 @@ func (h *ServerHandler) GetNests(w http.ResponseWriter, r *http.Request) {
 		var unavail bool
 		rows.Scan(&id, &name, &logo, &desc, &unavail)
 		dbNests = append(dbNests, map[string]interface{}{
-			"ptero_nest_id": id, "name": name, "logo": logo,
+			"pteroNestId": id, "name": name, "logo": logo,
 			"description": desc, "unavailable": unavail,
 		})
 		nestIDs = append(nestIDs, id)
@@ -163,7 +163,7 @@ func (h *ServerHandler) GetNests(w http.ResponseWriter, r *http.Request) {
 
 	var result []map[string]interface{}
 	for _, n := range dbNests {
-		nid, _ := n["ptero_nest_id"].(int64)
+		nid, _ := n["pteroNestId"].(int64)
 		n["eggs"] = nestEggs[nid]
 		if n["eggs"] == nil {
 			n["eggs"] = []interface{}{}
