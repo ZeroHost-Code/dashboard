@@ -20,6 +20,7 @@ func RegisterAdminRoutes(r chi.Router) {
 	h := &AdminHandler{}
 
 	r.Post("/admin/login", http.HandlerFunc(h.AdminLogin))
+	r.Get("/admin/check", middleware.RequireAdmin(http.HandlerFunc(h.AdminCheck)))
 	r.Get("/admin/servers", middleware.RequireAdmin(http.HandlerFunc(h.ListAdminServers)))
 	r.Get("/admin/servers/{id}", middleware.RequireAdmin(http.HandlerFunc(h.GetAdminServer)))
 	r.Delete("/admin/servers/{id}", middleware.RequireAdmin(http.HandlerFunc(h.DeleteAdminServer)))
@@ -180,6 +181,18 @@ func (h *AdminHandler) AdminLogin(w http.ResponseWriter, r *http.Request) {
 			"restricted":    user.Restricted,
 			"emailVerified": user.EmailVerified,
 			"gravatarHash":  gravatarHash(user.Email),
+		},
+	})
+}
+
+func (h *AdminHandler) AdminCheck(w http.ResponseWriter, r *http.Request) {
+	user := middleware.GetUser(r)
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"user": map[string]interface{}{
+			"id":        user.UserID,
+			"email":     user.Email,
+			"username":  user.Username,
+			"isAdmin":   user.IsAdmin,
 		},
 	})
 }

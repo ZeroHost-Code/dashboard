@@ -321,6 +321,7 @@ async function handleAdminLogin(e) {
     let data;
     try { data = JSON.parse(text); } catch { throw new Error('Server error.'); }
     if (!res.ok) throw new Error(data.error || 'Invalid credentials.');
+    if (!data.user?.isAdmin) throw new Error('Admin access required.');
     adminState.token = data.token;
     adminState.user = data.user;
     localStorage.setItem(ADMIN_STORAGE_KEY, data.token);
