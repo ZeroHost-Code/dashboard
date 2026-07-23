@@ -258,8 +258,7 @@ func (h *AdminHandler) ListAdminServers(w http.ResponseWriter, r *http.Request) 
 		if suspended, ok := s["suspended"].(bool); ok && suspended {
 			status = "suspended"
 		}
-		installed, _ := s["installed"].(float64)
-		if installed == 0 {
+		if isNotInstalled(s["installed"]) {
 			status = "installing"
 		}
 		egg, _ := s["egg"].(float64)
@@ -287,7 +286,7 @@ func (h *AdminHandler) ListAdminServers(w http.ResponseWriter, r *http.Request) 
 			Name:       name,
 			Identifier: identifier,
 			Status:     status,
-			Installed:  installed,
+			Installed:  s["installed"],
 			Egg:        egg,
 			EggDetails: eggDetails,
 			Owner:      owner,
@@ -357,7 +356,7 @@ func (h *AdminHandler) GetAdminServer(w http.ResponseWriter, r *http.Request) {
 		if suspended {
 			panelStatus = "suspended"
 		}
-		if inst, ok := server["installed"].(float64); ok && inst == 0 {
+		if isNotInstalled(server["installed"]) {
 			panelStatus = "installing"
 		}
 		serverMeta = map[string]interface{}{
@@ -485,10 +484,10 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 
 	if search != "" {
 		database.DB.QueryRow("SELECT COUNT(*) FROM users WHERE username LIKE ? OR email LIKE ?", "%"+search+"%", "%"+search+"%").Scan(&totalCount)
-		rows, err = database.DB.Query("SELECT id, username, email, ptero_id, restricted, is_admin, email_verified, created_at FROM users WHERE username LIKE ? OR email LIKE ? ORDER BY created_at DESC LIMIT ? OFFSET ?", "%"+search+"%", "%"+search+"%", limit, offset)
+		rows, err = database.DB.Query("SELECT id, username, email, ptero_user_id, restricted, is_admin, email_verified, created_at FROM users WHERE username LIKE ? OR email LIKE ? ORDER BY created_at DESC LIMIT ? OFFSET ?", "%"+search+"%", "%"+search+"%", limit, offset)
 	} else {
 		database.DB.QueryRow("SELECT COUNT(*) FROM users").Scan(&totalCount)
-		rows, err = database.DB.Query("SELECT id, username, email, ptero_id, restricted, is_admin, email_verified, created_at FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?", limit, offset)
+		rows, err = database.DB.Query("SELECT id, username, email, ptero_user_id, restricted, is_admin, email_verified, created_at FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?", limit, offset)
 	}
 
 	if err != nil {
@@ -1419,6 +1418,21 @@ func boolVal(p *bool, def bool) bool {
 		return def
 	}
 	return *p
+}
+
+func isNotInstalled(v interface{}) bool {
+	if v == nil {
+		return false
+	}
+	switch val := v.(type) {
+	case float64:
+		return val == 0
+	case bool:
+		return !val
+	case string:
+		return val == "0" || val == "false"
+	}
+	return false
 }
 
 func (h *AdminHandler) AdminStats(w http.ResponseWriter, r *http.Request) {
