@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -18,6 +19,7 @@ type AdminHandler struct{}
 func RegisterAdminRoutes(r chi.Router) {
 	h := &AdminHandler{}
 
+	r.Post("/admin/login", http.HandlerFunc(h.AdminLogin))
 	r.Get("/admin/servers", middleware.RequireAdmin(http.HandlerFunc(h.ListAdminServers)))
 	r.Get("/admin/servers/{id}", middleware.RequireAdmin(http.HandlerFunc(h.GetAdminServer)))
 	r.Delete("/admin/servers/{id}", middleware.RequireAdmin(http.HandlerFunc(h.DeleteAdminServer)))
@@ -43,6 +45,143 @@ func RegisterAdminRoutes(r chi.Router) {
 	r.Get("/admin/logs", middleware.RequireAdmin(http.HandlerFunc(h.GetLogs)))
 	r.Get("/admin/settings", middleware.RequireAdmin(http.HandlerFunc(h.GetSettings)))
 	r.Put("/admin/settings", middleware.RequireAdmin(http.HandlerFunc(h.UpdateSettings)))
+}
+
+func (h *AdminHandler) AdminLogin(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+		CapToken string `json:"capToken"`
+	}
+	json.NewDecoder(r.Body).Decode(&body)
+
+	if body.Email == "" || body.Password == "" {
+		jsonError(w, "Email and password are required", http.StatusBadRequest)
+		return
+	}
+
+	ip := getClientIP(r)
+	ua := r.Header.Get("User-Agent")
+
+	vpnResult := services.DetectVPNProxy(ip)
+	if isVpn, _ := vpnResult["isVpn"].(bool); isVpn {
+		recordLoginAttempt(ip, false)
+		jsonError(w, "VPN, proxy, or Tor detected. Please disable them for security reasons.", http.StatusForbidden)
+		return
+	}
+
+	if !verifyCap(body.CapToken) {
+		recordLoginAttempt(ip, false)
+		jsonError(w, "Please complete the security check", http.StatusBadRequest)
+		return
+	}
+
+	delay := getLoginDelay(ip)
+	if delay > 0 {
+		time.Sleep(time.Duration(delay) * time.Millisecond)
+	}
+
+	var user struct {
+		ID             int64
+		Email          string
+		Username       string
+		PasswordHash   string
+		PteroUserID    *int64
+		FirstName      *string
+		LastName       *string
+		IsAdmin        bool
+		Restricted     bool
+		EmailVerified  bool
+		AuthRestricted bool
+		TOTPEnabled    bool
+		TokenVersion   int
+	}
+	err := database.DB.QueryRow(
+		"SELECT id, email, username, password_hash, ptero_user_id, first_name, last_name, is_admin, restricted, email_verified, auth_restricted, totp_enabled, token_version FROM users WHERE email = ?",
+		body.Email,
+	).Scan(&user.ID, &user.Email, &user.Username, &user.PasswordHash, &user.PteroUserID, &user.FirstName, &user.LastName, &user.IsAdmin, &user.Restricted, &user.EmailVerified, &user.AuthRestricted, &user.TOTPEnabled, &user.TokenVersion)
+	if err != nil {
+		recordLoginAttempt(ip, false)
+		jsonError(w, "Invalid email or password", http.StatusUnauthorized)
+		return
+	}
+
+	if !user.IsAdmin {
+		recordLoginAttempt(ip, false)
+		jsonError(w, "Admin access required", http.StatusForbidden)
+		return
+	}
+
+	if user.AuthRestricted {
+		jsonError(w, "Your account has been restricted. Contact support for assistance.", http.StatusForbidden)
+		return
+	}
+
+	if !verifyPassword(body.Password, user.PasswordHash) {
+		recordLoginAttempt(ip, false)
+		jsonError(w, "Invalid email or password", http.StatusUnauthorized)
+		return
+	}
+
+	if !user.EmailVerified {
+		recordLoginAttempt(ip, false)
+		jsonError(w, "Please verify your email before signing in.", http.StatusForbidden)
+		return
+	}
+
+	if user.TOTPEnabled {
+		tempToken, _ := middleware.GenerateToken(middleware.UserClaims{
+			UserID:   user.ID,
+			TOTPTemp: true,
+		})
+		recordLoginAttempt(ip, true)
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"needsTotp": true,
+			"tempToken": tempToken,
+		})
+		return
+	}
+
+	recordLoginAttempt(ip, true)
+	database.DB.Exec("UPDATE users SET user_agent = ? WHERE id = ?", ua, user.ID)
+	database.DB.Exec("INSERT INTO user_ips (user_id, ip_address, user_agent) VALUES (?, ?, ?)", user.ID, ip, ua)
+
+	firstName := ""
+	lastName := ""
+	if user.FirstName != nil {
+		firstName = *user.FirstName
+	}
+	if user.LastName != nil {
+		lastName = *user.LastName
+	}
+
+	token, _ := middleware.GenerateToken(middleware.UserClaims{
+		UserID:       user.ID,
+		Email:        user.Email,
+		Username:     user.Username,
+		PteroID:      user.PteroUserID,
+		IsAdmin:      user.IsAdmin,
+		Restricted:   user.Restricted,
+		TokenVersion: user.TokenVersion,
+	})
+
+	setCookie(w, "token", token, 2*time.Hour)
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"token": token,
+		"user": map[string]interface{}{
+			"id":            user.ID,
+			"email":         user.Email,
+			"username":      user.Username,
+			"pteroId":       user.PteroUserID,
+			"firstName":     firstName,
+			"lastName":      lastName,
+			"isAdmin":       user.IsAdmin,
+			"restricted":    user.Restricted,
+			"emailVerified": user.EmailVerified,
+			"gravatarHash":  gravatarHash(user.Email),
+		},
+	})
 }
 
 func (h *AdminHandler) ListAdminServers(w http.ResponseWriter, r *http.Request) {
