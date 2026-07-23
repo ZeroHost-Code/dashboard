@@ -308,14 +308,19 @@ async function handleAdminLogin(e) {
   try {
     const capWidget = $a('#admin-login-form cap-widget');
     const capToken = capWidget?.token || '';
-    const data = await adminApi('/login', {
+    const res = await fetch('/api/auth/login', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: $a('#admin-email').value,
         password: $a('#admin-password').value,
         capToken,
       }),
     });
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { throw new Error('Server error.'); }
+    if (!res.ok) throw new Error(data.error || 'Invalid credentials.');
     adminState.token = data.token;
     adminState.user = data.user;
     localStorage.setItem(ADMIN_STORAGE_KEY, data.token);
