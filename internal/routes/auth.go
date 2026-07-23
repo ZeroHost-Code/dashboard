@@ -49,7 +49,7 @@ func verifyPassword(password, storedHash string) bool {
 
 func verifyArgon2id(password, encoded string) bool {
 	parts := strings.Split(encoded, "$")
-	if len(parts) < 5 {
+	if len(parts) < 6 {
 		return false
 	}
 	params := parts[3]
@@ -57,7 +57,10 @@ func verifyArgon2id(password, encoded string) bool {
 	hashB64 := parts[5]
 
 	var memory, timeCost, threads int
-	fmt.Sscanf(params, "v=19$m=%d,t=%d,p=%d", &memory, &timeCost, &threads)
+	fmt.Sscanf(params, "m=%d,t=%d,p=%d", &memory, &timeCost, &threads)
+	if timeCost < 1 || memory < 1 || threads < 1 {
+		return false
+	}
 
 	salt, err := base64.RawStdEncoding.DecodeString(saltB64)
 	if err != nil {
