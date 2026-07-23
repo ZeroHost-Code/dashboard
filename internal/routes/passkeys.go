@@ -21,8 +21,9 @@ func RegisterPasskeyRoutes(r chi.Router) {
 	r.Get("/passkeys", middleware.AuthenticateToken(http.HandlerFunc(h.ListPasskeys)))
 	r.Post("/passkeys/register/begin", middleware.AuthenticateToken(http.HandlerFunc(h.BeginRegistration)))
 	r.Post("/passkeys/register/complete", middleware.AuthenticateToken(http.HandlerFunc(h.CompleteRegistration)))
-	r.Post("/passkeys/authenticate/begin", middleware.AuthenticateToken(http.HandlerFunc(h.BeginAuthentication)))
-	r.Post("/passkeys/authenticate/complete", middleware.AuthenticateToken(http.HandlerFunc(h.CompleteAuthentication)))
+	r.Post("/passkeys/login/begin", http.HandlerFunc(h.BeginAuthentication))
+	r.Post("/passkeys/login/complete", http.HandlerFunc(h.CompleteAuthentication))
+	r.Patch("/passkeys/{id}", middleware.AuthenticateToken(http.HandlerFunc(h.UpdatePasskey)))
 	r.Delete("/passkeys/{id}", middleware.AuthenticateToken(http.HandlerFunc(h.DeletePasskey)))
 }
 
@@ -209,6 +210,30 @@ func (h *PasskeyHandler) CompleteAuthentication(w http.ResponseWriter, r *http.R
 	database.DB.Exec("UPDATE users SET webauthn_challenge = NULL WHERE id = ?", user.UserID)
 
 	services.LogActivity(user.UserID, "passkey_authenticated", "Authenticated with passkey", nil)
+	writeJSON(w, http.StatusOK, map[string]interface{}{"success": true})
+}
+
+func (h *PasskeyHandler) UpdatePasskey(w http.ResponseWriter, r *http.Request) {
+	user := middleware.GetUser(r)
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		jsonError(w, "Invalid passkey ID", http.StatusBadRequest)
+		return
+	}
+
+	var body struct {
+		DeviceName string `json:"deviceName"`
+	}
+	json.NewDecoder(r.Body).Decode(&body)
+
+	if body.DeviceName == "" {
+		jsonError(w, "Device name is required", http.StatusBadRequest)
+		return
+	}
+
+	database.DB.Exec("UPDATE passkeys SET device_name = ? WHERE id = ? AND user_id = ?", body.DeviceName, id, user.UserID)
+	services.LogActivity(user.UserID, "passkey_renamed", "Renamed passkey #"+idStr, nil)
 	writeJSON(w, http.StatusOK, map[string]interface{}{"success": true})
 }
 

@@ -77,8 +77,10 @@ func main() {
 		routes.RegisterServerRoutes(r)
 		routes.RegisterAdminRoutes(r)
 		routes.RegisterNotificationRoutes(r)
-		routes.RegisterPasskeyRoutes(r)
-		routes.RegisterTOTPRoutes(r)
+		r.Route("/auth", func(r chi.Router) {
+			routes.RegisterPasskeyRoutes(r)
+			routes.RegisterTOTPRoutes(r)
+		})
 	})
 
 	go func() {
