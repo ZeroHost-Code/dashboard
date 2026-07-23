@@ -1,0 +1,17 @@
+[Unit]
+Description=ZeroHost Dashboard
+After=network.target mysql.service mariadb.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/zerohost-dashboard
+ExecStart=/opt/zerohost-dashboard/server
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

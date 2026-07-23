@@ -8,25 +8,39 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - name: SSH and deploy
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Build
+        run: go build -o server ./cmd/server/
+
+      - name: Upload binary
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          source: server
+          target: ${{ secrets.BETA_PATH }}
+          strip_components: 0
+          overwrite: true
+
+      - name: Restart service
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
-          host_key_checking: false
           script: |
-            cd ${{ secrets.BETA_PATH }}
-            cp .env /tmp/beta.env 2>/dev/null; cp port.txt /tmp/beta.port.txt 2>/dev/null
-            git fetch origin --prune
-            git checkout beta
-            git reset --hard origin/beta
-            cp /tmp/beta.env .env 2>/dev/null; cp /tmp/beta.port.txt port.txt 2>/dev/null
-            grep 'discord.zero-host.org' public/js/app.js || echo "⚠ DISCORD LINK NOT FOUND IN FILE"
-            head -20 port.txt 2>/dev/null || echo "⚠ port.txt missing or empty"
-            npm install
-            pm2 restart beta
+            chmod +x ${{ secrets.BETA_PATH }}/server
+            systemctl restart zerohost-dashboard
