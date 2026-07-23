@@ -778,17 +778,23 @@ func boolVal(p *bool, def bool) bool {
 }
 
 func (h *AdminHandler) AdminStats(w http.ResponseWriter, r *http.Request) {
-	var totalUsers, totalServers, activeServers, suspendedServers int64
+	var totalUsers, totalServers, activeServers, suspendedServers, expiredServers, newUsers24h int64
 	database.DB.QueryRow("SELECT COUNT(*) FROM users").Scan(&totalUsers)
 	database.DB.QueryRow("SELECT COUNT(*) FROM server_meta").Scan(&totalServers)
 	database.DB.QueryRow("SELECT COUNT(*) FROM server_meta WHERE status = 'active'").Scan(&activeServers)
 	database.DB.QueryRow("SELECT COUNT(*) FROM server_meta WHERE status = 'suspended'").Scan(&suspendedServers)
+	database.DB.QueryRow("SELECT COUNT(*) FROM server_meta WHERE status = 'expired'").Scan(&expiredServers)
+	database.DB.QueryRow("SELECT COUNT(*) FROM users WHERE created_at >= NOW() - INTERVAL 24 HOUR").Scan(&newUsers24h)
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"totalUsers":       totalUsers,
-		"totalServers":     totalServers,
-		"activeServers":    activeServers,
-		"suspendedServers": suspendedServers,
+		"stats": map[string]interface{}{
+			"total_users":       totalUsers,
+			"total_servers":     totalServers,
+			"active_servers":    activeServers,
+			"suspended_servers": suspendedServers,
+			"expired_servers":   expiredServers,
+			"new_users_24h":     newUsers24h,
+		},
 	})
 }
 
