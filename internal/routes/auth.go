@@ -107,6 +107,8 @@ func RegisterAuthRoutes(r chi.Router) {
 	r.Get("/auth/check-availability", http.HandlerFunc(h.CheckAvailability))
 	r.Get("/auth/check-vpn", http.HandlerFunc(h.CheckVPN))
 	r.Get("/auth/export-data", middleware.AuthenticateToken(http.HandlerFunc(h.ExportData)))
+	r.Get("/config", http.HandlerFunc(h.GetConfig))
+	r.Get("/activity", middleware.AuthenticateToken(http.HandlerFunc(h.GetActivity)))
 }
 
 func hdlr(next http.HandlerFunc) http.HandlerFunc {
@@ -991,6 +993,52 @@ func (h *AuthHandler) ExportData(w http.ResponseWriter, r *http.Request) {
 			"servers": servers,
 		},
 	})
+}
+
+func (h *AuthHandler) GetConfig(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"pteroUrl": services.PteroURL,
+	})
+}
+
+func (h *AuthHandler) GetActivity(w http.ResponseWriter, r *http.Request) {
+	user := middleware.GetUser(r)
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+
+	limit := 20
+	if l, err := parseInt(limitStr); err == nil && l > 0 && l <= 50 {
+		limit = l
+	}
+	offset := 0
+	if o, err := parseInt(offsetStr); err == nil && o >= 0 {
+		offset = o
+	}
+
+	result, err := services.GetRecentActivity(user.UserID, limit, offset)
+	if err != nil {
+		jsonError(w, "Failed to fetch activity", http.StatusInternalServerError)
+		return
+	}
+
+	totalPages := 1
+	if limit > 0 {
+		totalPages = (result.Total + limit - 1) / limit
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"activities": result.Activities,
+		"total":      result.Total,
+		"page":       offset/limit + 1,
+		"totalPages": totalPages,
+		"limit":      limit,
+	})
+}
+
+func parseInt(s string) (int, error) {
+	var n int
+	_, err := fmt.Sscanf(s, "%d", &n)
+	return n, err
 }
 
 func verifyCap(token string) bool {
