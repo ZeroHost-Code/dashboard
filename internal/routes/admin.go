@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -144,9 +145,10 @@ func (h *AdminHandler) SuspendServer(w http.ResponseWriter, r *http.Request) {
 
 	var userID int64
 	database.DB.QueryRow("SELECT user_id FROM server_meta WHERE ptero_server_id = ?", id).Scan(&userID)
+	link := idStr
 	services.LogActivity(admin.UserID, "admin_server_suspended", "Admin suspended server #"+idStr+" - Reason: "+body.Reason, &id)
 	if userID > 0 {
-		services.CreateNotification(userID, "Server Suspended", "Your server #"+idStr+" has been suspended by an administrator. Reason: "+body.Reason, "error", &id)
+		services.CreateNotification(userID, "Server Suspended", "Your server #"+idStr+" has been suspended by an administrator. Reason: "+body.Reason, "error", &link)
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{"success": true})
@@ -166,9 +168,10 @@ func (h *AdminHandler) UnsuspendServer(w http.ResponseWriter, r *http.Request) {
 
 	var userID int64
 	database.DB.QueryRow("SELECT user_id FROM server_meta WHERE ptero_server_id = ?", id).Scan(&userID)
+	link := idStr
 	services.LogActivity(admin.UserID, "admin_server_unsuspended", "Admin unsuspended server #"+idStr, &id)
 	if userID > 0 {
-		services.CreateNotification(userID, "Server Unsuspended", "Your server #"+idStr+" has been unsuspended by an administrator.", "success", &id)
+		services.CreateNotification(userID, "Server Unsuspended", "Your server #"+idStr+" has been unsuspended by an administrator.", "success", &link)
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{"success": true})
@@ -184,7 +187,7 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	limit := 20
 	offset := (page - 1) * limit
 
-	var rows *database.Rows
+	var rows *sql.Rows
 	var err error
 	var totalCount int
 
@@ -435,9 +438,10 @@ func (h *AdminHandler) AdminReinstallServer(w http.ResponseWriter, r *http.Reque
 
 	var userID int64
 	database.DB.QueryRow("SELECT user_id FROM server_meta WHERE ptero_server_id = ?", id).Scan(&userID)
+	link := idStr
 	services.LogActivity(admin.UserID, "admin_server_reinstalled", "Admin reinstalled server #"+idStr, &id)
 	if userID > 0 {
-		services.CreateNotification(userID, "Server Reinstalled", "Your server #"+idStr+" has been reinstalled by an administrator.", "warning", &id)
+		services.CreateNotification(userID, "Server Reinstalled", "Your server #"+idStr+" has been reinstalled by an administrator.", "warning", &link)
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{"success": true})

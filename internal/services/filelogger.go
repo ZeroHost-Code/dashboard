@@ -122,3 +122,21 @@ func cleanOldLogs() {
 	}
 	os.WriteFile(logFile, []byte(out), 0644)
 }
+
+func ReadLogLines(n int) ([]string, error) {
+	if logFile == "" {
+		return nil, fmt.Errorf("log file not initialized")
+	}
+	data, err := os.ReadFile(logFile)
+	if err != nil {
+		return nil, err
+	}
+	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+	if len(lines) == 0 || (len(lines) == 1 && lines[0] == "") {
+		return []string{}, nil
+	}
+	if n >= len(lines) {
+		return lines, nil
+	}
+	return lines[len(lines)-n:], nil
+}

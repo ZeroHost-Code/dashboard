@@ -708,3 +708,8 @@ func SendPowerSignal(identifier, apiKey, signal string) error {
 	}
 	return nil
 }
+
+func TestPteroConnection() error {
+	_, err := pteroFetch("GET", "/servers?per_page=1", nil)
+	return err
+}
