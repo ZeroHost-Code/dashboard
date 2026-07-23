@@ -19,20 +19,20 @@ type ServerHandler struct{}
 func RegisterServerRoutes(r chi.Router) {
 	h := &ServerHandler{}
 
-	r.Get("/servers/list", middleware.AuthenticateToken(h.ListServers))
-	r.Get("/servers/nests", middleware.AuthenticateToken(h.GetNests))
-	r.Get("/servers/eggs", middleware.AuthenticateToken(h.GetEggs))
-	r.Post("/servers/create", middleware.AuthenticateToken(middleware.RequireNotRestricted(h.CreateServer)))
-	r.Get("/servers/details/{id}", middleware.AuthenticateToken(middleware.RequireOwnership("server_meta", "ptero_server_id", "id"))(h.GetServerDetails))
-	r.Post("/servers/renew/{id}", middleware.AuthenticateToken(middleware.RequireNotRestricted(middleware.RequireOwnership("server_meta", "ptero_server_id", "id"))(h.RenewServer)))
-	r.Patch("/servers/{id}", middleware.AuthenticateToken(middleware.RequireNotRestricted(middleware.RequireOwnership("server_meta", "ptero_server_id", "id"))(h.RenameServer)))
-	r.Post("/servers/{id}/reinstall", middleware.AuthenticateToken(middleware.RequireNotRestricted(middleware.RequireOwnership("server_meta", "ptero_server_id", "id"))(h.ReinstallServer)))
-	r.Delete("/servers/{id}", middleware.AuthenticateToken(middleware.RequireNotRestricted(middleware.RequireOwnership("server_meta", "ptero_server_id", "id"))(h.DeleteServer)))
-	r.Get("/servers/overview", middleware.AuthenticateToken(h.Overview))
-	r.Post("/servers/power/{identifier}", middleware.AuthenticateToken(h.PowerServer))
-	r.Get("/servers/client-api-key", middleware.AuthenticateToken(h.GetClientAPIKey))
-	r.Put("/servers/client-api-key", middleware.AuthenticateToken(h.UpdateClientAPIKey))
-	r.Delete("/servers/client-api-key", middleware.AuthenticateToken(h.DeleteClientAPIKey))
+	r.Get("/servers/list", middleware.AuthenticateToken(http.HandlerFunc(h.ListServers)))
+	r.Get("/servers/nests", middleware.AuthenticateToken(http.HandlerFunc(h.GetNests)))
+	r.Get("/servers/eggs", middleware.AuthenticateToken(http.HandlerFunc(h.GetEggs)))
+	r.Post("/servers/create", middleware.AuthenticateToken(middleware.RequireNotRestricted(http.HandlerFunc(h.CreateServer))))
+	r.Get("/servers/details/{id}", middleware.AuthenticateToken(middleware.RequireOwnership("server_meta", "ptero_server_id", "id")(http.HandlerFunc(h.GetServerDetails))))
+	r.Post("/servers/renew/{id}", middleware.AuthenticateToken(middleware.RequireNotRestricted(middleware.RequireOwnership("server_meta", "ptero_server_id", "id")(http.HandlerFunc(h.RenewServer)))))
+	r.Patch("/servers/{id}", middleware.AuthenticateToken(middleware.RequireNotRestricted(middleware.RequireOwnership("server_meta", "ptero_server_id", "id")(http.HandlerFunc(h.RenameServer)))))
+	r.Post("/servers/{id}/reinstall", middleware.AuthenticateToken(middleware.RequireNotRestricted(middleware.RequireOwnership("server_meta", "ptero_server_id", "id")(http.HandlerFunc(h.ReinstallServer)))))
+	r.Delete("/servers/{id}", middleware.AuthenticateToken(middleware.RequireNotRestricted(middleware.RequireOwnership("server_meta", "ptero_server_id", "id")(http.HandlerFunc(h.DeleteServer)))))
+	r.Get("/servers/overview", middleware.AuthenticateToken(http.HandlerFunc(h.Overview)))
+	r.Post("/servers/power/{identifier}", middleware.AuthenticateToken(http.HandlerFunc(h.PowerServer)))
+	r.Get("/servers/client-api-key", middleware.AuthenticateToken(http.HandlerFunc(h.GetClientAPIKey)))
+	r.Put("/servers/client-api-key", middleware.AuthenticateToken(http.HandlerFunc(h.UpdateClientAPIKey)))
+	r.Delete("/servers/client-api-key", middleware.AuthenticateToken(http.HandlerFunc(h.DeleteClientAPIKey)))
 }
 
 func (h *ServerHandler) ListServers(w http.ResponseWriter, r *http.Request) {
@@ -321,7 +321,6 @@ func (h *ServerHandler) CreateServer(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ServerHandler) GetServerDetails(w http.ResponseWriter, r *http.Request) {
-	user := middleware.GetUser(r)
 	idStr := r.PathValue("id")
 	serverID, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {

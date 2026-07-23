@@ -13,4 +13,5 @@ require (
 	github.com/resend/resend-go/v2 v2.12.0 // indirect
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e // indirect
 	golang.org/x/crypto v0.28.0 // indirect
+	golang.org/x/sys v0.26.0 // indirect
 )

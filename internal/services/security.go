@@ -17,6 +17,9 @@ import (
 )
 
 var (
+	IPQSKey       string
+	AbuseIPDBKey  string
+
 	disposableDomains     map[string]bool
 	disposableDomainsMu   sync.RWMutex
 	disposableDomainsTS   time.Time
@@ -191,6 +194,13 @@ func StartSecurityCleanup() {
 			suspiciousMu.Unlock()
 		}
 	}()
+}
+
+func InitSecurity(ipqsKey, abuseipdbKey string) error {
+	IPQSKey = ipqsKey
+	AbuseIPDBKey = abuseipdbKey
+	StartSecurityCleanup()
+	return nil
 }
 
 func GetClientIP(r *http.Request) string {

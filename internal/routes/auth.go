@@ -35,21 +35,25 @@ type AuthHandler struct{}
 func RegisterAuthRoutes(r chi.Router) {
 	h := &AuthHandler{}
 
-	r.Post("/auth/register", h.Register)
-	r.Post("/auth/login", h.Login)
-	r.Post("/auth/logout", middleware.AuthenticateToken(h.Logout))
-	r.Post("/auth/change-password", middleware.AuthenticateToken(h.ChangePassword))
-	r.Post("/auth/change-email", middleware.AuthenticateToken(h.ChangeEmail))
-	r.Get("/auth/change-email/verify", h.VerifyEmailChange)
-	r.Post("/auth/change-email/confirm", middleware.AuthenticateToken(h.ConfirmEmailChange))
-	r.Post("/auth/delete-account", middleware.AuthenticateToken(h.DeleteAccount))
-	r.Get("/auth/verify-email", h.VerifyEmail)
-	r.Post("/auth/resend-verification", h.ResendVerification)
-	r.Get("/auth/onboarding-status", middleware.AuthenticateToken(h.OnboardingStatus))
-	r.Post("/auth/complete-onboarding", middleware.AuthenticateToken(h.CompleteOnboarding))
-	r.Get("/auth/check-availability", h.CheckAvailability)
-	r.Get("/auth/check-vpn", h.CheckVPN)
-	r.Get("/auth/export-data", middleware.AuthenticateToken(h.ExportData))
+	r.Post("/auth/register", http.HandlerFunc(h.Register))
+	r.Post("/auth/login", http.HandlerFunc(h.Login))
+	r.Post("/auth/logout", middleware.AuthenticateToken(http.HandlerFunc(h.Logout)))
+	r.Post("/auth/change-password", middleware.AuthenticateToken(http.HandlerFunc(h.ChangePassword)))
+	r.Post("/auth/change-email", middleware.AuthenticateToken(http.HandlerFunc(h.ChangeEmail)))
+	r.Get("/auth/change-email/verify", http.HandlerFunc(h.VerifyEmailChange))
+	r.Post("/auth/change-email/confirm", middleware.AuthenticateToken(http.HandlerFunc(h.ConfirmEmailChange)))
+	r.Post("/auth/delete-account", middleware.AuthenticateToken(http.HandlerFunc(h.DeleteAccount)))
+	r.Get("/auth/verify-email", http.HandlerFunc(h.VerifyEmail))
+	r.Post("/auth/resend-verification", http.HandlerFunc(h.ResendVerification))
+	r.Get("/auth/onboarding-status", middleware.AuthenticateToken(http.HandlerFunc(h.OnboardingStatus)))
+	r.Post("/auth/complete-onboarding", middleware.AuthenticateToken(http.HandlerFunc(h.CompleteOnboarding)))
+	r.Get("/auth/check-availability", http.HandlerFunc(h.CheckAvailability))
+	r.Get("/auth/check-vpn", http.HandlerFunc(h.CheckVPN))
+	r.Get("/auth/export-data", middleware.AuthenticateToken(http.HandlerFunc(h.ExportData)))
+}
+
+func hdlr(next http.HandlerFunc) http.HandlerFunc {
+	return next
 }
 
 func getClientIP(r *http.Request) string {

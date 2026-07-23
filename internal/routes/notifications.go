@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -15,11 +14,11 @@ type NotificationHandler struct{}
 func RegisterNotificationRoutes(r chi.Router) {
 	h := &NotificationHandler{}
 
-	r.Get("/notifications", middleware.AuthenticateToken(h.ListNotifications))
-	r.Get("/notifications/unread", middleware.AuthenticateToken(h.UnreadCount))
-	r.Post("/notifications/{id}/read", middleware.AuthenticateToken(h.MarkRead))
-	r.Post("/notifications/read-all", middleware.AuthenticateToken(h.MarkAllRead))
-	r.Get("/notifications/mock-create", middleware.AuthenticateToken(h.MockCreate))
+	r.Get("/notifications", middleware.AuthenticateToken(http.HandlerFunc(h.ListNotifications)))
+	r.Get("/notifications/unread", middleware.AuthenticateToken(http.HandlerFunc(h.UnreadCount)))
+	r.Post("/notifications/{id}/read", middleware.AuthenticateToken(http.HandlerFunc(h.MarkRead)))
+	r.Post("/notifications/read-all", middleware.AuthenticateToken(http.HandlerFunc(h.MarkAllRead)))
+	r.Get("/notifications/mock-create", middleware.AuthenticateToken(http.HandlerFunc(h.MockCreate)))
 }
 
 func (h *NotificationHandler) ListNotifications(w http.ResponseWriter, r *http.Request) {

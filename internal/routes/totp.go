@@ -17,10 +17,10 @@ type TOTPHandler struct{}
 func RegisterTOTPRoutes(r chi.Router) {
 	h := &TOTPHandler{}
 
-	r.Post("/totp/setup", middleware.AuthenticateToken(h.SetupTOTP))
-	r.Post("/totp/verify", middleware.AuthenticateToken(h.VerifyTOTP))
-	r.Post("/totp/disable", middleware.AuthenticateToken(h.DisableTOTP))
-	r.Get("/totp/status", middleware.AuthenticateToken(h.TOTPStatus))
+	r.Post("/totp/setup", middleware.AuthenticateToken(http.HandlerFunc(h.SetupTOTP)))
+	r.Post("/totp/verify", middleware.AuthenticateToken(http.HandlerFunc(h.VerifyTOTP)))
+	r.Post("/totp/disable", middleware.AuthenticateToken(http.HandlerFunc(h.DisableTOTP)))
+	r.Get("/totp/status", middleware.AuthenticateToken(http.HandlerFunc(h.TOTPStatus)))
 }
 
 func (h *TOTPHandler) SetupTOTP(w http.ResponseWriter, r *http.Request) {

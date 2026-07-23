@@ -7,20 +7,23 @@ import (
 )
 
 type Config struct {
-	Port        string
-	NodeEnv     string
-	JWTSecret   string
+	Port         string
+	NodeEnv      string
+	JWTSecret    string
 	JWTExpiresIn string
-	DBHost      string
-	DBPort      string
-	DBUser      string
-	DBPassword  string
-	DBName      string
-	PanelDBName string
-	PteroURL    string
-	PteroAPIKey string
-	CapEndpoint string
-	CapSecret   string
+	DBHost       string
+	DBPort       string
+	DBUser       string
+	DBPassword   string
+	DBName       string
+	DatabaseDSN  string
+	PanelDBName  string
+	PteroURL     string
+	PteroAPIKey  string
+	IPQSKey      string
+	AbuseIPDBKey string
+	CapEndpoint  string
+	CapSecret    string
 	CookieSecret string
 	ResendAPIKey string
 	ResendFrom   string
@@ -70,21 +73,31 @@ func Load() *Config {
 		}
 	}
 
+	dbUser := os.Getenv("DB_USER")
+	dbPass := os.Getenv("DB_PASSWORD")
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := getEnv("DB_PORT", "3306")
+	dbName := os.Getenv("DB_NAME")
+	dsn := dbUser + ":" + dbPass + "@tcp(" + dbHost + ":" + dbPort + ")/" + dbName + "?charset=utf8mb4&parseTime=True&loc=Local"
+
 	return &Config{
-		Port:        getEnv("PORT", "3000"),
-		NodeEnv:     nodeEnv,
-		JWTSecret:   secret,
+		Port:         getEnv("PORT", "3000"),
+		NodeEnv:      nodeEnv,
+		JWTSecret:    secret,
 		JWTExpiresIn: getEnv("JWT_EXPIRES_IN", "2h"),
-		DBHost:      os.Getenv("DB_HOST"),
-		DBPort:      getEnv("DB_PORT", "3306"),
-		DBUser:      os.Getenv("DB_USER"),
-		DBPassword:  os.Getenv("DB_PASSWORD"),
-		DBName:      os.Getenv("DB_NAME"),
-		PanelDBName: panelDBSafe,
-		PteroURL:    getEnv("PTERO_URL", "https://panel.zero-host.org"),
-		PteroAPIKey: os.Getenv("PTERO_API_KEY"),
-		CapEndpoint: os.Getenv("CAP_ENDPOINT"),
-		CapSecret:   os.Getenv("CAP_SECRET"),
+		DBHost:       dbHost,
+		DBPort:       dbPort,
+		DBUser:       dbUser,
+		DBPassword:   dbPass,
+		DBName:       dbName,
+		DatabaseDSN:  dsn,
+		PanelDBName:  panelDBSafe,
+		PteroURL:     getEnv("PTERO_URL", "https://panel.zero-host.org"),
+		PteroAPIKey:  os.Getenv("PTERO_API_KEY"),
+		IPQSKey:      os.Getenv("IPQS_API_KEY"),
+		AbuseIPDBKey: os.Getenv("ABUSEIPDB_API_KEY"),
+		CapEndpoint:  os.Getenv("CAP_ENDPOINT"),
+		CapSecret:    os.Getenv("CAP_SECRET"),
 		CookieSecret: os.Getenv("COOKIE_SECRET"),
 		ResendAPIKey: os.Getenv("RESEND_API_KEY"),
 		ResendFrom:   getEnv("RESEND_FROM_EMAIL", "noreply@zero-host.org"),

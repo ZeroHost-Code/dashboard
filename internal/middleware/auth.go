@@ -37,8 +37,9 @@ func GetUser(r *http.Request) *UserClaims {
 	return nil
 }
 
-func AuthenticateToken(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func AuthenticateToken(h http.Handler) http.HandlerFunc {
+	next := h
+	return func(w http.ResponseWriter, r *http.Request) {
 		var tokenStr string
 
 		authHeader := r.Header.Get("Authorization")
@@ -90,37 +91,40 @@ func AuthenticateToken(next http.Handler) http.Handler {
 		claims.PteroID = user.PteroUserID
 		ctx := context.WithValue(r.Context(), UserContextKey, claims)
 		next.ServeHTTP(w, r.WithContext(ctx))
-	})
+	}
 }
 
-func RequireAdmin(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func RequireAdmin(h http.Handler) http.HandlerFunc {
+	next := h
+	return func(w http.ResponseWriter, r *http.Request) {
 		user := GetUser(r)
 		if user == nil || !user.IsAdmin {
 			jsonError(w, "Admin access required", http.StatusForbidden)
 			return
 		}
 		next.ServeHTTP(w, r)
-	})
+	}
 }
 
-func RequireNotRestricted(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func RequireNotRestricted(h http.Handler) http.HandlerFunc {
+	next := h
+	return func(w http.ResponseWriter, r *http.Request) {
 		user := GetUser(r)
 		if user != nil && user.Restricted {
 			jsonError(w, "Your account is restricted. This action is disabled.", http.StatusForbidden)
 			return
 		}
 		next.ServeHTTP(w, r)
-	})
+	}
 }
 
-func RequireOwnership(table, column, paramName string) func(http.Handler) http.Handler {
+func RequireOwnership(table, column, paramName string) func(http.Handler) http.HandlerFunc {
 	allowedTables := map[string]bool{"server_meta": true}
 	allowedColumns := map[string]bool{"ptero_server_id": true, "user_id": true, "id": true}
 
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return func(h http.Handler) http.HandlerFunc {
+		next := h
+		return func(w http.ResponseWriter, r *http.Request) {
 			if !allowedTables[table] || !allowedColumns[column] {
 				jsonError(w, "Ownership verification failed", http.StatusInternalServerError)
 				return
@@ -157,7 +161,7 @@ func RequireOwnership(table, column, paramName string) func(http.Handler) http.H
 			}
 
 			next.ServeHTTP(w, r)
-		})
+		}
 	}
 }
 

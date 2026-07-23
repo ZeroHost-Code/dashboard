@@ -18,12 +18,12 @@ type PasskeyHandler struct{}
 func RegisterPasskeyRoutes(r chi.Router) {
 	h := &PasskeyHandler{}
 
-	r.Get("/passkeys", middleware.AuthenticateToken(h.ListPasskeys))
-	r.Post("/passkeys/register/begin", middleware.AuthenticateToken(h.BeginRegistration))
-	r.Post("/passkeys/register/complete", middleware.AuthenticateToken(h.CompleteRegistration))
-	r.Post("/passkeys/authenticate/begin", middleware.AuthenticateToken(h.BeginAuthentication))
-	r.Post("/passkeys/authenticate/complete", middleware.AuthenticateToken(h.CompleteAuthentication))
-	r.Delete("/passkeys/{id}", middleware.AuthenticateToken(h.DeletePasskey))
+	r.Get("/passkeys", middleware.AuthenticateToken(http.HandlerFunc(h.ListPasskeys)))
+	r.Post("/passkeys/register/begin", middleware.AuthenticateToken(http.HandlerFunc(h.BeginRegistration)))
+	r.Post("/passkeys/register/complete", middleware.AuthenticateToken(http.HandlerFunc(h.CompleteRegistration)))
+	r.Post("/passkeys/authenticate/begin", middleware.AuthenticateToken(http.HandlerFunc(h.BeginAuthentication)))
+	r.Post("/passkeys/authenticate/complete", middleware.AuthenticateToken(http.HandlerFunc(h.CompleteAuthentication)))
+	r.Delete("/passkeys/{id}", middleware.AuthenticateToken(http.HandlerFunc(h.DeletePasskey)))
 }
 
 func (h *PasskeyHandler) ListPasskeys(w http.ResponseWriter, r *http.Request) {

@@ -8,9 +8,10 @@ import (
 	"syscall"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chimw "github.com/go-chi/chi/v5/middleware"
 	"zerohost/dashboard/internal/config"
 	"zerohost/dashboard/internal/database"
+	"zerohost/dashboard/internal/middleware"
 	"zerohost/dashboard/internal/routes"
 	"zerohost/dashboard/internal/services"
 )
@@ -23,9 +24,7 @@ func main() {
 	}
 	defer database.ClosePool()
 
-	if err := database.Migrate(); err != nil {
-		log.Fatalf("Migration failed: %v", err)
-	}
+	database.RunMigrations()
 
 	services.PteroURL = cfg.PteroURL
 	services.PteroAPIKey = cfg.PteroAPIKey
@@ -39,15 +38,15 @@ func main() {
 		log.Printf("Warning: file logger init failed: %v", err)
 	}
 
-	services.InitScheduler()
+	services.StartScheduler()
 
 	r := chi.NewRouter()
 
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-	r.Use(middleware.RealIP)
-
-	r.Use(services.WriteLogMiddleware)
+	r.Use(chimw.Logger)
+	r.Use(chimw.Recoverer)
+	r.Use(chimw.RealIP)
+	r.Use(middleware.SecurityHeaders)
+	r.Use(middleware.FileLogger)
 
 	r.Route("/api", func(r chi.Router) {
 		routes.RegisterAuthRoutes(r)
