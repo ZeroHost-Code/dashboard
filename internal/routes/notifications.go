@@ -16,6 +16,7 @@ func RegisterNotificationRoutes(r chi.Router) {
 
 	r.Get("/notifications", middleware.AuthenticateToken(http.HandlerFunc(h.ListNotifications)))
 	r.Get("/notifications/unread", middleware.AuthenticateToken(http.HandlerFunc(h.UnreadCount)))
+	r.Get("/notifications/unread-count", middleware.AuthenticateToken(http.HandlerFunc(h.UnreadCount)))
 	r.Post("/notifications/{id}/read", middleware.AuthenticateToken(http.HandlerFunc(h.MarkRead)))
 	r.Post("/notifications/read-all", middleware.AuthenticateToken(http.HandlerFunc(h.MarkAllRead)))
 	r.Get("/notifications/mock-create", middleware.AuthenticateToken(http.HandlerFunc(h.MockCreate)))

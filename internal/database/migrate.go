@@ -106,6 +106,8 @@ var tables = map[string][]columnDef{
 		{Name: "counter", Def: "INT NOT NULL DEFAULT 0"},
 		{Name: "transports", Def: "VARCHAR(255) DEFAULT NULL"},
 		{Name: "name", Def: "VARCHAR(255) DEFAULT NULL"},
+		{Name: "last_used_at", Def: "TIMESTAMP NULL DEFAULT NULL"},
+		{Name: "user_handle", Def: "VARCHAR(255) DEFAULT NULL"},
 		{Name: "created_at", Def: "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"},
 	},
 	"node_settings": {
