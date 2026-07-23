@@ -3,6 +3,7 @@ package routes
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -26,23 +27,40 @@ func RegisterAdminRoutes(r chi.Router) {
 	r.Delete("/admin/servers/{id}", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.DeleteAdminServer))))
 	r.Post("/admin/servers/{id}/suspend", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.SuspendServer))))
 	r.Post("/admin/servers/{id}/unsuspend", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.UnsuspendServer))))
+	r.Post("/admin/servers/{id}/stop", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.StopServer))))
+	r.Post("/admin/servers/{id}/renew-now", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.RenewNowServer))))
+	r.Post("/admin/servers/{id}/reinstall", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.AdminReinstallServer))))
 	r.Get("/admin/users", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.ListUsers))))
 	r.Get("/admin/users/{id}", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.GetUser))))
 	r.Patch("/admin/users/{id}", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.UpdateUser))))
 	r.Delete("/admin/users/{id}", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.DeleteUser))))
 	r.Post("/admin/users/{id}/restrict", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.RestrictUser))))
 	r.Post("/admin/users/{id}/unrestrict", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.UnrestrictUser))))
+	r.Post("/admin/users/{id}/toggle-admin", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.ToggleAdmin))))
+	r.Post("/admin/users/{id}/toggle-restriction", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.ToggleRestriction))))
+	r.Post("/admin/users/{id}/toggle-auth-restriction", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.ToggleAuthRestriction))))
+	r.Post("/admin/users/{id}/notify", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.NotifyUser))))
+	r.Post("/admin/users/{id}/reset-password", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.AdminResetPassword))))
 	r.Post("/admin/users/{id}/unsuspend-all", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.UnsuspendAllUserServers))))
+	r.Post("/admin/notify-all", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.NotifyAll))))
+	r.Get("/admin/nodes", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.ListNodes))))
+	r.Get("/admin/nodes/{id}", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.GetNode))))
+	r.Get("/admin/nodes/{id}/allocations", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.GetNodeAllocations))))
+	r.Get("/admin/nodes/{id}/servers", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.GetNodeServers))))
+	r.Get("/admin/nodes/{id}/settings", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.GetNodeSettings))))
+	r.Put("/admin/nodes/{id}/settings", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.UpdateNodeSettings))))
+	r.Get("/admin/settings/nests", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.ListAdminNests))))
+	r.Get("/admin/settings/nests/available", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.ListAvailableNests))))
+	r.Post("/admin/settings/nests", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.SaveNest))))
+	r.Put("/admin/settings/nests/{id}", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.UpdateNest))))
+	r.Delete("/admin/settings/nests/{id}", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.DeleteNest))))
+	r.Get("/admin/settings/nests/{nestId}/eggs", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.ListNestEggs))))
+	r.Get("/admin/settings/eggs/{nestId}/{eggId}", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.GetEggSettings))))
+	r.Put("/admin/settings/eggs/{nestId}/{eggId}", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.UpdateEgg))))
+	r.Post("/admin/settings/eggs/{nestId}/{eggId}/apply-all", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.ApplyEggAll))))
 	r.Get("/admin/activity", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.AdminActivity))))
-	r.Get("/admin/nests", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.ListAdminNests))))
-	r.Post("/admin/nests", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.SaveNest))))
-	r.Put("/admin/nests/{id}", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.UpdateNest))))
-	r.Post("/admin/eggs", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.SaveEgg))))
-	r.Put("/admin/eggs/{nestId}/{eggId}", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.UpdateEgg))))
 	r.Get("/admin/health", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.HealthCheck))))
 	r.Get("/admin/stats", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.AdminStats))))
-	r.Post("/admin/users/{id}/reset-password", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.AdminResetPassword))))
-	r.Post("/admin/servers/{id}/reinstall", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.AdminReinstallServer))))
 	r.Get("/admin/logs", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.GetLogs))))
 	r.Get("/admin/settings", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.GetSettings))))
 	r.Put("/admin/settings", middleware.AuthenticateToken(middleware.RequireAdmin(http.HandlerFunc(h.UpdateSettings))))
@@ -189,52 +207,109 @@ func (h *AdminHandler) AdminCheck(w http.ResponseWriter, r *http.Request) {
 	user := middleware.GetUser(r)
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"user": map[string]interface{}{
-			"id":        user.UserID,
-			"email":     user.Email,
-			"username":  user.Username,
-			"isAdmin":   user.IsAdmin,
+			"id":       user.UserID,
+			"email":    user.Email,
+			"username": user.Username,
+			"isAdmin":  user.IsAdmin,
 		},
 	})
 }
 
 func (h *AdminHandler) ListAdminServers(w http.ResponseWriter, r *http.Request) {
-	rows, err := database.DB.Query(`
-		SELECT sm.id, sm.ptero_server_id, sm.status, sm.created_at, sm.expires_at, sm.suspend_reason,
-		       sm.suspended_by, u.id, u.username, u.email
-		FROM server_meta sm
-		JOIN users u ON u.id = sm.user_id
-		ORDER BY sm.created_at DESC
-	`)
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+	search := r.URL.Query().Get("search")
+
+	var limit, offset int
+	if l, err := strconv.Atoi(limitStr); err == nil {
+		limit = l
+	}
+	if o, err := strconv.Atoi(offsetStr); err == nil {
+		offset = o
+	}
+
+	pteroResult, err := services.GetAllServers(&limit, &offset)
 	if err != nil {
 		jsonError(w, "Failed to fetch servers", http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
 
-	type ServerEntry struct {
-		ID             int64   `json:"id"`
-		PteroServerID  int64   `json:"ptero_server_id"`
-		Status         string  `json:"status"`
-		CreatedAt      *string `json:"created_at"`
-		ExpiresAt      *string `json:"expires_at"`
-		SuspendReason  *string `json:"suspend_reason"`
-		SuspendedBy    *string `json:"suspended_by"`
-		UserID         int64   `json:"userId"`
-		Username       string  `json:"username"`
-		Email          string  `json:"email"`
+	pteroServers, _ := pteroResult["servers"].([]map[string]interface{})
+	total, _ := pteroResult["total"].(int)
+
+	type serverEntry struct {
+		ID        float64                `json:"id"`
+		Name      string                 `json:"name"`
+		Identifier string                `json:"identifier"`
+		Status    string                 `json:"status"`
+		Installed interface{}            `json:"installed"`
+		Egg       float64                `json:"egg"`
+		EggDetails map[string]interface{} `json:"eggDetails"`
+		Owner     map[string]interface{} `json:"owner"`
+		Node      float64                `json:"node"`
+		NodeFqdn  interface{}            `json:"nodeFqdn"`
+		Limits    map[string]interface{} `json:"limits"`
 	}
 
-	var servers []ServerEntry
-	for rows.Next() {
-		var s ServerEntry
-		rows.Scan(&s.ID, &s.PteroServerID, &s.Status, &s.CreatedAt, &s.ExpiresAt, &s.SuspendReason, &s.SuspendedBy, &s.UserID, &s.Username, &s.Email)
-		servers = append(servers, s)
-	}
-	if servers == nil {
-		servers = []ServerEntry{}
+	var entries []serverEntry
+	for _, s := range pteroServers {
+		id, _ := s["id"].(float64)
+		name, _ := s["name"].(string)
+		identifier, _ := s["identifier"].(string)
+		status := "active"
+		if suspended, ok := s["suspended"].(bool); ok && suspended {
+			status = "suspended"
+		}
+		installed, _ := s["installed"].(float64)
+		if installed == 0 {
+			status = "installing"
+		}
+		egg, _ := s["egg"].(float64)
+		eggDetails, _ := s["eggDetails"].(map[string]interface{})
+		node, _ := s["node"].(float64)
+		nodeFqdn := s["nodeFqdn"]
+		limits, _ := s["limits"].(map[string]interface{})
+
+		var owner map[string]interface{}
+		if userID, ok := s["user"].(float64); ok {
+			pteroUser, err := services.GetPteroUserByID(int64(userID))
+			if err == nil {
+				owner = map[string]interface{}{
+					"username": pteroUser["username"],
+					"email":    pteroUser["email"],
+				}
+			}
+		}
+		if owner == nil {
+			owner = map[string]interface{}{"username": "Unknown"}
+		}
+
+		entries = append(entries, serverEntry{
+			ID:         id,
+			Name:       name,
+			Identifier: identifier,
+			Status:     status,
+			Installed:  installed,
+			Egg:        egg,
+			EggDetails: eggDetails,
+			Owner:      owner,
+			Node:       node,
+			NodeFqdn:   nodeFqdn,
+			Limits:     limits,
+		})
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{"servers": servers})
+	totalPages := 1
+	if limit > 0 {
+		totalPages = (total + limit - 1) / limit
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"servers":    entries,
+		"total":      total,
+		"page":       (offset/limit)+1,
+		"totalPages": totalPages,
+	})
 }
 
 func (h *AdminHandler) GetAdminServer(w http.ResponseWriter, r *http.Request) {
@@ -250,6 +325,48 @@ func (h *AdminHandler) GetAdminServer(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "Server not found", http.StatusNotFound)
 		return
 	}
+
+	var owner map[string]interface{}
+	if userID, ok := server["user"].(float64); ok {
+		pteroUser, err := services.GetPteroUserByID(int64(userID))
+		if err == nil {
+			owner = map[string]interface{}{
+				"username": pteroUser["username"],
+				"email":    pteroUser["email"],
+			}
+		}
+	}
+	if owner == nil {
+		owner = map[string]interface{}{"username": "Unknown"}
+	}
+	server["owner"] = owner
+
+	var serverMeta map[string]interface{}
+	var smCreatedAt, smExpiresAt, smStatus, smReason *string
+	database.DB.QueryRow(
+		"SELECT created_at, expires_at, status, suspend_reason FROM server_meta WHERE ptero_server_id = ?", id,
+	).Scan(&smCreatedAt, &smExpiresAt, &smStatus, &smReason)
+	if smStatus != nil {
+		serverMeta = map[string]interface{}{
+			"created_at":     smCreatedAt,
+			"expires_at":     smExpiresAt,
+			"status":         *smStatus,
+			"suspend_reason": smReason,
+		}
+	} else {
+		suspended, _ := server["suspended"].(bool)
+		panelStatus := "active"
+		if suspended {
+			panelStatus = "suspended"
+		}
+		if inst, ok := server["installed"].(float64); ok && inst == 0 {
+			panelStatus = "installing"
+		}
+		serverMeta = map[string]interface{}{
+			"status": panelStatus,
+		}
+	}
+	server["serverMeta"] = serverMeta
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{"server": server})
 }
@@ -270,6 +387,31 @@ func (h *AdminHandler) DeleteAdminServer(w http.ResponseWriter, r *http.Request)
 	database.DB.Exec("DELETE FROM server_meta WHERE ptero_server_id = ?", id)
 
 	services.LogActivity(admin.UserID, "admin_server_deleted", "Admin deleted server #"+idStr, &id)
+	writeJSON(w, http.StatusOK, map[string]interface{}{"success": true})
+}
+
+func (h *AdminHandler) StopServer(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		jsonError(w, "Invalid server ID", http.StatusBadRequest)
+		return
+	}
+	if err := services.SuspendPteroServer(id); err != nil {
+		jsonError(w, "Failed to stop server", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"success": true})
+}
+
+func (h *AdminHandler) RenewNowServer(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		jsonError(w, "Invalid server ID", http.StatusBadRequest)
+		return
+	}
+	database.DB.Exec("UPDATE server_meta SET expires_at = DATE_ADD(NOW(), INTERVAL 30 DAY) WHERE ptero_server_id = ?", id)
 	writeJSON(w, http.StatusOK, map[string]interface{}{"success": true})
 }
 
@@ -345,10 +487,10 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 
 	if search != "" {
 		database.DB.QueryRow("SELECT COUNT(*) FROM users WHERE username LIKE ? OR email LIKE ?", "%"+search+"%", "%"+search+"%").Scan(&totalCount)
-		rows, err = database.DB.Query("SELECT id, username, email, ptero_id, restricted, email_verified, created_at, last_login FROM users WHERE username LIKE ? OR email LIKE ? ORDER BY created_at DESC LIMIT ? OFFSET ?", "%"+search+"%", "%"+search+"%", limit, offset)
+		rows, err = database.DB.Query("SELECT id, username, email, ptero_id, restricted, is_admin, email_verified, created_at FROM users WHERE username LIKE ? OR email LIKE ? ORDER BY created_at DESC LIMIT ? OFFSET ?", "%"+search+"%", "%"+search+"%", limit, offset)
 	} else {
 		database.DB.QueryRow("SELECT COUNT(*) FROM users").Scan(&totalCount)
-		rows, err = database.DB.Query("SELECT id, username, email, ptero_id, restricted, email_verified, created_at, last_login FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?", limit, offset)
+		rows, err = database.DB.Query("SELECT id, username, email, ptero_id, restricted, is_admin, email_verified, created_at FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?", limit, offset)
 	}
 
 	if err != nil {
@@ -357,32 +499,36 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	type UserEntry struct {
-		ID            int64   `json:"id"`
-		Username      string  `json:"username"`
-		Email         string  `json:"email"`
-		PteroID       *int64  `json:"ptero_id"`
-		Restricted    bool    `json:"restricted"`
-		EmailVerified bool    `json:"email_verified"`
-		CreatedAt     *string `json:"created_at"`
-		LastLogin     *string `json:"last_login"`
+	type userEntry struct {
+		ID           int64   `json:"id"`
+		Username     string  `json:"username"`
+		Email        string  `json:"email"`
+		IsAdmin      bool    `json:"is_admin"`
+		Restricted   bool    `json:"restricted"`
+		ServerCount  int     `json:"server_count"`
+		CreatedAt    *string `json:"created_at"`
 	}
 
-	var users []UserEntry
+	var users []userEntry
 	for rows.Next() {
-		var u UserEntry
-		rows.Scan(&u.ID, &u.Username, &u.Email, &u.PteroID, &u.Restricted, &u.EmailVerified, &u.CreatedAt, &u.LastLogin)
+		var u userEntry
+		var pteroID *int64
+		var emailVerified bool
+		rows.Scan(&u.ID, &u.Username, &u.Email, &pteroID, &u.Restricted, &u.IsAdmin, &emailVerified, &u.CreatedAt)
+
+		database.DB.QueryRow("SELECT COUNT(*) FROM server_meta WHERE user_id = ?", u.ID).Scan(&u.ServerCount)
+
 		users = append(users, u)
 	}
 	if users == nil {
-		users = []UserEntry{}
+		users = []userEntry{}
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"users":       users,
-		"total":       totalCount,
-		"page":        page,
-		"totalPages":  (totalCount + limit - 1) / limit,
+		"users":      users,
+		"total":      totalCount,
+		"page":       page,
+		"totalPages": (totalCount + limit - 1) / limit,
 	})
 }
 
@@ -398,30 +544,41 @@ func (h *AdminHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 		ID            int64   `json:"id"`
 		Username      string  `json:"username"`
 		Email         string  `json:"email"`
-		PteroID       *int64  `json:"ptero_id"`
+		IsAdmin       bool    `json:"is_admin"`
 		Restricted    bool    `json:"restricted"`
+		AuthRestricted bool   `json:"auth_restricted"`
+		PteroUserID   *int64  `json:"ptero_user_id"`
 		EmailVerified bool    `json:"email_verified"`
 		CreatedAt     *string `json:"created_at"`
-		LastLogin     *string `json:"last_login"`
+		PasswordHash  string  `json:"password_hash"`
+		UserAgent     *string `json:"user_agent"`
 	}
-	err = database.DB.QueryRow("SELECT id, username, email, ptero_id, restricted, email_verified, created_at, last_login FROM users WHERE id = ?", id).Scan(&u.ID, &u.Username, &u.Email, &u.PteroID, &u.Restricted, &u.EmailVerified, &u.CreatedAt, &u.LastLogin)
+	err = database.DB.QueryRow(
+		"SELECT id, username, email, is_admin, restricted, auth_restricted, ptero_user_id, email_verified, created_at, password_hash, user_agent FROM users WHERE id = ?", id,
+	).Scan(&u.ID, &u.Username, &u.Email, &u.IsAdmin, &u.Restricted, &u.AuthRestricted, &u.PteroUserID, &u.EmailVerified, &u.CreatedAt, &u.PasswordHash, &u.UserAgent)
 	if err != nil {
 		jsonError(w, "User not found", http.StatusNotFound)
 		return
 	}
 
-	serverRows, err := database.DB.Query("SELECT id, ptero_server_id, status, created_at, expires_at FROM server_meta WHERE user_id = ?", id)
+	serverRows, err := database.DB.Query(
+		"SELECT sm.ptero_server_id, sm.status, sm.created_at, sm.expires_at, COALESCE(s.name, '') as server_name, COALESCE(s.identifier, '') as identifier FROM server_meta sm LEFT JOIN ptero_servers s ON s.id = sm.ptero_server_id WHERE sm.user_id = ?", id,
+	)
 	var serverMetas []map[string]interface{}
 	if err == nil {
 		defer serverRows.Close()
 		for serverRows.Next() {
-			var smID, pteroID int64
-			var status string
+			var pteroID int64
+			var status, serverName, identifier string
 			var createdAt, expiresAt *string
-			serverRows.Scan(&smID, &pteroID, &status, &createdAt, &expiresAt)
+			serverRows.Scan(&pteroID, &status, &createdAt, &expiresAt, &serverName, &identifier)
 			serverMetas = append(serverMetas, map[string]interface{}{
-				"id": smID, "ptero_server_id": pteroID, "status": status,
-				"created_at": createdAt, "expires_at": expiresAt,
+				"server_name":    serverName,
+				"status":         status,
+				"created_at":     createdAt,
+				"expires_at":     expiresAt,
+				"ptero_server_id": pteroID,
+				"identifier":     identifier,
 			})
 		}
 	}
@@ -429,9 +586,30 @@ func (h *AdminHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 		serverMetas = []map[string]interface{}{}
 	}
 
+	ipRows, err := database.DB.Query("SELECT ip_address, created_at, user_agent FROM user_ips WHERE user_id = ? ORDER BY created_at DESC LIMIT 50", id)
+	var ips []map[string]interface{}
+	if err == nil {
+		defer ipRows.Close()
+		for ipRows.Next() {
+			var ipAddr string
+			var createdAt *string
+			var ua *string
+			ipRows.Scan(&ipAddr, &createdAt, &ua)
+			ips = append(ips, map[string]interface{}{
+				"ip_address": ipAddr,
+				"created_at": createdAt,
+				"user_agent": ua,
+			})
+		}
+	}
+	if ips == nil {
+		ips = []map[string]interface{}{}
+	}
+
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"user":    u,
 		"servers": serverMetas,
+		"ips":     ips,
 	})
 }
 
@@ -489,6 +667,109 @@ func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	services.LogActivity(admin.UserID, "admin_user_deleted", "Admin deleted user #"+idStr, nil)
 	writeJSON(w, http.StatusOK, map[string]interface{}{"success": true})
+}
+
+func (h *AdminHandler) ToggleAdmin(w http.ResponseWriter, r *http.Request) {
+	admin := middleware.GetUser(r)
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		jsonError(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	var current bool
+	database.DB.QueryRow("SELECT is_admin FROM users WHERE id = ?", id).Scan(&current)
+	database.DB.Exec("UPDATE users SET is_admin = ? WHERE id = ?", !current, id)
+	services.LogActivity(admin.UserID, "admin_toggle_admin", fmt.Sprintf("Toggled admin for user #%d: %v->%v", id, current, !current), nil)
+	writeJSON(w, http.StatusOK, map[string]interface{}{"is_admin": !current})
+}
+
+func (h *AdminHandler) ToggleRestriction(w http.ResponseWriter, r *http.Request) {
+	admin := middleware.GetUser(r)
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		jsonError(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	var current bool
+	database.DB.QueryRow("SELECT restricted FROM users WHERE id = ?", id).Scan(&current)
+	database.DB.Exec("UPDATE users SET restricted = ? WHERE id = ?", !current, id)
+	services.LogActivity(admin.UserID, "admin_toggle_restriction", fmt.Sprintf("Toggled restriction for user #%d: %v->%v", id, current, !current), nil)
+	writeJSON(w, http.StatusOK, map[string]interface{}{"restricted": !current})
+}
+
+func (h *AdminHandler) ToggleAuthRestriction(w http.ResponseWriter, r *http.Request) {
+	admin := middleware.GetUser(r)
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		jsonError(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	var current bool
+	database.DB.QueryRow("SELECT auth_restricted FROM users WHERE id = ?", id).Scan(&current)
+	database.DB.Exec("UPDATE users SET auth_restricted = ? WHERE id = ?", !current, id)
+	services.LogActivity(admin.UserID, "admin_toggle_auth_restriction", fmt.Sprintf("Toggled auth restriction for user #%d: %v->%v", id, current, !current), nil)
+	writeJSON(w, http.StatusOK, map[string]interface{}{"auth_restricted": !current})
+}
+
+func (h *AdminHandler) NotifyUser(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		jsonError(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	var body struct {
+		Title   string `json:"title"`
+		Message string `json:"message"`
+		Type    string `json:"type"`
+	}
+	json.NewDecoder(r.Body).Decode(&body)
+
+	if body.Title == "" || body.Message == "" {
+		jsonError(w, "Title and message are required", http.StatusBadRequest)
+		return
+	}
+
+	services.CreateNotification(id, body.Title, body.Message, body.Type, nil)
+	writeJSON(w, http.StatusOK, map[string]interface{}{"success": true})
+}
+
+func (h *AdminHandler) NotifyAll(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Title   string `json:"title"`
+		Message string `json:"message"`
+		Type    string `json:"type"`
+	}
+	json.NewDecoder(r.Body).Decode(&body)
+
+	if body.Title == "" || body.Message == "" {
+		jsonError(w, "Title and message are required", http.StatusBadRequest)
+		return
+	}
+
+	rows, err := database.DB.Query("SELECT id FROM users")
+	if err != nil {
+		jsonError(w, "Failed to fetch users", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var count int
+	for rows.Next() {
+		var userID int64
+		rows.Scan(&userID)
+		services.CreateNotification(userID, body.Title, body.Message, body.Type, nil)
+		count++
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{"count": count})
 }
 
 func (h *AdminHandler) RestrictUser(w http.ResponseWriter, r *http.Request) {
@@ -599,6 +880,106 @@ func (h *AdminHandler) AdminReinstallServer(w http.ResponseWriter, r *http.Reque
 	writeJSON(w, http.StatusOK, map[string]interface{}{"success": true})
 }
 
+func (h *AdminHandler) ListNodes(w http.ResponseWriter, r *http.Request) {
+	nodes, err := services.GetAllNodes()
+	if err != nil {
+		jsonError(w, "Failed to fetch nodes", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{"nodes": nodes})
+}
+
+func (h *AdminHandler) GetNode(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		jsonError(w, "Invalid node ID", http.StatusBadRequest)
+		return
+	}
+
+	node, err := services.GetNodeDetail(id)
+	if err != nil {
+		jsonError(w, "Node not found", http.StatusNotFound)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{"node": node})
+}
+
+func (h *AdminHandler) GetNodeAllocations(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		jsonError(w, "Invalid node ID", http.StatusBadRequest)
+		return
+	}
+
+	allocations, err := services.GetNodeAllocations(id)
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]interface{}{"allocations": []interface{}{}})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{"allocations": allocations})
+}
+
+func (h *AdminHandler) GetNodeServers(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		jsonError(w, "Invalid node ID", http.StatusBadRequest)
+		return
+	}
+
+	servers, err := services.GetNodeServers(id)
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]interface{}{"servers": []interface{}{}})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{"servers": servers})
+}
+
+func (h *AdminHandler) GetNodeSettings(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		jsonError(w, "Invalid node ID", http.StatusBadRequest)
+		return
+	}
+
+	var unavailable bool
+	database.DB.QueryRow("SELECT unavailable FROM nodes_settings WHERE node_id = ?", id).Scan(&unavailable)
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"settings": map[string]interface{}{
+			"unavailable": unavailable,
+		},
+	})
+}
+
+func (h *AdminHandler) UpdateNodeSettings(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		jsonError(w, "Invalid node ID", http.StatusBadRequest)
+		return
+	}
+
+	var body struct {
+		Unavailable bool `json:"unavailable"`
+	}
+	json.NewDecoder(r.Body).Decode(&body)
+
+	database.DB.Exec(
+		"INSERT INTO nodes_settings (node_id, unavailable) VALUES (?, ?) ON DUPLICATE KEY UPDATE unavailable = VALUES(unavailable)",
+		id, body.Unavailable,
+	)
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{"success": true})
+}
+
 func (h *AdminHandler) AdminActivity(w http.ResponseWriter, r *http.Request) {
 	pageStr := r.URL.Query().Get("page")
 	page, _ := strconv.Atoi(pageStr)
@@ -649,23 +1030,108 @@ func (h *AdminHandler) AdminActivity(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AdminHandler) ListAdminNests(w http.ResponseWriter, r *http.Request) {
-	rows, err := database.DB.Query("SELECT ptero_nest_id, name, logo, description, unavailable FROM nests ORDER BY name")
+	pteroNests, err := services.GetPteroNests()
 	if err != nil {
 		jsonError(w, "Failed to fetch nests", http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
+
+	type nestEntry struct {
+		ID          int64       `json:"id"`
+		PteroNestID int64       `json:"ptero_nest_id"`
+		Name        string      `json:"name"`
+		Description interface{} `json:"description"`
+		Logo        interface{} `json:"logo"`
+		Unavailable bool        `json:"unavailable"`
+	}
+
+	nestMap := make(map[int64]bool)
+	var nests []nestEntry
+	for _, n := range pteroNests {
+		id, _ := n["id"].(float64)
+		name, _ := n["name"].(string)
+		desc := n["description"]
+		logo := n["logo"]
+
+		var unavailable bool
+		database.DB.QueryRow("SELECT unavailable FROM nests WHERE ptero_nest_id = ?", int64(id)).Scan(&unavailable)
+
+		nests = append(nests, nestEntry{
+			ID:          int64(id),
+			PteroNestID: int64(id),
+			Name:        name,
+			Description: desc,
+			Logo:        logo,
+			Unavailable: unavailable,
+		})
+		nestMap[int64(id)] = true
+	}
+
+	rows, err := database.DB.Query("SELECT ptero_nest_id, name, logo, description, unavailable FROM nests")
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var dbNestID int64
+			var name string
+			var logo, desc *string
+			var unavail bool
+			rows.Scan(&dbNestID, &name, &logo, &desc, &unavail)
+			if !nestMap[dbNestID] {
+				var logoVal, descVal interface{}
+				if logo != nil {
+					logoVal = *logo
+				}
+				if desc != nil {
+					descVal = *desc
+				}
+				nests = append(nests, nestEntry{
+					ID:          dbNestID,
+					PteroNestID: dbNestID,
+					Name:        name,
+					Description: descVal,
+					Logo:        logoVal,
+					Unavailable: unavail,
+				})
+			}
+		}
+	}
+
+	if nests == nil {
+		nests = []nestEntry{}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{"nests": nests})
+}
+
+func (h *AdminHandler) ListAvailableNests(w http.ResponseWriter, r *http.Request) {
+	pteroNests, err := services.GetPteroNests()
+	if err != nil {
+		jsonError(w, "Failed to fetch nests", http.StatusInternalServerError)
+		return
+	}
+
+	var existing map[int64]bool
+	rows, err := database.DB.Query("SELECT ptero_nest_id FROM nests")
+	if err == nil {
+		defer rows.Close()
+		existing = make(map[int64]bool)
+		for rows.Next() {
+			var id int64
+			rows.Scan(&id)
+			existing[id] = true
+		}
+	}
 
 	var nests []map[string]interface{}
-	for rows.Next() {
-		var id int64
-		var name string
-		var logo, desc *string
-		var unavail bool
-		rows.Scan(&id, &name, &logo, &desc, &unavail)
+	for _, n := range pteroNests {
+		id, _ := n["id"].(float64)
+		if existing != nil && existing[int64(id)] {
+			continue
+		}
+		name, _ := n["name"].(string)
 		nests = append(nests, map[string]interface{}{
-			"ptero_nest_id": id, "name": name, "logo": logo,
-			"description": desc, "unavailable": unavail,
+			"id":   int64(id),
+			"name": name,
 		})
 	}
 	if nests == nil {
@@ -677,10 +1143,8 @@ func (h *AdminHandler) ListAdminNests(w http.ResponseWriter, r *http.Request) {
 
 func (h *AdminHandler) SaveNest(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		PteroNestID int64   `json:"ptero_nest_id"`
-		Name        string  `json:"name"`
-		Logo        *string `json:"logo"`
-		Description *string `json:"description"`
+		PteroNestID int64  `json:"pteroNestId"`
+		Name        string `json:"name"`
 	}
 	json.NewDecoder(r.Body).Decode(&body)
 
@@ -690,8 +1154,8 @@ func (h *AdminHandler) SaveNest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err := database.DB.Exec(
-		"INSERT INTO nests (ptero_nest_id, name, logo, description) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), logo = VALUES(logo), description = VALUES(description)",
-		body.PteroNestID, body.Name, body.Logo, body.Description,
+		"INSERT INTO nests (ptero_nest_id, name) VALUES (?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name)",
+		body.PteroNestID, body.Name,
 	)
 	if err != nil {
 		jsonError(w, "Failed to save nest", http.StatusInternalServerError)
@@ -710,15 +1174,139 @@ func (h *AdminHandler) UpdateNest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body struct {
-		Unavailable *bool `json:"unavailable"`
+		Name        *string `json:"name"`
+		Logo        *string `json:"logo"`
+		Description *string `json:"description"`
+		Unavailable *bool   `json:"unavailable"`
 	}
 	json.NewDecoder(r.Body).Decode(&body)
 
+	if body.Name != nil || body.Logo != nil || body.Description != nil {
+		database.DB.Exec(
+			"UPDATE nests SET name = COALESCE(?, name), logo = COALESCE(?, logo), description = COALESCE(?, description) WHERE ptero_nest_id = ?",
+			body.Name, body.Logo, body.Description, id,
+		)
+	}
 	if body.Unavailable != nil {
 		database.DB.Exec("UPDATE nests SET unavailable = ? WHERE ptero_nest_id = ?", *body.Unavailable, id)
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{"success": true})
+}
+
+func (h *AdminHandler) DeleteNest(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		jsonError(w, "Invalid nest ID", http.StatusBadRequest)
+		return
+	}
+
+	database.DB.Exec("DELETE FROM nests WHERE ptero_nest_id = ?", id)
+	writeJSON(w, http.StatusOK, map[string]interface{}{"success": true})
+}
+
+func (h *AdminHandler) ListNestEggs(w http.ResponseWriter, r *http.Request) {
+	nestIDStr := r.PathValue("nestId")
+	nestID, err := strconv.ParseInt(nestIDStr, 10, 64)
+	if err != nil {
+		jsonError(w, "Invalid nest ID", http.StatusBadRequest)
+		return
+	}
+
+	pteroEggs, err := services.GetPteroNestEggs(nestID)
+	if err != nil {
+		jsonError(w, "Failed to fetch eggs", http.StatusInternalServerError)
+		return
+	}
+
+	type eggEntry struct {
+		ID             int64                  `json:"id"`
+		Name           string                 `json:"name"`
+		Description    interface{}            `json:"description"`
+		CustomResources map[string]interface{} `json:"customResources"`
+	}
+
+	var eggs []eggEntry
+	for _, e := range pteroEggs {
+		id, _ := e["id"].(float64)
+		name, _ := e["name"].(string)
+		desc := e["description"]
+
+		var cpuLimit, memLimit, diskLimit *int64
+		var logo *string
+		var unavail bool
+		database.DB.QueryRow(
+			"SELECT cpu_limit, memory_limit, disk_limit, logo, unavailable FROM egg_resources WHERE ptero_nest_id = ? AND ptero_egg_id = ?",
+			nestID, int64(id),
+		).Scan(&cpuLimit, &memLimit, &diskLimit, &logo, &unavail)
+
+		resources := make(map[string]interface{})
+		if cpuLimit != nil {
+			resources["cpu_limit"] = *cpuLimit
+		}
+		if memLimit != nil {
+			resources["memory_limit"] = *memLimit
+		}
+		if diskLimit != nil {
+			resources["disk_limit"] = *diskLimit
+		}
+		resources["unavailable"] = unavail
+		if logo != nil {
+			resources["logo"] = *logo
+		}
+
+		eggs = append(eggs, eggEntry{
+			ID:              int64(id),
+			Name:            name,
+			Description:     desc,
+			CustomResources: resources,
+		})
+	}
+	if eggs == nil {
+		eggs = []eggEntry{}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{"eggs": eggs})
+}
+
+func (h *AdminHandler) GetEggSettings(w http.ResponseWriter, r *http.Request) {
+	nestIDStr := r.PathValue("nestId")
+	eggIDStr := r.PathValue("eggId")
+	nestID, _ := strconv.ParseInt(nestIDStr, 10, 64)
+	eggID, _ := strconv.ParseInt(eggIDStr, 10, 64)
+
+	var eggInfo map[string]interface{}
+	pteroEgg, err := services.GetEgg(nestID, eggID)
+	if err == nil {
+		eggInfo = map[string]interface{}{"name": pteroEgg["name"]}
+	}
+
+	var cpuLimit, memLimit, diskLimit *int64
+	var logo *string
+	database.DB.QueryRow(
+		"SELECT cpu_limit, memory_limit, disk_limit, logo FROM egg_resources WHERE ptero_nest_id = ? AND ptero_egg_id = ?",
+		nestID, eggID,
+	).Scan(&cpuLimit, &memLimit, &diskLimit, &logo)
+
+	resources := make(map[string]interface{})
+	if cpuLimit != nil {
+		resources["cpu_limit"] = *cpuLimit
+	}
+	if memLimit != nil {
+		resources["memory_limit"] = *memLimit
+	}
+	if diskLimit != nil {
+		resources["disk_limit"] = *diskLimit
+	}
+	if logo != nil {
+		resources["logo"] = *logo
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"egg":       eggInfo,
+		"resources": resources,
+	})
 }
 
 func (h *AdminHandler) SaveEgg(w http.ResponseWriter, r *http.Request) {
@@ -759,15 +1347,73 @@ func (h *AdminHandler) UpdateEgg(w http.ResponseWriter, r *http.Request) {
 	eggID, _ := strconv.ParseInt(eggIDStr, 10, 64)
 
 	var body struct {
-		Unavailable *bool `json:"unavailable"`
+		Logo        *string `json:"logo"`
+		CPULimit    *int64  `json:"cpu_limit"`
+		MemoryLimit *int64  `json:"memory_limit"`
+		DiskLimit   *int64  `json:"disk_limit"`
+		Unavailable *bool   `json:"unavailable"`
 	}
 	json.NewDecoder(r.Body).Decode(&body)
 
+	if body.Logo != nil || body.CPULimit != nil || body.MemoryLimit != nil || body.DiskLimit != nil {
+		database.DB.Exec(
+			`INSERT INTO egg_resources (ptero_nest_id, ptero_egg_id, logo, cpu_limit, memory_limit, disk_limit)
+			 VALUES (?, ?, ?, ?, ?, ?)
+			 ON DUPLICATE KEY UPDATE logo = VALUES(logo), cpu_limit = VALUES(cpu_limit), memory_limit = VALUES(memory_limit), disk_limit = VALUES(disk_limit)`,
+			nestID, eggID, body.Logo, body.CPULimit, body.MemoryLimit, body.DiskLimit,
+		)
+	}
 	if body.Unavailable != nil {
-		database.DB.Exec("UPDATE egg_resources SET unavailable = ? WHERE ptero_nest_id = ? AND ptero_egg_id = ?", *body.Unavailable, nestID, eggID)
+		database.DB.Exec(
+			"UPDATE egg_resources SET unavailable = ? WHERE ptero_nest_id = ? AND ptero_egg_id = ?",
+			*body.Unavailable, nestID, eggID,
+		)
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{"success": true})
+}
+
+func (h *AdminHandler) ApplyEggAll(w http.ResponseWriter, r *http.Request) {
+	nestIDStr := r.PathValue("nestId")
+	eggIDStr := r.PathValue("eggId")
+	nestID, _ := strconv.ParseInt(nestIDStr, 10, 64)
+	eggID, _ := strconv.ParseInt(eggIDStr, 10, 64)
+
+	var body struct {
+		CPULimit    *int64 `json:"cpu_limit"`
+		MemoryLimit *int64 `json:"memory_limit"`
+		DiskLimit   *int64 `json:"disk_limit"`
+	}
+	json.NewDecoder(r.Body).Decode(&body)
+
+	serverIDs, err := services.GetPergoServerIDsByEgg(nestID, eggID)
+	if err != nil {
+		jsonError(w, "Failed to fetch servers", http.StatusInternalServerError)
+		return
+	}
+
+	total := len(serverIDs)
+	updated := 0
+	for _, sid := range serverIDs {
+		limits := make(map[string]interface{})
+		if body.CPULimit != nil {
+			limits["cpu"] = *body.CPULimit
+		}
+		if body.MemoryLimit != nil {
+			limits["memory"] = *body.MemoryLimit
+		}
+		if body.DiskLimit != nil {
+			limits["disk"] = *body.DiskLimit
+		}
+		if err := services.UpdatePteroServerBuild(sid, limits); err == nil {
+			updated++
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"updated": updated,
+		"total":   total,
+	})
 }
 
 func boolVal(p *bool, def bool) bool {
@@ -804,8 +1450,8 @@ func (h *AdminHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	dbOK = err == nil
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"status":   "ok",
-		"database": dbOK,
+		"status":      "ok",
+		"database":    dbOK,
 		"pterodactyl": services.TestPteroConnection() == nil,
 	})
 }
