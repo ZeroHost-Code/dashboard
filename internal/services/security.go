@@ -3,6 +3,7 @@ package services
 import (
 	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -405,7 +406,7 @@ func CheckPasswordBreach(password string) (map[string]interface{}, error) {
 	if len(password) < 6 {
 		return map[string]interface{}{"breached": false}, nil
 	}
-	h := sha256.Sum256([]byte(password))
+	h := sha1.Sum([]byte(password))
 	hexHash := strings.ToUpper(hex.EncodeToString(h[:]))
 	prefix := hexHash[:5]
 	suffix := hexHash[5:]
