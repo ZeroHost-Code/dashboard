@@ -30,7 +30,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
-            systemctl stop zerohost-dashboard || true
+            systemctl stop beta || true
 
       - name: Upload binary
         uses: appleboy/scp-action@v0.1.7
@@ -53,4 +53,4 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
             chmod +x ${{ secrets.BETA_PATH }}/server
-            systemctl start zerohost-dashboard
+            systemctl start beta
