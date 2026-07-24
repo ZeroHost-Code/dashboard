@@ -1076,7 +1076,7 @@ async function handleTotpRecovery(e) {
   }
 }
 
-async function completePasskeyLogin(credential) {
+async function completePasskeyLogin(credential, sessionToken) {
   if (await checkVpn()) {
     await showVpnBlockModal();
     return;
@@ -1085,6 +1085,7 @@ async function completePasskeyLogin(credential) {
   const data = await api('/auth/passkeys/login/complete', {
     method: 'POST',
     body: JSON.stringify({
+      sessionToken,
       response: serializeCredential(credential),
     }),
   });
@@ -1111,6 +1112,7 @@ async function setupPasskeyAutofill() {
       body: JSON.stringify({}),
     });
 
+    const sessionToken = beginData.sessionToken;
     passkeyAbortController = new AbortController();
     const credential = await navigator.credentials.get({
       publicKey: prepareWebAuthnOptions(beginData.options),
@@ -1119,7 +1121,7 @@ async function setupPasskeyAutofill() {
     });
 
     if (credential) {
-      await completePasskeyLogin(credential);
+      await completePasskeyLogin(credential, sessionToken);
     }
   } catch (err) {
     if (err.name === 'AbortError' || err.name === 'NotAllowedError') return;
@@ -1148,11 +1150,12 @@ async function handlePasskeyLogin() {
       body: JSON.stringify(body),
     });
 
+    const sessionToken = beginData.sessionToken;
     const credential = await navigator.credentials.get({
       publicKey: prepareWebAuthnOptions(beginData.options),
     });
 
-    await completePasskeyLogin(credential);
+    await completePasskeyLogin(credential, sessionToken);
   } catch (err) {
     if (err.message && err.message.toLowerCase().includes('vpn')) {
       await showVpnBlockModal();
