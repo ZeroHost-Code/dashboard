@@ -159,12 +159,20 @@ func (h *PasskeyHandler) CompleteRegistration(w http.ResponseWriter, r *http.Req
 		ClientDataJSON    string `json:"clientDataJSON"`
 		DeviceName        string `json:"deviceName"`
 		ResponseObj       struct {
+			ID                string `json:"id"`
+			RawID             string `json:"rawId"`
 			AttestationObject string `json:"attestationObject"`
 			ClientDataJSON    string `json:"clientDataJSON"`
 		} `json:"response"`
 	}
 	json.NewDecoder(r.Body).Decode(&body)
 
+	if body.ID == "" {
+		body.ID = body.ResponseObj.ID
+	}
+	if body.RawID == "" {
+		body.RawID = body.ResponseObj.RawID
+	}
 	if body.ID == "" {
 		jsonError(w, "Invalid passkey data", http.StatusBadRequest)
 		return
@@ -181,8 +189,12 @@ func (h *PasskeyHandler) CompleteRegistration(w http.ResponseWriter, r *http.Req
 		deviceName = "Unknown Device"
 	}
 
-	credentialID, _ := base64.RawURLEncoding.DecodeString(body.RawID)
-	if credentialID == nil {
+	if body.RawID == "" {
+		jsonError(w, "Invalid credential ID", http.StatusBadRequest)
+		return
+	}
+	credentialID, err := base64.RawURLEncoding.DecodeString(body.RawID)
+	if err != nil {
 		jsonError(w, "Invalid credential ID", http.StatusBadRequest)
 		return
 	}
@@ -325,10 +337,6 @@ func (h *PasskeyHandler) CompleteLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	challengeMu.Lock()
-	fmt.Printf("DEBUG CompleteLogin: sessionToken=%q mapSize=%d\n", body.SessionToken, len(challengeMap))
-	for k := range challengeMap {
-		fmt.Printf("DEBUG CompleteLogin: key=%q\n", k)
-	}
 	stored := challengeMap["login:"+body.SessionToken]
 	if stored != nil {
 		delete(challengeMap, "login:"+body.SessionToken)
