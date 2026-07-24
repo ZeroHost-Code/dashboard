@@ -325,6 +325,10 @@ func (h *PasskeyHandler) CompleteLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	challengeMu.Lock()
+	fmt.Printf("DEBUG CompleteLogin: sessionToken=%q mapSize=%d\n", body.SessionToken, len(challengeMap))
+	for k := range challengeMap {
+		fmt.Printf("DEBUG CompleteLogin: key=%q\n", k)
+	}
 	stored := challengeMap["login:"+body.SessionToken]
 	if stored != nil {
 		delete(challengeMap, "login:"+body.SessionToken)
